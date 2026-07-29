@@ -1,0 +1,88 @@
+settingan untuk Firestore database :
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- HELPER FUNCTIONS ---
+    // Memastikan user sudah login
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Memastikan user adalah pemilik data
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- RULES ---
+
+    // 1. Koleksi friends_activity
+    match /friends_activity/{userId} {
+      // Hanya pemilik atau orang yang mem-follow user ini yang bisa melihat aktivitasnya
+      allow read: if isSignedIn() && (isOwner(userId) || 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(userId)));
+      
+      // Hanya pemilik yang bisa buat/update, dengan validasi ketat
+      allow create, update: if isOwner(userId) 
+        && request.resource.data.keys().hasAll(['song', 'name', 'timestamp'])
+        && request.resource.data.song is string && request.resource.data.song.size() <= 100
+        && request.resource.data.name is string && request.resource.data.name.size() <= 50
+        && (request.resource.data.avatar is string)
+        // Memastikan timestamp adalah waktu server saat ini
+        && request.resource.data.timestamp == request.time;
+        
+      allow delete: if isOwner(userId);
+    }
+
+    // 2. Koleksi users dan semua sub-koleksinya (playlists, liked_songs, following)
+    match /users/{userId}/{allSubcollections=**} {
+      // Benar-benar privat: hanya pemilik yang bisa baca dan tulis
+      allow read, write: if isOwner(userId);
+      
+      // Tambahan validasi untuk liked_songs agar UI tetap stabil
+      match /liked_songs/{songId} {
+        allow write: if isOwner(userId)
+          && request.resource.data.keys().hasAll(['id', 'name', 'audio'])
+          && request.resource.data.audio is string;
+      }
+    }
+  }
+}
+
+settingan untuk Realtime Database :
+
+{
+  "rules": {
+    "presence": {
+      "$uid": {
+        // Mengizinkan baca jika sudah login (dibutuhkan untuk fitur Friends Activity)
+        ".read": "auth != null",
+        
+        // Hanya pemilik UID yang bisa menulis statusnya sendiri
+        ".write": "auth != null && auth.uid === $uid",
+        
+        // Validasi struktur data agar database tetap bersih
+        ".validate": "newData.hasChildren(['state', 'last_changed'])",
+        
+        "state": {
+          ".validate": "newData.isString() && (newData.val() == 'online' || newData.val() == 'offline')"
+        },
+        "last_changed": {
+          ".validate": "newData.isNumber()"
+        },
+        // Mencegah penambahan field liar selain state dan last_changed
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
+
+settingan untuk query Firestore di bagian Friends Activity:
+
+Collection ID: friends_activity
+Fields:
+timestamp -> Descending
+__name__ -> Ascending
+Query Scope: Collection
