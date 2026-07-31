@@ -7,7 +7,7 @@
       "name": "Arteri",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Arteri.mp3",
-      "cover": "Elemen/Images%20Song/Arteri.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Arteri.webp",
       "duration": 275
     },
     {
@@ -15,7 +15,7 @@
       "name": "Dalam Hitungan",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Dalam%20Hitungan.mp3",
-      "cover": "Elemen/Images%20Song/Dalam%20Hitungan.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Dalam%20Hitungan.webp",
       "duration": 243
     },
     {
@@ -23,7 +23,7 @@
       "name": "Nina",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Nina.mp3",
-      "cover": "Elemen/Images%20Song/Nina.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Nina.webp",
       "duration": 283
     },
     {
@@ -31,7 +31,7 @@
       "name": "Tarot",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Tarot.mp3",
-      "cover": "Elemen/Images%20Song/Tarot.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Tarot.webp",
       "duration": 289
     },
     {
@@ -39,7 +39,7 @@
       "name": "Kelelawar",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Kelelawar.mp3",
-      "cover": "Elemen/Images%20Song/Kelelawar.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Kelelawar.webp",
       "duration": 265
     },
     {
@@ -47,7 +47,7 @@
       "name": "Peradaban",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Peradaban.mp3",
-      "cover": "Elemen/Images%20Song/Peradaban.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Peradaban.webp",
       "duration": 343
     },
     {
@@ -55,7 +55,7 @@
       "name": "o,Tuan",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/o,Tuan.mp3",
-      "cover": "Elemen/Images%20Song/o,Tuan.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/o,Tuan.webp",
       "duration": 305
     },
     {
@@ -63,7 +63,7 @@
       "name": "Kami Belum Tentu",
       "artist": ".Feast",
       "audio": "Elemen/.Feast/Kami%20Belum%20Tentu.mp3",
-      "cover": "Elemen/Images%20Song/Kami%20Belum%20Tentu.webp",
+      "cover": "Elemen/.Feast/Image%20Songs/Kami%20Belum%20Tentu.webp",
       "duration": 231
     },
     {
@@ -71,7 +71,7 @@
       "name": "Evaluasi",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Evaluasi.mp3",
-      "cover": "Elemen/Images%20Song/Evaluasi.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Evaluasi.webp",
       "duration": 202
     },
     {
@@ -79,7 +79,7 @@
       "name": "Everything U Are",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Everything%20U%20Are.mp3",
-      "cover": "Elemen/Images%20Song/Everything%20U%20Are.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Everything%20U%20Are.webp",
       "duration": 236
     },
     {
@@ -87,7 +87,7 @@
       "name": "Cincin",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Cincin.mp3",
-      "cover": "Elemen/Images%20Song/Cincin.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Cincin.webp",
       "duration": 266
     },
     {
@@ -95,7 +95,7 @@
       "name": "Rumah Ke Rumah",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Rumah%20Ke%20Rumah.mp3",
-      "cover": "Elemen/Images%20Song/Rumah%20Ke%20Rumah.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Rumah%20Ke%20Rumah.webp",
       "duration": 277
     },
     {
@@ -103,7 +103,7 @@
       "name": "Janji Palsu",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Janji%20Palsu.mp3",
-      "cover": "Elemen/Images%20Song/Janji%20Palsu.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Janji%20Palsu.webp",
       "duration": 242
     },
     {
@@ -111,7 +111,7 @@
       "name": "Secukupnya",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Secukupnya.mp3",
-      "cover": "Elemen/Images%20Song/Secukupnya.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Secukupnya.webp",
       "duration": 205
     },
     {
@@ -119,7 +119,7 @@
       "name": "Kita Ke Sana",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Kita%20Ke%20Sana.mp3",
-      "cover": "Elemen/Images%20Song/Kita%20Ke%20Sana.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Kita%20Ke%20Sana.webp",
       "duration": 282
     },
     {
@@ -127,7 +127,7 @@
       "name": "Membasuh",
       "artist": "Hindia",
       "audio": "Elemen/Hindia/Membasuh.mp3",
-      "cover": "Elemen/Images%20Song/Membasuh.webp",
+      "cover": "Elemen/Hindia/Image%20Songs/Membasuh.webp",
       "duration": 373
     },
     {
@@ -135,7 +135,7 @@
       "name": "Iqro'",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Iqro.mp3",
-      "cover": "Elemen/Images%20Song/Iqro.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Iqro.webp",
       "duration": 233
     },
     {
@@ -143,7 +143,7 @@
       "name": "Komang",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Komang.mp3",
-      "cover": "Elemen/Images%20Song/Komang.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Komang.webp",
       "duration": 222
     },
     {
@@ -151,7 +151,7 @@
       "name": "Dunia Yang Nanti",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3",
-      "cover": "Elemen/Images%20Song/Dunia%20Yang%20Nanti.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Dunia%20Yang%20Nanti.webp",
       "duration": 200
     },
     {
@@ -159,7 +159,7 @@
       "name": "Bersenja Gurau",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Bersenja%20Gurau.mp3",
-      "cover": "Elemen/Images%20Song/Bersenja%20Gurau.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Bersenja%20Gurau.webp",
       "duration": 193
     },
     {
@@ -167,7 +167,7 @@
       "name": "Ekspektasi",
       "artist": "Aruma & Raim Laode",
       "audio": "Elemen/Raim%20Laode/Ekspektasi.mp3",
-      "cover": "Elemen/Images%20Song/Ekspektasi.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Ekspektasi.webp",
       "duration": 293
     },
     {
@@ -175,7 +175,7 @@
       "name": "Lesung Pipi",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Lesung%20Pipi.mp3",
-      "cover": "Elemen/Images%20Song/Lesung%20Pipi.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Lesung%20Pipi.webp",
       "duration": 226
     },
     {
@@ -183,7 +183,7 @@
       "name": "Pergilah Kasih",
       "artist": "Raim Laode",
       "audio": "Elemen/Raim%20Laode/Pergilah Kasih.mp3",
-      "cover": "Elemen/Images%20Song/Pergilah%20Kasih.webp",
+      "cover": "Elemen/Raim%20Laode/Image%20Songs/Pergilah%20Kasih.webp",
       "duration": 272
     },
     {
@@ -191,7 +191,7 @@
       "name": "Alamak",
       "artist": "Rizky Febian & Adrian Khalif",
       "audio": "Elemen/Rizky%20Febian/Alamak.mp3",
-      "cover": "Elemen/Images%20Song/Alamak.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp",
       "duration": 221
     },
     {
@@ -199,7 +199,7 @@
       "name": "Hingga Tua Bersama",
       "artist": "Rizky Febian",
       "audio": "Elemen/Rizky%20Febian/Hingga%20Tua%20Bersama.mp3",
-      "cover": "Elemen/Images%20Song/Hingga%20Tua%20Bersama.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Hingga%20Tua%20Bersama.webp",
       "duration": 268
     },
     {
@@ -207,7 +207,7 @@
       "name": "Malam Rawan",
       "artist": "Rizky Febian",
       "audio": "Elemen/Rizky%20Febian/Malam%20Rawan.mp3",
-      "cover": "Elemen/Images%20Song/Malam%20Rawan.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Malam%20Rawan.webp",
       "duration": 218
     },
     {
@@ -215,7 +215,7 @@
       "name": "Kesempurnaan Cinta",
       "artist": "Rizky Febian",
       "audio": "Elemen/Rizky%20Febian/Kesempurnaan%20Cinta.mp3",
-      "cover": "Elemen/Images%20Song/Kesempurnaan%20Cinta.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Kesempurnaan%20Cinta.webp",
       "duration": 213
     },
     {
@@ -223,7 +223,7 @@
       "name": "Penantian Berharga",
       "artist": "Rizky Febian",
       "audio": "Elemen/Rizky%20Febian/Penantian%20Berharga.mp3",
-      "cover": "Elemen/Images%20Song/Penantian%20Berharga.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Penantian%20Berharga.webp",
       "duration": 217
     },
     {
@@ -231,15 +231,47 @@
       "name": "Cukup Tau",
       "artist": "Rizky Febian",
       "audio": "Elemen/Rizky%20Febian/Cukup%20Tau.mp3",
-      "cover": "Elemen/Images%20Song/Cukup%20Tau.webp",
+      "cover": "Elemen/Rizky%20Febian/Image%20Songs/Cukup%20Tau.webp",
       "duration": 217
+    },
+    {
+      "id": "aruma-&-riam-laode-ekspektasi",
+      "name": "Ekspektasi",
+      "artist": "Aruma & Raim Laode",
+      "audio": "Elemen/Aruma/Ekspektasi.mp3",
+      "cover": "Elemen/Aruma/Image%20Songs/Ekspektasi.webp",
+      "duration": 293
+    },
+    {
+      "id": "rizky-febian-&-adrian-khalif-alamak",
+      "name": "Alamak",
+      "artist": "Rizky Febian & Adrian Khalif",
+      "audio": "Elemen/Adrian%20Khalif/Alamak.mp3",
+      "cover": "Elemen/Adrian%20Khalif/Image%20Songs/Alamak.webp",
+      "duration": 221
+    },
+    {
+      "id": "adrian-khalif-&-juicy-luicy-sialan",
+      "name": "Sialan",
+      "artist": "Adrian Khalif & Juicy Luicy",
+      "audio": "Elemen/Adrian%20Khalif/Sialan.mp3",
+      "cover": "Elemen/Adrian%20Khalif/Image%20Songs/Sialan.webp",
+      "duration": 250
+    },
+    {
+      "id": "eńau-&-ari-lesmana-sesi-potret",
+      "name": "Sesi Potret",
+      "artist": "eńau & Ari Lesmana",
+      "audio": "Elemen/Ari%20Lesmana/Sesi%20Potret.mp3",
+      "cover": "Elemen/Ari%20Lesmana/Image%20Songs/Sesi%20Potret.webp",
+      "duration": 243
     },
     {
       "id": "vierra-seandainya",
       "name": "Seandainya",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Seandainya.mp3",
-      "cover": "Elemen/Images%20Song/Seandainya.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Seandainya.webp",
       "duration": 263
     },
     {
@@ -247,7 +279,7 @@
       "name": "Rasa Ini",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Rasa%20Ini.mp3",
-      "cover": "Elemen/Images%20Song/Rasa%20Ini.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Rasa%20Ini.webp",
       "duration": 240
     },
     {
@@ -255,7 +287,7 @@
       "name": "Bersamamu",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Bersamamu.mp3",
-      "cover": "Elemen/Images%20Song/Bersamamu.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Bersamamu.webp",
       "duration": 228
     },
     {
@@ -263,7 +295,7 @@
       "name": "Dengarkan Curhatku",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Dengarkan%20Curhatku.mp3",
-      "cover": "Elemen/Images%20Song/Dengarkan%20Curhatku.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Dengarkan%20Curhatku.webp",
       "duration": 157
     },
     {
@@ -271,7 +303,7 @@
       "name": "Terlalu Lama",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Terlalu%20Lama.mp3",
-      "cover": "Elemen/Images%20Song/Terlalu%20Lama.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Terlalu%20Lama.webp",
       "duration": 248
     },
     {
@@ -279,7 +311,7 @@
       "name": "Jadi Yang Kuinginkan",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Jadi%20Yang%20Kuinginkan.mp3",
-      "cover": "Elemen/Images%20Song/Jadi%20Yang%20Kuinginkan.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Jadi%20Yang%20Kuinginkan.webp",
       "duration": 190
     },
     {
@@ -287,7 +319,7 @@
       "name": "Kesepian",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Kesepian.mp3",
-      "cover": "Elemen/Images%20Song/Kesepian.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Kesepian.webp",
       "duration": 250
     },
     {
@@ -295,7 +327,7 @@
       "name": "Perih",
       "artist": "Vierra",
       "audio": "Elemen/Vierra/Perih.mp3",
-      "cover": "Elemen/Images%20Song/Perih.webp",
+      "cover": "Elemen/Vierra/Image%20Songs/Perih.webp",
       "duration": 200
     },
     {
@@ -303,7 +335,7 @@
       "name": "Creep",
       "artist": "Radiohead",
       "audio": "Elemen/Radiohead/Creep.mp3",
-      "cover": "Elemen/Images%20Song/Creep.webp",
+      "cover": "Elemen/Radiohead/Image%20Songs/Creep.webp",
       "duration": 236
     },
     {
@@ -311,7 +343,7 @@
       "name": "Karma Police",
       "artist": "Radiohead",
       "audio": "Elemen/Radiohead/Karma Police.mp3",
-      "cover": "Elemen/Images Song/Karma Police.webp",
+      "cover": "Elemen/Radiohead/Image%20Songs/Karma%20Police.webp",
       "duration": 264
     },
     {
@@ -319,7 +351,7 @@
       "name": "Let Down",
       "artist": "Radiohead",
       "audio": "Elemen/Radiohead/Let Down.mp3",
-      "cover": "Elemen/Images Song/Let Down.webp",
+      "cover": "Elemen/Radiohead/Image%20Songs/Let%20Down.webp",
       "duration": 299
     },
     {
@@ -327,7 +359,7 @@
       "name": "No Surprises",
       "artist": "Radiohead",
       "audio": "Elemen/Radiohead/No Surprises.mp3",
-      "cover": "Elemen/Images Song/No Surprises.webp",
+      "cover": "Elemen/Radiohead/Image%20Songs/No%20Surprises.webp",
       "duration": 229
     },
     {
@@ -335,7 +367,7 @@
       "name": "All I Need",
       "artist": "Radiohead",
       "audio": "Elemen/Radiohead/All%20I%20Need.mp3",
-      "cover": "Elemen/Images%20Song/All%20I%20Need.webp",
+      "cover": "Elemen/Radiohead/Image%20Songs/All%20I%20Need.webp",
       "duration": 228
     },
     {
@@ -343,7 +375,7 @@
       "name": "Shape Of My Heart",
       "artist": "Backstreet Boys",
       "audio": "Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3",
-      "cover": "Elemen/Images%20Song/Shape%20Of%20My%20Heart.webp",
+      "cover": "Elemen/Backstreet%20Boys/Image%20Songs/Shape%20Of%20My%20Heart.webp",
       "duration": 228
     },
     {
@@ -351,7 +383,7 @@
       "name": "Terbuang Dalam Waktu",
       "artist": "Barasuara",
       "audio": "Elemen/Barasuara/Terbuang%20Dalam%20Waktu.mp3",
-      "cover": "Elemen/Images%20Song/Terbuang%20Dalam%20Waktu.webp",
+      "cover": "Elemen/Barasuara/Image%20Songs/Terbuang%20Dalam%20Waktu.webp",
       "duration": 299
     },
     {
@@ -359,7 +391,7 @@
       "name": "Lama - Lama",
       "artist": "Bernadya",
       "audio": "Elemen/Bernadya/Lama%20-%20Lama.mp3",
-      "cover": "Elemen/Images%20Song/Lama%20-%20Lama.webp",
+      "cover": "Elemen/Bernadya/Image%20Songs/Lama%20-%20Lama.webp",
       "duration": 185
     },
     {
@@ -367,7 +399,7 @@
       "name": "Untungnya, Hidup Harus Tetap Berjalan",
       "artist": "Bernadya",
       "audio": "Elemen/Bernadya/Untungnya,%20Hidup%20Harus%20Tetap%20Berjalan.mp3",
-      "cover": "Elemen/Images%20Song/Untungnya,%20Hidup%20Harus%20Tetap%20Berjalan.webp",
+      "cover": "Elemen/Bernadya/Image%20Songs/Untungnya,%20Hidup%20Harus%20Tetap%20Berjalan.webp",
       "duration": 183
     },
     {
@@ -375,7 +407,7 @@
       "name": "Jiwa Yang Bersedih",
       "artist": "Ghea Indrawari",
       "audio": "Elemen/Ghea%20Indrawari/Jiwa%20Yang%20Bersedih.mp3",
-      "cover": "Elemen/Images%20Song/Jiwa%20Yang%20Bersedih.webp",
+      "cover": "Elemen/Ghea%20Indrawari/Image%20Songs/Jiwa%20Yang%20Bersedih.webp",
       "duration": 277
     },
     {
@@ -383,7 +415,7 @@
       "name": "Sedia Aku Sebelum Hujan",
       "artist": "Idgitaf",
       "audio": "Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3",
-      "cover": "Elemen/Images%20Song/Sedia%20Aku%20Sebelum%20Hujan.webp",
+      "cover": "Elemen/Idgitaf/Image%20Songs/Sedia%20Aku%20Sebelum%20Hujan.webp",
       "duration": 233
     },
     {
@@ -391,7 +423,7 @@
       "name": "Lantas",
       "artist": "Juicy Luicy",
       "audio": "Elemen/Juicy%20Luicy/Lantas.mp3",
-      "cover": "Elemen/Images%20Song/Lantas.webp",
+      "cover": "Elemen/Juicy%20Luicy/Image%20Songs/Lantas.webp",
       "duration": 234
     },
     {
@@ -399,7 +431,7 @@
       "name": "Sialan",
       "artist": "Adrian Khalif & Juicy Luicy",
       "audio": "Elemen/Juicy%20Luicy/Sialan.mp3",
-      "cover": "Elemen/Images%20Song/Sialan.webp",
+      "cover": "Elemen/Juicy%20Luicy/Image%20Songs/Sialan.webp",
       "duration": 250
     },
     {
@@ -407,7 +439,7 @@
       "name": "Jakarta Hari Ini",
       "artist": "For Revenge, Stereo Wall",
       "audio": "Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3",
-      "cover": "Elemen/Images%20Song/Jakarta%20Hari%20Ini.webp",
+      "cover": "Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp",
       "duration": 224
     },
     {
@@ -415,7 +447,7 @@
       "name": "Bergema Sampai Selamanya",
       "artist": "Nadhif Basalamah",
       "audio": "Elemen/Nadhif%20Basalamah/Bergema%20Sampai%20Selamanya.mp3",
-      "cover": "Elemen/Images%20Song/Bergema%20Sampai%20Selamanya.webp",
+      "cover": "Elemen/Nadhif%20Basalamah/Image%20Songs/Bergema%20Sampai%20Selamanya.webp",
       "duration": 198
     },
     {
@@ -423,7 +455,7 @@
       "name": "Kita Usahakan Lagi",
       "artist": "Batas Senja",
       "audio": "Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3",
-      "cover": "Elemen/Images%20Song/Kita%20Usahakan%20Lagi.webp",
+      "cover": "Elemen/Batas%20Senja/Image%20Songs/Kita%20Usahakan%20Lagi.webp",
       "duration": 234
     },
     {
@@ -431,7 +463,7 @@
       "name": "Bila Kau Tak Disampingku",
       "artist": "Sheila On 7",
       "audio": "Elemen/Sheila%20On%207/Bila%20Kau%20Tak%20Disampingku.mp3",
-      "cover": "Elemen/Images%20Song/Bila%20Kau%20Tak%20Disampingku.webp",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Bila%20Kau%20Tak%20Disampingku.webp",
       "duration": 257
     },
     {
@@ -439,7 +471,7 @@
       "name": "Niscaya",
       "artist": "Bilal Indrajaya",
       "audio": "Elemen/Bilal%20Indrajaya/Niscaya.mp3",
-      "cover": "Elemen/Images%20Song/Niscaya.webp",
+      "cover": "Elemen/Bilal%20Indrajaya/Image%20Songs/Niscaya.webp",
       "duration": 241
     },
     {
@@ -447,7 +479,7 @@
       "name": "Iya Lagi",
       "artist": "Stevan Pasaribu",
       "audio": "Elemen/Stevan%20Pasaribu/Iya%20Lagi.mp3",
-      "cover": "Elemen/Images%20Song/Iya%20Lagi.webp",
+      "cover": "Elemen/Stevan%20Pasaribu/Image%20Songs/Iya%20Lagi.webp",
       "duration": 182
     },
     {
@@ -455,7 +487,7 @@
       "name": "Sesi Potret",
       "artist": "eńau & Ari Lesmana",
       "audio": "Elemen/Ari%20Lesmana/Sesi%20Potret.mp3",
-      "cover": "Elemen/Images%20Song/Sesi%20Potret.webp",
+      "cover": "Elemen/Ari%20Lesmana/Image%20Songs/Sesi%20Potret.webp",
       "duration": 243
     },
     {
@@ -463,7 +495,7 @@
       "name": "Pelangi",
       "artist": "Hivi!",
       "audio": "Elemen/Hivi!/Pelangi.mp3",
-      "cover": "Elemen/Images%20Song/Pelangi.webp",
+      "cover": "Elemen/Hivi!/Image%20Songs/Pelangi.webp",
       "duration": 217
     },
     {
@@ -471,7 +503,7 @@
       "name": "Kalau Nanti Sukses",
       "artist": "DHOT DESIGN",
       "audio": "Elemen/DHOT%20DESIGN/Kalau%20Nanti%20Sukses.mp3",
-      "cover": "Elemen/Images%20Song/Kalau%20Nanti%20Sukses.webp",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Kalau%20Nanti%20Sukses.webp",
       "duration": 251
     },
     {
@@ -479,7 +511,7 @@
       "name": "Orang Kaya Baru",
       "artist": "DHOT DESIGN",
       "audio": "Elemen/DHOT%20DESIGN/Orang%20Kaya%20Baru.mp3",
-      "cover": "Elemen/Images%20Song/Orang%20Kaya%20Baru.webp",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Orang%20Kaya%20Baru.webp",
       "duration": 213
     },
     {
@@ -487,7 +519,7 @@
       "name": "Menjauh",
       "artist": "DHOT DESIGN",
       "audio": "Elemen/DHOT%20DESIGN/Menjauh.mp3",
-      "cover": "Elemen/Images%20Song/Menjauh.webp",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Menjauh.webp",
       "duration": 230
     },
     {
@@ -495,7 +527,7 @@
       "name": "Senandung Gitar Untuknya",
       "artist": "DHOT DESIGN",
       "audio": "Elemen/DHOT%20DESIGN/Senandung%20Gitar%20Untuknya.mp3",
-      "cover": "Elemen/Images%20Song/Senandung%20Gitar%20Untuknya.webp",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Senandung%20Gitar%20Untuknya.webp",
       "duration": 221
     },
     {
@@ -503,7 +535,7 @@
       "name": "Sempurnanya Aku",
       "artist": "NPD",
       "audio": "Elemen/NPD/Sempurnanya%20Aku.mp3",
-      "cover": "Elemen/Images%20Song/Sempurnanya%20Aku.webp",
+      "cover": "Elemen/NPD/Image%20Songs/Sempurnanya%20Aku.webp",
       "duration": 228
     },
     {
@@ -511,7 +543,7 @@
       "name": "I Love You But You Lebih Love Me",
       "artist": "NPD",
       "audio": "Elemen/NPD/I%20Love%20You%20But%20You%20Lebih%20Love%20Me.mp3",
-      "cover": "Elemen/Images%20Song/I%20Love%20You%20But%20You%20Lebih%20Love%20Me.webp",
+      "cover": "Elemen/NPD/Image%20Songs/I%20Love%20You%20But%20You%20Lebih%20Love%20Me.webp",
       "duration": 246
     },
     {
@@ -519,7 +551,7 @@
       "name": "Lupain Aku Plis",
       "artist": "NPD",
       "audio": "Elemen/NPD/Lupain%20Aku%20Plis.mp3",
-      "cover": "Elemen/Images%20Song/Lupain%20Aku%20Plis.webp",
+      "cover": "Elemen/NPD/Image%20Songs/Lupain%20Aku%20Plis.webp",
       "duration": 256
     }
   ]

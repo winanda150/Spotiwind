@@ -1222,51 +1222,51 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const IndonesianGridSongs = [
             {
                 "id": "backstreet-boys-shape-of-my-heart", "name": "Shape Of My Heart", "artist": "Backstreet Boys", "plays": "98.1M", "duration": 228,
-                "audio": "Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3", "cover": "Elemen/Images%20Song/Shape%20Of%20My%20Heart.webp" 
+                "audio": "Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3", "cover": "Elemen/Backstreet%20Boys/Image%20Songs/Shape%20Of%20My%20Heart.webp" 
             },
             {
                 "id": "riam-laode-dunia-yang-nanti", "name": "Dunia Yang Nanti", "artist": "Raim Laode", "plays": "75.3M", "duration": 200,
-                "audio": "Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3", "cover": "Elemen/Images%20Song/Dunia%20Yang%20Nanti.webp"
+                "audio": "Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3", "cover": "Elemen/Raim%20Laode/Image%20Songs/Dunia%20Yang%20Nanti.webp"
             },
             {
                 "id": "hindia-evaluasi", "name": "Evaluasi", "artist": "Hindia", "plays": "68.9M", "duration": 202,
-                "audio": "Elemen/Hindia/Evaluasi.mp3", "cover": "Elemen/Images%20Song/Evaluasi.webp"
+                "audio": "Elemen/Hindia/Evaluasi.mp3", "cover": "Elemen/Hindia/Image%20Songs/Evaluasi.webp"
             },
             {
                 "id": "rizky-febian-&-adrian-khalif-alamak", "name": "Alamak", "artist": "Rizky Febian & Adrian Khalif", "plays": "55.2M", "duration": 221,
-                "audio": "Elemen/Rizky%20Febian/Alamak.mp3", "cover": "Elemen/Images%20Song/Alamak.webp"
+                "audio": "Elemen/Rizky%20Febian/Alamak.mp3", "cover": "Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp"
             },
             {
                 "id": ".feast-nina", "name": "Nina", "artist": ".Feast", "plays": "43.1M", "duration": 283,
-                "audio": "Elemen/.Feast/Nina.mp3", "cover": "Elemen/Images%20Song/Nina.webp"
+                "audio": "Elemen/.Feast/Nina.mp3", "cover": "Elemen/.Feast/Image%20Songs/Nina.webp"
             },
             {
                 "id": "idgitaf-sedia-aku-sebelum-hujan", "name": "Sedia Aku Sebelum Hujan", "artist": "Idgitaf", "plays": "39.8M", "duration": 233,
-                "audio": "Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3", "cover": "Elemen/Images%20Song/Sedia%20Aku%20Sebelum%20Hujan.webp"
+                "audio": "Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3", "cover": "Elemen/Idgitaf/Image%20Songs/Sedia%20Aku%20Sebelum%20Hujan.webp"
             },
             {
                 "id": "juicy-luicy-lantas", "name": "Lantas", "artist": "Juicy Luicy", "plays": "35.5M", "duration": 234,
-                "audio": "Elemen/Juicy%20Luicy/Lantas.mp3", "cover": "Elemen/Images%20Song/Lantas.webp"
+                "audio": "Elemen/Juicy%20Luicy/Lantas.mp3", "cover": "Elemen/Juicy%20Luicy/Image%20Songs/Lantas.webp"
             },
             {
                 "id": "vierra-seandainya", "name": "Seandainya", "artist": "Vierra", "plays": "31.2M", "duration": 263,
-                "audio": "Elemen/Vierra/Seandainya.mp3", "cover": "Elemen/Images%20Song/Seandainya.webp"
+                "audio": "Elemen/Vierra/Seandainya.mp3", "cover": "Elemen/Vierra/Image%20Songs/Seandainya.webp"
             },
             {
                 "id": "for-revenge,-stereo-wall-jakarta-hari-ini", "name": "Jakarta Hari Ini", "artist": "For Revenge, Stereo Wall", "plays": "28.9M", "duration": 224,
-                "audio": "Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3", "cover": "Elemen/Images%20Song/Jakarta%20Hari%20Ini.webp"
+                "audio": "Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3", "cover": "Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp"
             },
             {
                 "id": "radiohead-creep", "name": "Creep", "artist": "Radiohead", "plays": "25.7M", "duration": 236,
-                "audio": "Elemen/Radiohead/Creep.mp3", "cover": "Elemen/Images%20Song/Creep.webp"
+                "audio": "Elemen/Radiohead/Creep.mp3", "cover": "Elemen/Radiohead/Image%20Songs/Creep.webp"
             },
             {
                 "id": "batas-senja-kita-usahakan-lagi", "name": "Kita Usahakan Lagi", "artist": "Batas Senja", "plays": "22.4M", "duration": 234,
-                "audio": "Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3", "cover": "Elemen/Images%20Song/Kita%20Usahakan%20Lagi.webp"
+                "audio": "Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3", "cover": "Elemen//Batas%20Senja/Image%20Songs/Kita%20Usahakan%20Lagi.webp"
             },
             {
                 "id": "bilal-indrajaya-niscaya", "name": "Niscaya", "artist": "Bilal Indrajaya", "plays": "19.1M", "duration": 241,
-                "audio": "Elemen/Bilal%20Indrajaya/Niscaya.mp3", "cover": "Elemen/Images%20Song/Niscaya.webp"
+                "audio": "Elemen/Bilal%20Indrajaya/Niscaya.mp3", "cover": "Elemen/Bilal%20Indrajaya/Image%20Songs/Niscaya.webp"
             }
         ];
 
