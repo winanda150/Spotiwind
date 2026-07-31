@@ -735,10 +735,18 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         // Render daftar lagu berikutnya secara instan (tidak menunggu lagu selesai dimuat)
         renderUpNext();
 
-        // Reset SEMUA status lagu (mencegah duplikat visual saat skip cepat)
-        document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
-            el.classList.remove('is-active-song', 'is-paused');
-        });
+        // [FIX] Perbaikan untuk mencegah kedipan putih saat klik lagu di dropdown.
+        // Hanya reset elemen di luar dropdown jika lagu yang diputar berasal dari dropdown.
+        if (context === 'search') {
+            // Reset semua elemen AKTIF di luar dropdown
+            document.querySelectorAll('.song-card.is-active-song').forEach(el => el.classList.remove('is-active-song', 'is-paused'));
+        } else {
+            // Perilaku normal: Reset SEMUA status lagu (mencegah duplikat visual saat skip cepat)
+            document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
+                el.classList.remove('is-active-song', 'is-paused');
+            });
+        }
+
         document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
             el.classList.remove('btn-loading');
             if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
