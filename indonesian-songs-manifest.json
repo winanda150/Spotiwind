@@ -465,6 +465,62 @@
       "audio": "Elemen/Lagu%20Hivi!/Pelangi.mp3",
       "cover": "Elemen/Images%20Song/Pelangi.webp",
       "duration": 217
+    },
+    {
+      "id": "dhot-design-kalau-nanti-sukses",
+      "name": "Kalau Nanti Sukses",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Kalau%20Nanti%20Sukses.mp3",
+      "cover": "Elemen/Images%20Song/Kalau%20Nanti%20Sukses.webp",
+      "duration": 251
+    },
+    {
+      "id": "dhot-design-orang-kaya-baru",
+      "name": "Orang Kaya Baru",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Orang%20Kaya%20Baru.mp3",
+      "cover": "Elemen/Images%20Song/Orang%20Kaya%20Baru.webp",
+      "duration": 213
+    },
+    {
+      "id": "dhot-design-menjauh",
+      "name": "Menjauh",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Menjauh.mp3",
+      "cover": "Elemen/Images%20Song/Menjauh.webp",
+      "duration": 230
+    },
+    {
+      "id": "dhot-design-senandung-gitar-untuknya",
+      "name": "Senandung Gitar Untuknya",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Senandung%20Gitar%20Untuknya.mp3",
+      "cover": "Elemen/Images%20Song/Senandung%20Gitar%20Untuknya.webp",
+      "duration": 221
+    },
+    {
+      "id": "npd-sempurnanya-aku",
+      "name": "Sempurnanya Aku",
+      "artist": "NPD",
+      "audio": "Elemen/NPD/Sempurnanya%20Aku.mp3",
+      "cover": "Elemen/Images%20Song/Sempurnanya%20Aku.webp",
+      "duration": 228
+    },
+    {
+      "id": "npd-i-love-you-but-you-lebih-love-me",
+      "name": "I Love You But You Lebih Love Me",
+      "artist": "NPD",
+      "audio": "Elemen/NPD/I%20Love%20You%20But%20You%20Lebih%20Love%20Me.mp3",
+      "cover": "Elemen/Images%20Song/I%20Love%20You%20But%20You%20Lebih%20Love%20Me.webp",
+      "duration": 246
+    },
+    {
+      "id": "npd-lupain-aku-plis",
+      "name": "Lupain Aku Plis",
+      "artist": "NPD",
+      "audio": "Elemen/NPD/Lupain%20Aku%20Plis.mp3",
+      "cover": "Elemen/Images%20Song/Lupain%20Aku%20Plis.webp",
+      "duration": 246
     }
   ]
 }
