@@ -857,7 +857,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {() => Promise<boolean>} fetchFunction - Fungsi async yang akan dijalankan.
  * @param {number} delay - Jeda waktu (ms) sebelum mencoba lagi.
  */
-const fetchWithContinuousRetry = async (fetchFunction, delay = 10000) => {
+const fetchWithContinuousRetry = async (fetchFunction, delay = 5000) => {
     // [FIX] Menggunakan implementasi Promise-based retry loop yang benar (sinkron dengan mobile)
     // Ini akan menahan Promise.all sampai fetch benar-benar berhasil.
     while (true) {
