@@ -648,90 +648,116 @@ const formatPlayCount = (count) => {
 };
 
 /**
- * Fungsi untuk menampilkan daftar lagu ke UI secara otomatis
+ * [REFACTOR] Fungsi renderer untuk satu kartu lagu.
+ * @param {object} song - Objek data lagu.
+ * @returns {string} - String HTML untuk kartu lagu.
  */
-const renderPopularSongs = (songs) => {
-    const songGrid = document.querySelector('.song-grid');
-    if (!songGrid) return;
-    currentPlaylist = songs; // Simpan playlist aktif untuk keperluan navigasi
+const createSongCardHTML = (song) => {
+    const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+    const isPaused = activeAudio.paused;
+    const safeName = song.name.replace(/'/g, "\\'");
+    const safeArtist = song.artist.replace(/'/g, "\\'");
 
-    // Optimized rendering: Build a single fragment or string
-    const html = songs.map(song => {
-        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
-        const isPaused = activeAudio.paused;
-        // Escape attributes to prevent breaking HTML and XSS
-        const safeName = song.name.replace(/'/g, "\\'");
-        const safeArtist = song.artist.replace(/'/g, "\\'");
-
-        return `
-        <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && isPaused ? 'is-paused' : ''}" data-id="${song.id}">
-            <div class="song-cover">
-                <img src="${song.cover}" alt="${song.name}" style="width:100%; height:100%; object-fit:cover;">
-                <button class="play-overlay" aria-label="Play ${song.name}"
-                    data-audio="${song.audio}" data-name="${safeName}" data-artist="${safeArtist}" data-cover="${song.cover}">
-                    ${isActive && !isPaused ? PAUSE_ICON : PLAY_ICON}
-                </button>
-            </div>
-            <div class="song-info">
-                <h3 class="song-name">${song.name}</h3>
-                <p class="song-artist">${song.artist}</p>
-            </div>
-            <div class="song-footer">
-                <div class="song-stats">
-                    <button class="play-mini-btn" aria-label="Play ${song.name}">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                    </button>
-                    <span class="play-count">${song.plays || '0'}</span>
-                </div>
-                <button class="more-btn" aria-label="More options">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <circle cx="12" cy="5" r="1"></circle>
-                        <circle cx="12" cy="19" r="1"></circle>
-                    </svg>
-                </button>
-            </div>
+    return `
+    <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && isPaused ? 'is-paused' : ''}" data-id="${song.id}">
+        <div class="song-cover">
+            <img src="${song.cover}" alt="${song.name}" style="width:100%; height:100%; object-fit:cover;">
+            <button class="play-overlay" aria-label="Play ${song.name}"
+                data-audio="${song.audio}" data-name="${safeName}" data-artist="${safeArtist}" data-cover="${song.cover}">
+                ${isActive && !isPaused ? PAUSE_ICON : PLAY_ICON}
+            </button>
         </div>
-    `;}).join('');
-    
-    songGrid.innerHTML = html;
-
-    // Implementation of Event Delegation instead of inline onclick
-    songGrid.removeEventListener('click', handleSongGridClick);
-    songGrid.addEventListener('click', handleSongGridClick);
-};
-
-const handleSongGridClick = (e) => {
-    const playBtn = e.target.closest('.play-overlay') || e.target.closest('.play-mini-btn');
-    if (!playBtn) return;
-
-    const card = playBtn.closest('.song-card');
-    const overlay = card.querySelector('.play-overlay');
-    const { audio, name, artist, cover } = overlay.dataset;
-    const id = card.dataset.id;
-
-    window.playPreview(overlay, audio, name, artist, cover, id);
+        <div class="song-info">
+            <h3 class="song-name">${song.name}</h3>
+            <p class="song-artist">${song.artist}</p>
+        </div>
+        <div class="song-footer">
+            <div class="song-stats">
+                <button class="play-mini-btn" aria-label="Play ${song.name}">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                </button>
+                <span class="play-count">${song.plays || '0'}</span>
+            </div>
+            <button class="more-btn" aria-label="More options">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+        </div>
+    </div>`;
 };
 
 /**
- * Fungsi untuk menampilkan daftar artis ke UI
+ * [REFACTOR] Fungsi renderer untuk satu kartu artis.
+ * @param {object} artist - Objek data artis.
+ * @returns {string} - String HTML untuk kartu artis.
  */
-const renderTopArtists = (artists) => {
-    const artistsGrid = document.querySelector('.artists-grid');
-    if (!artistsGrid) return;
-    artistsGrid.innerHTML = artists.map(artist => ` 
-        <div class="artist-card">
-            <div class="artist-photo" style="background-image: url('${artist.photo}')"></div>
-            <span class="artist-name">${artist.name}</span>
-        </div>
-    `).join('');
+const createArtistCardHTML = (artist) => {
+    return ` 
+    <div class="artist-card">
+        <div class="artist-photo" style="background-image: url('${artist.photo}')"></div>
+        <span class="artist-name">${artist.name}</span>
+    </div>`;
+};
+
+/**
+ * [NEW] Renders items into a grid one by one for a progressive loading effect.
+ * It replaces existing skeleton elements sequentially.
+ * @param {string} gridSelector - The CSS selector for the grid container.
+ * @param {Array} items - The array of data items to render.
+ * @param {function(object): string} itemRenderer - The function that returns HTML for one item.
+ * @param {string} skeletonSelector - The CSS selector for the skeleton elements within the grid.
+ */
+const renderGridProgressively = async (gridSelector, items, itemRenderer, skeletonSelector) => {
+    const grid = document.querySelector(gridSelector);
+    if (!grid) return;
+
+    const skeletons = grid.querySelectorAll(skeletonSelector);
+    
+    // Clear any excess skeletons if the number of items is less than skeletons
+    for (let i = items.length; i < skeletons.length; i++) {
+        skeletons[i].remove();
+    }
+
+    for (let i = 0; i < items.length; i++) {
+        const itemHTML = itemRenderer(items[i]);
+        if (skeletons[i]) {
+            skeletons[i].outerHTML = itemHTML;
+        } else {
+            grid.insertAdjacentHTML('beforeend', itemHTML);
+        }
+        await new Promise(res => setTimeout(res, 50)); // Small delay for visual effect
+    }
+};
+
+/**
+ * [REFACTOR] Fungsi render grid universal dengan skeleton loader.
+ * @param {string} gridSelector - Selector CSS untuk container grid.
+ * @param {Array|null} items - Array data. Jika null, tampilkan skeleton.
+ * @param {(item: object) => string} itemRenderer - Fungsi untuk merender satu item menjadi HTML.
+ * @param {string} skeletonType - Tipe skeleton ('song' atau 'artist').
+ * @param {string} emptyMessage - Pesan jika tidak ada item.
+ * @param {number} skeletonCount - Jumlah skeleton yang ditampilkan.
+ */
+const renderGrid = (gridSelector, items, itemRenderer, skeletonType, emptyMessage = "No items found.", skeletonCount = 6) => {
+    const grid = document.querySelector(gridSelector);
+    if (!grid) return;
+
+    if (items === null) {
+        showSkeletonLoader(gridSelector, skeletonType, skeletonCount);
+    } else if (items.length === 0) {
+        grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem;">${emptyMessage}</p>`;
+    } else {
+        grid.innerHTML = items.map(itemRenderer).join('');
+    }
 };
 
 /**
  * Fungsi untuk mengambil data artis populer dari Jamendo
  */
 const fetchTopArtists = async () => {
-    showSkeletonLoader('.artists-grid', 'artist', 5);
     try {
         // Kita ambil limit lebih banyak (50) agar bisa memfilter artis yang benar-benar punya foto asli
         const url = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total`;
@@ -750,10 +776,14 @@ const fetchTopArtists = async () => {
                     photo: item.image
                 }));
             
-            renderTopArtists(artistsWithPhotos);
+            // [FIX] Hanya render dan return true jika ada data untuk ditampilkan.
+            if (artistsWithPhotos.length === 0) {
+                return false; // Beri sinyal ke retry-wrapper untuk mencoba lagi.
+            }
+            
+            renderGridProgressively('.artists-grid', artistsWithPhotos, createArtistCardHTML, '.artist-card-skeleton');
             return true; // Berhasil
         }
-        return false; // Gagal jika tidak ada hasil
     } catch (error) {
         console.error("Gagal mengambil data artis:", error);
         throw error; // Lemparkan error agar ditangkap oleh fetchWithContinuousRetry
@@ -764,8 +794,6 @@ const fetchTopArtists = async () => {
  * Fungsi untuk mengambil data lagu populer dari Jamendo.
  */
 const fetchTrendingMusic = async () => {
-    const songGrid = document.querySelector('.song-grid');
-    showSkeletonLoader('.song-grid', 'song', 6); // Tampilkan skeleton loader
     try {
         // Kita ambil limit lebih banyak (50) untuk difilter agar setiap artis unik di grid
         const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total&include=stats`;
@@ -794,7 +822,14 @@ const fetchTrendingMusic = async () => {
                 plays: formatPlayCount(Math.floor(Math.random() * 4700000) + 300000)
         }));
 
-        renderPopularSongs(rawSongs);
+        // [FIX] Hanya render dan return true jika ada data untuk ditampilkan.
+        if (rawSongs.length === 0) {
+            console.warn("fetchTrendingMusic: Tidak ada lagu unik ditemukan setelah filter, mencoba lagi...");
+            return false; // Beri sinyal ke retry-wrapper untuk mencoba lagi.
+        }
+
+        currentPlaylist = rawSongs; // Simpan playlist untuk navigasi
+        renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton');
         return true; // Berhasil
     } catch (error) {
         console.error("Gagal mengambil data musik:", error);
@@ -802,6 +837,20 @@ const fetchTrendingMusic = async () => {
     }
 };
 
+document.addEventListener('DOMContentLoaded', () => {
+    // Implementation of Event Delegation instead of inline onclick
+    document.body.addEventListener('click', (e) => {
+        const playBtn = e.target.closest('.play-overlay') || e.target.closest('.play-mini-btn');
+        if (!playBtn) return;
+
+        const card = playBtn.closest('.song-card');
+        if (!card) return;
+        const overlay = card.querySelector('.play-overlay');
+        const { audio, name, artist, cover } = overlay.dataset;
+        const id = card.dataset.id;
+
+        window.playPreview(overlay, audio, name, artist, cover, id, 0, 'trending');
+    });
 /**
  * NEW: Wrapper untuk mencoba ulang fungsi fetch secara terus-menerus saat gagal.
  * Ini memastikan skeleton loader tetap ada dan aplikasi terus mencoba memuat data.
@@ -809,23 +858,25 @@ const fetchTrendingMusic = async () => {
  * @param {number} delay - Jeda waktu (ms) sebelum mencoba lagi.
  */
 const fetchWithContinuousRetry = async (fetchFunction, delay = 10000) => {
-    try {
-        const success = await fetchFunction();
-        if (!success) {
-            // Jika fungsi selesai tapi tidak berhasil (misal, API mengembalikan array kosong)
-            // kita tetap coba lagi.
-            console.warn(`${fetchFunction.name} selesai tetapi tidak ada data, mencoba lagi dalam ${delay}ms...`);
-            setTimeout(() => fetchWithContinuousRetry(fetchFunction, delay), delay);
+    // [FIX] Menggunakan implementasi Promise-based retry loop yang benar (sinkron dengan mobile)
+    // Ini akan menahan Promise.all sampai fetch benar-benar berhasil.
+    while (true) {
+        try {
+            const success = await fetchFunction();
+            if (success) {
+                return true; // Berhasil! Keluar dari loop dan resolve promise.
+            }
+            // Jika fetchFunction mengembalikan false (misal, hasil kosong), log dan coba lagi.
+            console.warn(`${fetchFunction.name} tidak mengembalikan data. Mencoba lagi dalam ${delay}ms...`);
+        } catch (error) {
+            // Jika fetchFunction melempar error (misal, jaringan gagal), log dan coba lagi.
+            console.error(`Error pada ${fetchFunction.name}. Mencoba lagi dalam ${delay}ms...`, error);
         }
-        // Jika berhasil (success is true), fungsi berhenti di sini.
-    } catch (error) {
-        // Jika terjadi error (misal, jaringan putus), coba lagi setelah jeda.
-        console.error(`Terjadi error pada ${fetchFunction.name}, mencoba lagi dalam ${delay}ms...`, error);
-        setTimeout(() => fetchWithContinuousRetry(fetchFunction, delay), delay);
+        // Tunggu sesuai jeda waktu sebelum iterasi loop berikutnya.
+        await new Promise(resolve => setTimeout(resolve, delay));
     }
 };
 
-// Placeholder untuk pengecekan status premium
 // Dalam aplikasi nyata, ini akan mengambil data dari database (misalnya Firestore)
 // untuk memeriksa status langganan pengguna berdasarkan UID mereka.
 // Untuk demonstrasi, kita akan menggunakan logika sederhana.
@@ -839,7 +890,6 @@ const isUserPremium = async (uid) => {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logoutBtn');
     const greetingBadge = document.getElementById('greetingBadge');
 
@@ -1509,15 +1559,11 @@ document.addEventListener('DOMContentLoaded', () => {
             loadUserPlaylists(user.uid);
 
             // Jalankan pengambilan data API secara paralel agar lebih cepat
-            const initializeData = async () => {
-                try {
-                    await Promise.all([
-                        fetchWithContinuousRetry(fetchTrendingMusic),
-                        fetchWithContinuousRetry(fetchTopArtists)
-                    ]);
-                } catch (err) {
-                    console.error("Gagal memuat data awal:", err);
-                }
+            const initializeData = () => {
+                // [FIX] Hapus Promise.all agar setiap grid bisa render secara independen.
+                // Ini memungkinkan data tampil satu per satu saat sudah siap, tanpa menunggu yang lain.
+                fetchWithContinuousRetry(fetchTrendingMusic);
+                fetchWithContinuousRetry(fetchTopArtists);
             };
 
             initializeData();
