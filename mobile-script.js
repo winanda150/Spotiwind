@@ -1237,8 +1237,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 "audio": "Elemen/Rizky%20Febian/Alamak.mp3", "cover": "Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp"
             },
             {
-                "id": ".feast-nina", "name": "Nina", "artist": ".Feast", "plays": "43.1M", "duration": 283,
-                "audio": "Elemen/.Feast/Nina.mp3", "cover": "Elemen/.Feast/Image%20Songs/Nina.webp"
+                "id": "feast-nina", "name": "Nina", "artist": ".Feast", "plays": "43.1M", "duration": 283,
+                "audio": "Elemen/Feast/Nina.mp3", "cover": "Elemen/Feast/Image%20Songs/Nina.webp"
             },
             {
                 "id": "idgitaf-sedia-aku-sebelum-hujan", "name": "Sedia Aku Sebelum Hujan", "artist": "Idgitaf", "plays": "39.8M", "duration": 233,

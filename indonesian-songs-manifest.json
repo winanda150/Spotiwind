@@ -3,67 +3,67 @@
   "id": "local_indonesian_songs",
   "songs": [
     {
-      "id": ".feast-arteri",
+      "id": "feast-arteri",
       "name": "Arteri",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Arteri.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Arteri.webp",
+      "audio": "Elemen/Feast/Arteri.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Arteri.webp",
       "duration": 275
     },
     {
-      "id": ".feast-dalam-hitungan",
+      "id": "feast-dalam-hitungan",
       "name": "Dalam Hitungan",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Dalam%20Hitungan.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Dalam%20Hitungan.webp",
+      "audio": "Elemen/Feast/Dalam%20Hitungan.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Dalam%20Hitungan.webp",
       "duration": 243
     },
     {
-      "id": ".feast-nina",
+      "id": "feast-nina",
       "name": "Nina",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Nina.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Nina.webp",
+      "audio": "Elemen/Feast/Nina.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Nina.webp",
       "duration": 283
     },
     {
-      "id": ".feast-tarot",
+      "id": "feast-tarot",
       "name": "Tarot",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Tarot.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Tarot.webp",
+      "audio": "Elemen/Feast/Tarot.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Tarot.webp",
       "duration": 289
     },
     {
-      "id": ".feast-kelelawar",
+      "id": "feast-kelelawar",
       "name": "Kelelawar",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Kelelawar.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Kelelawar.webp",
+      "audio": "Elemen/Feast/Kelelawar.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Kelelawar.webp",
       "duration": 265
     },
     {
-      "id": ".feast-peradaban",
+      "id": "feast-peradaban",
       "name": "Peradaban",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Peradaban.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Peradaban.webp",
+      "audio": "Elemen/Feast/Peradaban.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Peradaban.webp",
       "duration": 343
     },
     {
-      "id": ".feast-o,tuan",
+      "id": "feast-o,tuan",
       "name": "o,Tuan",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/o,Tuan.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/o,Tuan.webp",
+      "audio": "Elemen/Feast/o,Tuan.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/o,Tuan.webp",
       "duration": 305
     },
     {
-      "id": ".feast-kami-belum-tentu",
+      "id": "feast-kami-belum-tentu",
       "name": "Kami Belum Tentu",
       "artist": ".Feast",
-      "audio": "Elemen/.Feast/Kami%20Belum%20Tentu.mp3",
-      "cover": "Elemen/.Feast/Image%20Songs/Kami%20Belum%20Tentu.webp",
+      "audio": "Elemen/Feast/Kami%20Belum%20Tentu.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Kami%20Belum%20Tentu.webp",
       "duration": 231
     },
     {
@@ -529,6 +529,54 @@
       "audio": "Elemen/DHOT%20DESIGN/Senandung%20Gitar%20Untuknya.mp3",
       "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Senandung%20Gitar%20Untuknya.webp",
       "duration": 221
+    },
+    {
+      "id": "dhot-design-perpisahan",
+      "name": "Perpisahan",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Perpisahan.mp3",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Perpisahan.webp",
+      "duration": 211
+    },
+    {
+      "id": "dhot-design-kau-pergi",
+      "name": "Kau Pergi",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Kau%20Pergi.mp3",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Kau%20Pergi.webp",
+      "duration": 247
+    },
+    {
+      "id": "dhot-design-tak-tau-arah",
+      "name": "Tak Tau Arah",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Tak%20Tau%20Arah.mp3",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Tak%20Tau%20Arah.webp",
+      "duration": 255
+    },
+    {
+      "id": "dhot-design-hadirmu",
+      "name": "Hadirmu",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Hadirmu.mp3",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Hadirmu.webp",
+      "duration": 279
+    },
+    {
+      "id": "dhot-design-pulanglah-ayah",
+      "name": "Pulanglah Ayah",
+      "artist": "DHOT DESIGN",
+      "audio": "Elemen/DHOT%20DESIGN/Pulanglah%20Ayah.mp3",
+      "cover": "Elemen/DHOT%20DESIGN/Image%20Songs/Pulanglah%20Ayah.webp",
+      "duration": 253
+    },
+    {
+      "id": "mahen-pura%20pura%20lupa",
+      "name": "Pura Pura Lupa",
+      "artist": "Mahen",
+      "audio": "Elemen/Mahen/Pura%20Pura%20Lupa.mp3",
+      "cover": "Elemen/Mahen/Image%20Songs/Pura%20Pura%20Lupa.webp",
+      "duration": 243
     },
     {
       "id": "npd-sempurnanya-aku",
