@@ -63,6 +63,8 @@ let currentContext = null; // Store the active context globally
 let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
 let friendActivityListeners = []; // Store listeners so they can be cleared
+let lastSearchQuery = ''; // [NEW] Variable to store the last search query
+let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Set();
@@ -510,10 +512,47 @@ const renderMobileFriendActivity = async () => {
     }
 };
 
+    /**
+     * [REFACTOR] Updates the greeting badge based on the time of day.
+     * Moved to global scope to be callable on navigation.
+     */
+    let lastHour = -1; // Stores the last hour's status for rendering optimization
+    const updateGreeting = (forceUpdate = false) => {
+        const greetingBadge = document.getElementById('greetingBadge');
+        if (!greetingBadge) return;
+        
+        const hour = new Date().getHours();
+        if (hour === lastHour && !forceUpdate) return; // Optimization: Only process if the hour has changed or if forced
+        lastHour = hour;
+
+        let greeting = "";
+        let emoji = "";
+
+        if (hour >= 4 && hour < 10) {
+            greeting = "Morning";
+            emoji = "🌅";
+        } else if (hour >= 10 && hour < 15) {
+            greeting = "Afternoon";
+            emoji = "☀️";
+        } else if (hour >= 15 && hour < 18) {
+            greeting = "Evening";
+            emoji = "🌇";
+        } else {
+            greeting = "Night";
+            emoji = "🌙";
+        }
+        greetingBadge.textContent = `Good ${greeting} ${emoji}`;
+    };
+
 /**
  * Helper for relative time format (same as desktop)
  */
 const formatRelativeTime = (timestamp) => {
+    // [FIX] Tambahkan pengecekan null atau undefined untuk timestamp
+    if (!timestamp || typeof timestamp.toDate !== 'function') {
+        // Jika timestamp tidak valid, kembalikan string default atau kosong
+        return '...';
+    }
     if (!timestamp) return "now";
     const now = new Date();
     const date = timestamp.toDate();
@@ -525,10 +564,10 @@ const formatRelativeTime = (timestamp) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // NEW: Set copyright year automatically
-    const copyrightYearEl = document.getElementById('copyrightYear');
-    if (copyrightYearEl) {
-        copyrightYearEl.textContent = new Date().getFullYear();
+    // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
+    const appContainer = document.querySelector('.app-container');
+    if (appContainer) {
+        initialHomeContent = appContainer.innerHTML;
     }
 
     // NEW: Centralized Event Delegation for all song cards
@@ -557,37 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const logoutBtn = document.getElementById('logoutBtn');
-    const greetingBadge = document.getElementById('greetingBadge');
-
-    let lastHour = -1; // Stores the last hour's status for rendering optimization
-
-    const updateGreeting = () => {
-        if (!greetingBadge) return;
-        const hour = new Date().getHours();
-        if (hour === lastHour) return; // Optimization: Only process if the hour has changed
-        lastHour = hour;
-
-        let greeting = "";
-        let emoji = "";
-
-        if (hour >= 4 && hour < 10) {
-            greeting = "Morning";
-            emoji = "🌅";
-        } else if (hour >= 10 && hour < 15) {
-            greeting = "Afternoon";
-            emoji = "☀️";
-        } else if (hour >= 15 && hour < 18) {
-            greeting = "Evening";
-            emoji = "🌇";
-        } else {
-            greeting = "Night";
-            emoji = "🌙";
-        }
-        greetingBadge.textContent = `Good ${greeting} ${emoji}`;
-    };
-
-    updateGreeting();
+    updateGreeting(true); // Force update on initial load
     // Update the greeting every 1 minute to keep it accurate if the page is left open
     setInterval(updateGreeting, 60000);
 
@@ -1385,24 +1394,116 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     bottomNavItems.forEach(item => {
         item.addEventListener('click', async (e) => {
             e.preventDefault();
-            const targetPage = item.dataset.target; // Gunakan data-target
+            const targetPage = item.dataset.target;
             const currentActive = document.querySelector('.mobile-bottom-nav .nav-item.active');
 
             if (currentActive === item) return; // Jangan lakukan apa-apa jika item yang sama diklik
 
             // Pindahkan kelas 'active'
-            if (currentActive) currentActive.classList.remove('active');
+            if (currentActive) currentActive.classList.remove('active'); // Tetap hapus kelas aktif dari yang lama
             item.classList.add('active');
+            document.body.scrollTop = document.documentElement.scrollTop = 0; // Scroll ke atas
 
             // Muat konten halaman baru
             await loadPageContent(targetPage);
         });
     });
 
+    /**
+     * [NEW] Reusable function to update the user's avatar.
+     * This is extracted to be called on initial load and on navigation back to home.
+     * @param {object} user - The Firebase user object.
+     */
+    const updateUserAvatar = (user) => {
+        if (!user) return;
+
+        // Find the avatar element, which might have been re-added to the DOM.
+        const avatarElement = document.getElementById('userAvatar') || document.querySelector('.mobile-avatar');
+            
+        if (avatarElement) {
+            const nameForAvatar = user.displayName || user.email.split('@')[0];
+            const defaultAvatar = `<https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true>`;
+            const originalPhotoURL = user.photoURL;
+            
+            let originalRetry = 0; 
+            const maxRetries = 2; 
+
+            avatarElement.referrerPolicy = "no-referrer";
+
+            avatarElement.onerror = function() {
+                if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
+                    originalRetry++;
+                    console.warn(`Mobile: Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
+                    setTimeout(() => {
+                        const sep = originalPhotoURL.includes('?') ? '&' : '?';
+                        this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
+                    }, 2000);
+                } 
+                else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
+                    console.warn("Mobile: Original photo failed, switching to initials...");
+                    this.src = defaultAvatar;
+                } else {
+                    this.onerror = null;
+                }
+            };
+            avatarElement.src = originalPhotoURL || defaultAvatar;
+        }
+    };
+
+    /**
+     * [NEW] Initializes all dynamic content specific to the home page.
+     * This includes the greeting, copyright year, and other UI elements.
+     */
+    const initializeHomeContent = () => {
+        // Set copyright year automatically
+        const copyrightYearEl = document.getElementById('copyrightYear');
+        if (copyrightYearEl) {
+            copyrightYearEl.textContent = new Date().getFullYear();
+        }
+
+        // Update the greeting message
+        updateGreeting(true); // Force update when home content is re-initialized
+    };
+
     // [REFACTOR] Fungsi untuk memuat konten halaman secara dinamis (SPA-style)
     const loadPageContent = async (page) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
+
+        // [FIX] Logika baru untuk navigasi kembali ke Home
+        if (page === 'mobile.html') {
+            if (initialHomeContent) {
+                contentContainer.style.opacity = '0';
+                contentContainer.style.transform = 'translateY(10px)';
+
+                await new Promise(res => setTimeout(res, 200));
+
+                contentContainer.innerHTML = initialHomeContent;
+
+                // Re-inisialisasi skeleton dan fetch data lagi untuk halaman home
+                initializeSkeletons();
+                initializeData(); // Panggil fungsi yang memuat semua data API
+                initializeSearch();
+
+                // Re-run logic for home-specific elements
+                initializeHomeContent();
+                const user = auth.currentUser;
+                if (user) updateUserAvatar(user);
+
+                // Re-initialize footer dropdown logic
+                const footerLinkHeaders = document.querySelectorAll('.footer-link-header');
+                footerLinkHeaders.forEach(header => {
+                    header.addEventListener('click', () => header.closest('.footer-link-group')?.classList.toggle('expanded'));
+                });
+
+                contentContainer.style.opacity = '1';
+                contentContainer.style.transform = 'translateY(0)';
+            } else {
+                // Fallback jika cache kosong, lakukan reload penuh
+                window.location.href = 'mobile.html';
+            }
+            return; // Hentikan eksekusi lebih lanjut
+        }
 
         // Tambahkan efek transisi keluar
         contentContainer.style.opacity = '0';
@@ -1425,9 +1526,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 contentContainer.innerHTML = newContent;
 
-                // Re-inisialisasi skeleton loaders dan fetch data untuk halaman baru
-                initializeSkeletons();
-                initializeData();
+                // [FIX] Re-inisialisasi event listener dan data yang spesifik untuk halaman baru
+                // Contoh: Jika halaman 'search-mobile.html' punya script khusus, panggil di sini.
+                // Untuk sekarang, kita re-inisialisasi semua data untuk memastikan konsistensi.
+                // Anda bisa optimalkan ini nanti jika diperlukan.
+                initializeSkeletons(); // Tampilkan skeleton di halaman baru
+                initializeData(); // Muat data yang relevan untuk halaman baru
 
                 // Efek transisi masuk
                 contentContainer.style.opacity = '1';
@@ -1483,6 +1587,145 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         showSkeletonLoader('.artists-grid', 'artist', 5);
     };
 
+    // [FIX] Pindahkan definisi initializeData ke lingkup yang lebih tinggi (global)
+    // agar dapat diakses oleh loadPageContent saat memulihkan halaman Home.
+    const initializeData = () => {
+        // Hapus Promise.all agar setiap grid dapat dirender secara independen.
+        // Ini memungkinkan data muncul satu per satu saat sudah siap, tanpa menunggu yang lain.
+        fetchWithContinuousRetry(fetchTrendingMusic);
+        fetchWithContinuousRetry(fetchTopArtists);
+        fetchWithContinuousRetry(fetchNewReleases);
+        fetchWithContinuousRetry(fetchIndonesianSongs);
+    };
+
+    // Panggil initializeSkeletons sekali saat halaman pertama kali dimuat.
+    initializeSkeletons();
+    
+    // Panggil initializeHomeContent sekali saat halaman pertama kali dimuat.
+    initializeHomeContent();
+
+    /**
+     * [NEW] Encapsulates all search-related logic and event listeners.
+     * This function can be called to re-initialize search functionality
+     * when the home page content is reloaded.
+     */
+    const initializeSearch = () => {
+        const searchInput = document.getElementById('searchInput');
+        const searchDropdown = document.getElementById('searchDropdown');
+        const clearSearchBtn = document.getElementById('clearSearch');
+
+        if (!searchInput || !searchDropdown || !clearSearchBtn) {
+            // If elements are not found (e.g., on a different page), do nothing.
+            return;
+        }
+
+        // [FIX] Restore the last search query when the search is re-initialized.
+        if (searchInput && lastSearchQuery) {
+            searchInput.value = lastSearchQuery;
+            // Also, make the clear button visible if there's a query.
+            clearSearchBtn?.classList.toggle('visible', lastSearchQuery.length > 0);
+        }
+
+        let searchAbortController = null;
+
+        const updateSearchDropdownHeight = () => {
+            const heroCard = document.querySelector('.hero-card');
+            const searchBox = document.querySelector('.search-box');
+            
+            if (heroCard && searchDropdown && searchBox) {
+                const heroRect = heroCard.getBoundingClientRect();
+                const searchRect = searchBox.getBoundingClientRect();
+                const distanceToBottom = heroRect.bottom - searchRect.bottom;
+                const dropdownStyle = window.getComputedStyle(searchDropdown);
+                const marginTop = parseFloat(dropdownStyle.marginTop) || 0;
+                const finalHeight = Math.max(0, distanceToBottom - marginTop);
+                searchDropdown.style.setProperty('--search-dropdown-height', `${finalHeight}px`);
+            }
+        };
+
+        const fetchDropdownResults = async (query) => {
+            if (!searchDropdown) return;
+
+            if (searchAbortController) searchAbortController.abort();
+            searchAbortController = new AbortController();
+
+            searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
+            try {
+                const cleanQuery = query.trim().toLowerCase();
+                const localResults = indonesianSongsPlaylist.filter(song => `${song.name} ${song.artist}`.toLowerCase().includes(cleanQuery)).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
+                const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=15&include=stats`;
+                const [res1, res2] = await Promise.all([
+                    fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
+                    fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
+                ]);
+                const data1 = await res1.json();
+                const data2 = await res2.json();
+                const combined = [...(data1.results || []), ...(data2.results || []), ...localResults];
+                const qWords = cleanQuery.split(/\s+/);
+                const uniqueMap = new Map();
+                combined.forEach(item => uniqueMap.set(item.id, item));
+                const allTracks = Array.from(uniqueMap.values());
+                const priorityMatches = allTracks.filter(item => qWords.every(word => `${item.name} ${item.artist_name || item.artist}`.toLowerCase().includes(word)));
+                const sortedTracks = priorityMatches.sort((a, b) => (a.isLocal && !b.isLocal) ? -1 : (!a.isLocal && b.isLocal) ? 1 : (b.stats?.rate_downloads_total || 0) - (a.stats?.rate_downloads_total || 0));
+
+                if (sortedTracks.length > 0) {
+                    const finalUniqueTracks = [];
+                    const seen = new Set();
+                    sortedTracks.forEach(t => {
+                        const uniqueKey = t.name + (t.artist_name || t.artist);
+                        if (!seen.has(uniqueKey)) {
+                            finalUniqueTracks.push(t);
+                            seen.add(uniqueKey);
+                        }
+                    });
+                    window.lastSearchResults = finalUniqueTracks.slice(0, 6).map(song => ({ id: song.id, name: song.name, artist: song.artist_name || song.artist, album: song.album_name, cover: song.image, audio: song.audio, duration: song.duration, plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5) }));
+                    searchPlaylist = window.lastSearchResults;
+                    searchDropdown.innerHTML = window.lastSearchResults.map(song => {
+                        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+                        const isPaused = isActive && activeAudio.paused;
+                        return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist).replace(/'/g, "\\'")}', '${song.cover}', '${song.id}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div> <div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
+                    }).join('');
+                } else {
+                    searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';
+                }
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">Error.</div>';
+            }
+        };
+
+        const debouncedSearch = debounce((query) => {
+            const cleanQuery = query.trim();
+            if (cleanQuery.length > 0) {
+                updateSearchDropdownHeight();
+                searchDropdown.classList.add('active');
+                fetchDropdownResults(cleanQuery);
+            } else {
+                searchDropdown.classList.remove('active');
+            }
+        }, 500);
+
+        window.addEventListener('resize', debounce(updateSearchDropdownHeight, 250));
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            clearSearchBtn?.classList.toggle('visible', value.length > 0);
+            lastSearchQuery = value; // [FIX] Update the global variable on every input
+            debouncedSearch(value);
+        });
+        clearSearchBtn?.addEventListener('click', () => { searchInput.value = ''; if (searchAbortController) searchAbortController.abort(); clearSearchBtn.classList.remove('visible'); searchDropdown.classList.remove('active'); searchInput.focus(); });
+        
+        // [FIX] Modified focus event to also trigger a search if the input already has a value.
+        searchInput.addEventListener('focus', (e) => { 
+            const query = searchInput.value.trim();
+            if (query.length > 0) { 
+                updateSearchDropdownHeight(); 
+                searchDropdown.classList.add('active');
+                fetchDropdownResults(query); // Trigger search to populate the dropdown
+            } 
+        });
+        document.addEventListener('click', (e) => { if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) { searchDropdown.classList.remove('active'); } });
+    };
+
     onAuthStateChanged(auth, (user) => {
         if (user) {
             // Protection: If opened on Desktop, redirect back to the desktop page
@@ -1505,270 +1748,21 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // Setup presence for the currently logged-in user
             setupUserPresence(user);
 
-            // Start monitoring friend activity to sync their online status
-            renderMobileFriendActivity();
-
-            // Run API data fetching in parallel for faster loading (sync with desktop pattern)
-            const initializeData = () => {
-                // [FIX] Remove Promise.all so each grid can render independently.
-                // This allows data to appear one by one as it's ready, without waiting for others.
-                fetchWithContinuousRetry(fetchTrendingMusic);
-                fetchWithContinuousRetry(fetchTopArtists);
-                fetchWithContinuousRetry(fetchNewReleases);
-                fetchWithContinuousRetry(fetchIndonesianSongs);
-            };
-
-            initializeData();
-
-            // Initialize Search Slidedown Feature
-            const searchInput = document.getElementById('searchInput');
-            const searchDropdown = document.getElementById('searchDropdown');
-
-            let searchAbortController = null;
-
-            // NEW: Helper function to dynamically sync dropdown height with the hero-card
-            const updateSearchDropdownHeight = () => {
-                const heroCard = document.querySelector('.hero-card');
-                const searchBox = document.querySelector('.search-box');
-                
-                if (heroCard && searchDropdown && searchBox) {
-                    const heroRect = heroCard.getBoundingClientRect();
-                    const searchRect = searchBox.getBoundingClientRect();
-                    
-                    // Jarak total dari bawah kotak pencarian ke bawah hero card
-                    const distanceToBottom = heroRect.bottom - searchRect.bottom;
-
-                    // Get the margin-top value of the dropdown (0.5rem) to prevent it from going 'offside' downwards
-                    const dropdownStyle = window.getComputedStyle(searchDropdown);
-                    const marginTop = parseFloat(dropdownStyle.marginTop) || 0;
-                    
-                    // The maximum height is the distance minus the margin to fit perfectly at the bottom line of the hero card
-                    const finalHeight = Math.max(0, distanceToBottom - marginTop);
-                    searchDropdown.style.setProperty('--search-dropdown-height', `${finalHeight}px`);
-                }
-            };
-
-            const fetchDropdownResults = async (query) => {
-                if (!searchDropdown) return;
-
-                if (searchAbortController) searchAbortController.abort();
-                searchAbortController = new AbortController();
-
-                searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
-                try {
-                    const cleanQuery = query.trim().toLowerCase();
-
-                    // --- START: LOCAL SEARCH LOGIC --- 
-                    const localResults = indonesianSongsPlaylist
-                        .filter(song => {
-                            const fullText = `${song.name} ${song.artist}`.toLowerCase();
-                            return fullText.includes(cleanQuery);
-                        })
-                        .map(song => ({ // Change format to be consistent with Jamendo
-                            ...song, 
-                            artist_name: song.artist,
-                            image: song.cover,
-                            isLocal: true // Mark as a local song
-                        }));
-                    // --- END: LOCAL SEARCH LOGIC --- 
-
-                    const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=15&include=stats`;
-                    
-                    // Use Hybrid Search in the Dropdown as well, with a cancellation signal
-                    const [res1, res2] = await Promise.all([
-                        fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
-                        fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
-                    ]);
-
-                    const data1 = await res1.json();
-                    const data2 = await res2.json();
-                    const combined = [...(data1.results || []), ...(data2.results || []), ...localResults];
-                    
-                    const qWords = cleanQuery.split(/\s+/);
-                    
-                    // 1. Remove Duplicates
-                    const uniqueMap = new Map();
-                    combined.forEach(item => uniqueMap.set(item.id, item));
-                    const allTracks = Array.from(uniqueMap.values());
-
-                    // 2. Priority Filter (Must contain all typed words)
-                    const priorityMatches = allTracks.filter(item => {
-                        const fullText = `${item.name} ${item.artist_name || item.artist}`.toLowerCase();
-                        return qWords.every(word => fullText.includes(word));
-                    });
-
-                // 3. Sort by prioritizing local songs 
-                const customSort = (a, b) => {
-                    const aIsLocal = a.isLocal || false;
-                    const bIsLocal = b.isLocal || false;
-
-                    if (aIsLocal && !bIsLocal) {
-                        return -1; // Local song (a) comes first
-                    }
-                    if (!aIsLocal && bIsLocal) {
-                        return 1; // Local song (b) comes first
-                    }
-                    // If both are local or both are external, sort by popularity
-                    return (b.stats?.rate_downloads_total || 0) - (a.stats?.rate_downloads_total || 0);
-                };
-
-                const sortedTracks = priorityMatches.sort(customSort);
-
-                    if (sortedTracks.length > 0) {
-                        const tracks = sortedTracks;
-                        const items = [];
-                        
-                        // NEW LOGIC: Show Artist only if:
-                        // 1. Input user SANGAT mirip dengan nama artis (Exact match)
-                        // 2. Atau input user pendek dan belum mengandung spasi (User baru mulai mengetik nama artis)
-                        const topTrack = tracks[0];
-                        const artistName = topTrack.artist_name || topTrack.artist;
-                        const isExactArtistMatch = artistName.toLowerCase() === cleanQuery;
-                        const isPotentialArtistTyping = !cleanQuery.includes(' ') && artistName.toLowerCase().startsWith(cleanQuery);
-                        if (!topTrack.isLocal && (isExactArtistMatch || (isPotentialArtistTyping && cleanQuery.length >= 3))) {
-                            items.push({
-                                type: 'Artist',
-                                name: `All songs by ${topTrack.artist_name}`,
-                                sub: 'Artist',
-                                image: topTrack.image,
-                                // MODIFIED: Remove action to prevent grid update. This item becomes informational.
-                                action: `event.preventDefault();`
-                            });
-                        }
-
-                        // Limit song results to avoid being too long on mobile
-                        const finalUniqueTracks = [];
-                        const seen = new Set();
-                        tracks.forEach(t => {
-                            const uniqueKey = t.name + (t.artist_name || t.artist);
-                            if(!seen.has(uniqueKey)) {
-                                finalUniqueTracks.push(t);
-                                seen.add(uniqueKey);
-                            }
-                        });
-
-                        // Save song results to window so they can be accessed by playFromSearch
-                        window.lastSearchResults = finalUniqueTracks.slice(0, 6).map(song => ({
-                            id: song.id,
-                            name: song.name,
-                            artist: song.artist_name || song.artist,
-                            album: song.album_name,
-                            cover: song.image,
-                            audio: song.audio,
-                            duration: song.duration,
-                            // Plays data matched to the main grid format
-                            plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5)
-                        }));
-                        searchPlaylist = window.lastSearchResults;
-
-                        finalUniqueTracks.slice(0, 6).forEach(song => {
-                            const isActive = currentSongData && String(song.id) === String(currentSongData.id);
-                            items.push({
-                                type: 'Song',
-                                id: song.id, // Add ID here so data-id is populated in HTML
-                                name: song.name, // Ensure name is here
-                                sub: song.artist_name || song.artist,
-                                image: song.image,
-                                audio: song.audio, // Ensure audio and duration are here
-                                duration: song.duration,
-                                action: `playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist_name || song.artist).replace(/'/g, "\\'")}', '${song.image}', '${song.id}')`,
-                                isActive: isActive,
-                                isPaused: isActive && activeAudio.paused
-                            });
-                        });
-
-                        searchDropdown.innerHTML = items.map(item => `
-                            <div class="dropdown-item ${item.isActive ? 'is-active-song' : ''} ${item.isPaused ? 'is-paused' : ''}" data-id="${item.id || ''}" data-audio="${item.audio || ''}" onclick="${item.action}">
-                                <div class="dropdown-cover-wrapper">
-                                    <img src="${item.image}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div> 
-                            <div class="dropdown-track-info" style="flex: 1; min-width: 0;">
-                                    <div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;">
-                                        <span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${item.name}</span>
-                                        <div class="equalizer" style="margin-left: auto;">
-                                            <span></span><span></span><span></span>
-                                        </div>
-                                    </div>
-                                    ${item.sub ? `<div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.sub}</div>` : ''}
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';
-                    }
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                    searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">Error.</div>';
-                }
-            };
-
-            if (searchInput && searchDropdown) {
-                const clearSearchBtn = document.getElementById('clearSearch');
-
-                const debouncedSearch = debounce((query) => {
-                    const cleanQuery = query.trim(); 
-                    if (cleanQuery.length > 0) {
-                        updateSearchDropdownHeight(); // Update height before displaying
-                        searchDropdown.classList.add('active');
-                        fetchDropdownResults(cleanQuery);
-                    } else {
-                        searchDropdown.classList.remove('active');
-                    } 
-                }, 500);
-
-                // Ensure dropdown height remains accurate if screen orientation changes
-                window.addEventListener('resize', debounce(updateSearchDropdownHeight, 250));
-
-                searchInput.addEventListener('input', (e) => {
-                    const value = e.target.value;
-                    if (value.length > 0) {
-                        clearSearchBtn?.classList.add('visible');
-                    } else {
-                        clearSearchBtn?.classList.remove('visible');
-                    }
-                    debouncedSearch(value);
-                });
-
-                const performClear = () => {
-                    searchInput.value = '';
-                    if (searchAbortController) searchAbortController.abort();
-                    clearSearchBtn.classList.remove('visible');
-                    searchDropdown.classList.remove('active');
-                    // MODIFIED: Do not reload the main grid when clearing search.
-                    // fetchTrendingMusic(); 
-                };
-
-                clearSearchBtn?.addEventListener('click', () => {
-                    performClear();
-                    searchInput.focus();
-                });
-
-                searchInput.addEventListener('focus', (e) => {
-                    if (searchInput.value.trim().length > 0) {
-                        updateSearchDropdownHeight();
-                        searchDropdown.classList.add('active');
-                    }
-                });
-
-                document.addEventListener('click', (e) => {
-                    if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
-                        searchDropdown.classList.remove('active');
-                    }
-                });
-            }
+            initializeData(); // Load API data
+            initializeSearch(); // Initialize search functionality
 
             // Event Listeners for mobile player controls
             // Listener for Hero Card Play button 
             const togglePlayHandler = async () => {
-                if (currentPlayingBtn) {
-                    currentPlayingBtn.click();
-                } else if (activeAudio.src && activeAudio.src !== "") { 
-                    // Jika sedang memutar lagu (misal via auto-next) tapi tidak ada tombol grid aktif
+                // [FIX] Logic changed to directly control the global audio object,
+                // removing dependency on `currentPlayingBtn` which becomes invalid after page navigation.
+                if (activeAudio.src && activeAudio.src !== "") {
                     try {
                         if (activeAudio.paused) await activeAudio.play();
                         else activeAudio.pause();
                     } catch (err) { console.error("Toggle Play error:", err); }
                 } else if (currentPlaylist.length > 0) {
+                    // If no song is playing yet, play the first song from the current context.
                     triggerSongByIndex(0);
                 }
             };
@@ -1899,39 +1893,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // --- END FULL SCREEN PLAYER LOGIC --- 
 
             // Update profile picture (Avatar) - Query directly here for more accuracy
-            const avatarElement = document.getElementById('userAvatar') || document.querySelector('.mobile-avatar');
-            
-            if (avatarElement) {
-                const nameForAvatar = user.displayName || user.email.split('@')[0];
-                const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
-                const originalPhotoURL = user.photoURL;
-                
-                let originalRetry = 0; 
-                const maxRetries = 2; 
-
-                // Use no-referrer to avoid 403 blocks from providers like Google/Facebook
-                avatarElement.referrerPolicy = "no-referrer";
-
-                // Set up an event listener to try reloading if it fails
-                avatarElement.onerror = function() {
-                    if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
-                        originalRetry++;
-                        console.warn(`Mobile: Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
-                        setTimeout(() => {
-                            const sep = originalPhotoURL.includes('?') ? '&' : '?';
-                            this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
-                        }, 2000);
-                    } 
-                    else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
-                        console.warn("Mobile: Original photo failed, switching to initials...");
-                        this.src = defaultAvatar;
-                    } else {
-                        this.onerror = null;
-                    }
-                };
-
-                avatarElement.src = originalPhotoURL || defaultAvatar;
-            }
+            updateUserAvatar(user);
         } else {
             // If not logged in, return to the login page
             window.location.href = 'index.html';
