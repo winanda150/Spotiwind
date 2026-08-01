@@ -587,13 +587,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // NEW: Footer Dropdown Logic
     const footerLinkHeaders = document.querySelectorAll('.footer-link-header');
-    footerLinkHeaders.forEach(header => {
-        header.addEventListener('click', () => {
-            const group = header.closest('.footer-link-group');
-            if (group) {
-                group.classList.toggle('expanded');
-            }
+    const initializeFooterDropdowns = (container) => {
+        const headers = container.querySelectorAll('.footer-link-header');
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const currentGroup = header.closest('.footer-link-group');
+                if (!currentGroup) return;
+
+                // Tutup semua dropdown lain yang bukan yang sedang diklik
+                document.querySelectorAll('.footer-link-group.expanded').forEach(openGroup => {
+                    if (openGroup !== currentGroup) {
+                        openGroup.classList.remove('expanded');
+                    }
+                });
+
+                // Buka/tutup dropdown yang diklik
+                currentGroup.classList.toggle('expanded');
+            });
         });
+    };
+
+    // Inisialisasi untuk pemuatan halaman awal
+    initializeFooterDropdowns(document.body);
+
+    // [NEW] Tambahkan logika untuk menutup dropdown saat mengklik di luar area footer
+    document.addEventListener('click', (e) => {
+        // Periksa apakah klik terjadi di luar grup link footer
+        if (!e.target.closest('.footer-link-group')) {
+            // Jika ya, cari semua dropdown yang terbuka dan tutup
+            document.querySelectorAll('.footer-link-group.expanded').forEach(openGroup => {
+                openGroup.classList.remove('expanded');
+            });
+        }
     });
 
     updateGreeting(true); // Force update on initial load
@@ -1491,11 +1516,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 if (user) updateUserAvatar(user);
 
                 // Re-initialize footer dropdown logic
-                const footerLinkHeaders = document.querySelectorAll('.footer-link-header');
-                footerLinkHeaders.forEach(header => {
-                    header.addEventListener('click', () => header.closest('.footer-link-group')?.classList.toggle('expanded'));
-                });
-
+                initializeFooterDropdowns(contentContainer);
+                
                 contentContainer.style.opacity = '1';
                 contentContainer.style.transform = 'translateY(0)';
             } else {
