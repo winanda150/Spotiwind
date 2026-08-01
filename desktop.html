@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
     <meta name="description"
-        content="Jelajahi perpustakaan musik Anda di Spotiwind. Temukan lagu terbaru, lihat aktivitas teman, dan nikmati playlist yang dikurasi khusus untuk Anda.">
+        content="Explore your music library on Spotiwind. Discover the latest songs, see your friends' activity, and enjoy playlists curated just for you.">
     <meta name="keywords"
-        content="Spotiwind dashboard, music library, trending artists, friend activity, playlist musik">
+        content="Spotiwind dashboard, music library, trending artists, friend activity, music playlist">
     <link rel="icon" type="image/x-icon" href="Elemen/Logo/Spotiwind.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,8 +16,7 @@
         rel="stylesheet">
     <!-- Open Graph Meta Tags for Social Media Sharing -->
     <meta property="og:title" content="Spotiwind - Feel The Music, Ride The Wind">
-    <meta property="og:description"
-        content="Temukan jutaan lagu, playlist pilihan, dan pengalaman mendengarkan musik terbaik untukmu.">
+    <meta property="og:description" content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
     <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/Elemen/Logo/Spotiwind.webp">
     <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/home.html">
     <meta property="og:type" content="website">
@@ -83,8 +82,7 @@
             </nav>
             <div class="playlists-section" style="margin-top: 1.3rem;">
                 <div class="sidebar-header" style="margin-bottom: 0.5rem; padding-left: 1rem;">
-                    <h3
-                        style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                    <h3 style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
                         Your Playlists</h3>
                     <button class="add-playlist-btn" title="Create Playlist"
                         style="background: none; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
@@ -127,8 +125,7 @@
                     <span class="badge" id="greetingBadge"></span>
                     <h1>Feel the <span class="theme-text">Music</span> <br> Ride the <span
                             class="theme-text">Wind</span></h1>
-                    <p>Temukan jutaan lagu terbaru, playlist pilihan, dan pengalaman mendengarkan musik
-                        terbaik untukmu.</p>
+                    <p>Discover millions of the latest songs, curated playlists, and the best music listening experience for you.</p>
                 </div>
             </section>
 
@@ -256,7 +253,7 @@
                     </a>
                 </div>
                 <div class="song-grid">
-                    <!-- [FIX] Skeleton loader statis untuk mencegah race condition saat refresh -->
+                    <!-- [FIX] Static skeleton loader to prevent race conditions on refresh -->
                     <div class="song-card-skeleton">
                         <div class="skeleton-cover"></div>
                         <div class="skeleton-info">
@@ -304,7 +301,7 @@
                     </a>
                 </div>
                 <div class="artists-grid">
-                    <!-- [FIX] Skeleton loader statis untuk mencegah race condition saat refresh -->
+                    <!-- [FIX] Static skeleton loader to prevent race conditions on refresh -->
                     <div class="artist-card-skeleton">
                         <div class="skeleton skeleton-photo"></div>
                         <div class="skeleton skeleton-name"></div>
@@ -344,7 +341,7 @@
                 </div>
             </div>
 
-            <!-- Now Playing Section (Sekarang di atas Friends Activity) -->
+            <!-- Now Playing Section (Now above Friends Activity) -->
             <div class="now-playing-card">
                 <div class="now-playing-header">
                     <h3>Now Playing</h3>
@@ -412,14 +409,14 @@
                 </div>
             </div>
 
-            <!-- Friends Activity Section (Muncul di bawah Now Playing jika Now Playing aktif) -->
+            <!-- Friends Activity Section (Appears below Now Playing if Now Playing is active) -->
             <section class="friend-activity-section">
                 <div class="section-header" style="margin-bottom: 1.5rem;">
                     <h3 class="section-title">Friends Activity</h3>
                     <a href="#" class="see-all-link">See all</a>
                 </div>
                 <div id="friendActivityContainer" class="friend-list">
-                    <!-- Konten akan diisi secara dinamis oleh JavaScript -->
+                    <!-- Content will be dynamically populated by JavaScript -->
                 </div>
             </section>
         </aside>
@@ -538,7 +535,7 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div id="modalActivityContainer" class="modal-body">
-                <!-- Data teman akan dimuat di sini -->
+                <!-- Friend data will be loaded here -->
             </div>
             <div id="modalLoader" class="modal-footer hidden">
                 <span class="loader-small"></span>

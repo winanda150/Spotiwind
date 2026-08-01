@@ -10,7 +10,7 @@ import {
     signInWithPopup,
     sendPasswordResetEmail,
     onAuthStateChanged,
-    setPersistence,
+    setPersistence, 
     browserLocalPersistence,
     browserSessionPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -27,7 +27,7 @@ const firebaseConfig = {
     databaseURL: "https://spotiwind-music-2686a-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
-// Inisialisasi Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
@@ -53,18 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Auth Observer: Cek apakah user sudah login sebelumnya
+    // Auth Observer: Check if the user was previously logged in
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            console.log("User terdeteksi:", user.email);
-            document.body.classList.add('is-transitioning'); // Tambahkan kelas ini
+            console.log("User detected:", user.email);
+            document.body.classList.add('is-transitioning'); // Add this class
             showLoadingOverlay();
 
-            // Redirect otomatis jika sudah login
+            // Automatic redirect if already logged in
             setTimeout(() => {
-                // Deteksi apakah perangkat adalah mobile berdasarkan lebar layar
+                // Detect if the device is mobile based on screen width
                 const isMobile = window.innerWidth <= 768;
-                const targetPage = isMobile ? 'mobile.html' : 'desktop.html';
+                const targetPage = isMobile ? 'mobile.html' : 'desktop.html'; // FIX: Redirect to desktop.html for desktop
                 window.location.href = targetPage;
             }, 1000);
         } else {
@@ -99,18 +99,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helper: Firebase Error Mapping
     const getErrorMessage = (code) => {
         switch (code) {
-            case 'auth/email-already-in-use': return 'Email sudah terdaftar.';
-            case 'auth/invalid-email': return 'Format email tidak valid. Periksa kembali penulisan email Anda.';
-            case 'auth/weak-password': return 'Password terlalu lemah (min 6 karakter).';
+            case 'auth/email-already-in-use': return 'Email is already registered.';
+            case 'auth/invalid-email': return 'Invalid email format. Please check your email address.';
+            case 'auth/weak-password': return 'Password is too weak (min 6 characters).';
             case 'auth/user-not-found': 
-                return 'Email tidak ditemukan. Silakan periksa kembali atau daftar akun baru.';
+                return 'Email not found. Please check it or sign up for a new account.';
             case 'auth/wrong-password':
-                return 'Password salah. Silakan coba lagi atau reset password Anda.';
+                return 'Incorrect password. Please try again or reset your password.';
             case 'auth/invalid-credential':
-                return 'Kredensial tidak valid. Email atau password Anda mungkin salah.';
+                return 'Invalid credentials. Your email or password may be incorrect.';
             case 'auth/too-many-requests':
-                return 'Terlalu banyak percobaan gagal. Akses ditangguhkan sementara. Coba lagi nanti.';
-            default: return `Error: ${code}. Silakan coba lagi.`;
+                return 'Too many failed attempts. Access has been temporarily suspended. Try again later.';
+            default: return `Error: ${code}. Please try again.`;
         }
     };
 
@@ -121,9 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const result = await signInWithPopup(auth, providerInstance);
-            showLoadingOverlay(); // Langsung tutup saat popup berhasil
+            showLoadingOverlay(); // Show overlay on successful popup
             const user = result.user;
-            // Redirect ditangani secara otomatis oleh onAuthStateChanged
+            // Redirect is handled automatically by onAuthStateChanged
         } catch (error) {
             console.error("Social Auth Error Details:", error.code, error.message);
         } finally {
@@ -151,15 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const email = document.getElementById('email').value;
         if (!email) {
-            alert("Silakan masukkan email Anda terlebih dahulu.");
+            alert("Please enter your email address first.");
             return;
         }
         try {
-            await sendPasswordResetEmail(auth, email);
-            alert("Email reset password telah dikirim. Silakan cek kotak masuk Anda.");
+            await sendPasswordResetEmail(auth, email); // Use await here
+            alert("A password reset email has been sent. Please check your inbox.");
         } catch (error) {
             console.error("Reset Password Error:", error);
-            alert("Gagal mengirim email reset: " + getErrorMessage(error.code));
+            alert("Failed to send reset email: " + getErrorMessage(error.code));
         }
     });
 
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // Reset visual errors (border merah) sebelum memproses
+            // Reset visual errors (red border) before processing
             form.querySelectorAll('.input-field').forEach(input => {
                 input.style.borderColor = 'transparent';
             });
@@ -209,22 +209,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (type === 'register') {
                     console.log("Attempting registration for:", email);
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    // Simpan nama lengkap ke profile Firebase
+                    // Save full name to Firebase profile
                     await updateProfile(userCredential.user, {
                         displayName: data.name.trim()
                     });
-                    loginTab.click(); // Pindah ke tab login
+                    loginTab.click(); // Switch to login tab
                 } else {
                     console.log("Attempting manual login for:", email);
                     await signInWithEmailAndPassword(auth, email, password);
-                    showLoadingOverlay(); // Tampilkan loader setelah berhasil login
-                    // Redirect ditangani secara otomatis oleh onAuthStateChanged
+                    showLoadingOverlay(); // Show loader after successful login
+                    // Redirect is handled automatically by onAuthStateChanged
                 }
             } catch (error) {
                 console.error("Login/Register Error:", error.code, error.message);
                 const errorMessage = getErrorMessage(error.code);
 
-                // Memberikan feedback visual: Border merah pada input yang salah
+                // Provide visual feedback: Red border on the incorrect input
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
                     const emailInput = form.querySelector('input[name="email"]');
                     if (emailInput) emailInput.style.borderColor = '#ef4444';

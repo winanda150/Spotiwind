@@ -39,8 +39,8 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app); // Inisialisasi Firestore
-const rtdb = getDatabase(app); // Inisialisasi Realtime Database
+const db = getFirestore(app); // Initialize Firestore
+const rtdb = getDatabase(app); // Initialize Realtime Database
 
 // Jamendo API Configuration (Free for developers)
 const JAMENDO_CLIENT_ID = '17b8da78';
@@ -50,41 +50,41 @@ const JAMENDO_API_URL = 'https://api.jamendo.com/v3.0/tracks/';
 let activeAudio = new Audio();
 let currentPlayingBtn = null;
 let currentPlaylist = [];
-let trendingPlaylist = []; // Buffer untuk menyimpan daftar lagu populer
-let newReleasesPlaylist = []; // Buffer untuk menyimpan daftar rilis terbaru
-let searchPlaylist = []; // Buffer untuk menyimpan hasil pencarian
-let indonesianSongsPlaylist = []; // NEW: Buffer untuk semua lagu lokal
-let indonesianGridPlaylist = []; // NEW: Buffer khusus untuk 12 lagu di grid Indonesia
+let trendingPlaylist = []; // Buffer to store the list of popular songs
+let newReleasesPlaylist = []; // Buffer to store the list of new releases
+let searchPlaylist = []; // Buffer to store search results
+let indonesianSongsPlaylist = []; // NEW: Buffer for all local songs
+let indonesianGridPlaylist = []; // NEW: Buffer specifically for the 12 songs in the Indonesian grid
 let currentSongIndex = -1;
 let isShuffle = false;
 let isRepeat = false;
 let isDragging = false;
-let currentContext = null; // Simpan konteks aktif secara global
-let currentSongData = null; // Menyimpan data lagu yang sedang aktif
-let activityUpdateTimeout = null; // Untuk optimasi update aktivitas
-let friendActivityListeners = []; // Simpan listener agar bisa dibersihkan
+let currentContext = null; // Store the active context globally
+let currentSongData = null; // Stores the currently active song data
+let activityUpdateTimeout = null; // For activity update optimization
+let friendActivityListeners = []; // Store listeners so they can be cleared
 
-// NEW: Tracking listener RTDB agar tidak duplikat (Sinkron dengan Desktop)
+// NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Set();
 
-// Cache status online teman (sama seperti desktop)
+// Cache friend online status (same as desktop)
 const friendOnlineStatus = {};
 
 const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
 const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
 /**
- * Helper untuk format waktu detik ke MM:SS
+ * Helper to format seconds to MM:SS
  */
 const formatTime = (seconds) => {
     if (isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`; 
 };
 
 /**
- * Helper untuk membandingkan URL audio secara akurat (ignore protocol/trailing slash)
+ * Helper to accurately compare audio URLs (ignore protocol/trailing slash)
  */
 const isSameAudio = (url1, url2) => {
     if (!url1 || !url2) return false;
@@ -93,10 +93,10 @@ const isSameAudio = (url1, url2) => {
 };
 
 /**
- * Helper untuk meriset UI tombol play/pause (Sinkron dengan Mobile)
+ * Helper to reset play/pause button UI (Sync with Mobile)
  */
 const resetBtnUI = (btn) => {
-    // Hanya reset innerHTML jika elemen memang sebuah tombol icon (play-overlay)
+    // Only reset innerHTML if the element is indeed an icon button (play-overlay)
     if (btn && (btn.classList.contains('play-overlay') || btn.classList.contains('play-pause-btn'))) {
         btn.innerHTML = PLAY_ICON;
         btn.classList.remove('btn-loading');
@@ -105,7 +105,7 @@ const resetBtnUI = (btn) => {
     }
 };
 
-// Event listener untuk memperbarui progress bar dan waktu secara real-time
+// Event listener to update the progress bar and time in real-time
 const mobileProgressThumbs = document.querySelectorAll('.mobile-mini-progress-bar');
 activeAudio.addEventListener('timeupdate', () => {
     if (isDragging) return;
@@ -120,12 +120,12 @@ activeAudio.addEventListener('timeupdate', () => {
     }
 });
 
-// Update total durasi saat metadata lagu dimuat
+// Update total duration when song metadata is loaded
 activeAudio.addEventListener('loadedmetadata', () => {
     document.getElementById('fullTotalTime').textContent = formatTime(activeAudio.duration);
 });
 
-// Toggle class is-playing pada card untuk animasi CSS
+// Toggle is-playing class on the card for CSS animation
 activeAudio.addEventListener('play', () => {
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
     document.querySelectorAll('#mobileMainPlayBtn').forEach(btn => btn.innerHTML = PAUSE_ICON);
@@ -136,7 +136,7 @@ activeAudio.addEventListener('play', () => {
     const fullPlayBtn = document.getElementById('fullMainPlayBtn');
     if (fullPlayBtn) fullPlayBtn.innerHTML = PAUSE_ICON;
     
-    // Sinkronkan SEMUA instance lagu ini (di Grid maupun Search Dropdown)
+    // Sync ALL instances of this song (in Grid and Search Dropdown)
     if (currentSongData) {
         document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
             el.classList.add('is-active-song');
@@ -167,13 +167,13 @@ activeAudio.addEventListener('pause', () => {
 });
 
 /**
- * Fungsi navigasi lagu (Next / Previous)
+ * Song navigation function (Next / Previous)
  */
 window.playNext = () => {
     if (currentPlaylist.length === 0) return;
 
-    // Karena currentPlaylist sudah diacak di array-nya saat Shuffle aktif,
-    // kita cukup mengambil urutan berikutnya.
+    // Since currentPlaylist is already shuffled in its array when Shuffle is active,
+    // we just need to take the next in order.
     let nextIndex = currentSongIndex + 1;
     if (nextIndex >= currentPlaylist.length) nextIndex = 0; 
 
@@ -183,12 +183,12 @@ window.playNext = () => {
 window.playPrevious = () => {
     if (currentPlaylist.length === 0) return;
     let prevIndex = currentSongIndex - 1;
-    if (prevIndex < 0) prevIndex = currentPlaylist.length - 1; // Ke akhir jika di awal
+    if (prevIndex < 0) prevIndex = currentPlaylist.length - 1; // Go to the end if at the beginning
     triggerSongByIndex(prevIndex);
 };
 
 /**
- * Memperbarui daftar putar berikutnya di Full Screen Player
+ * Updates the "Up Next" list in the Full Screen Player
  */
 const renderUpNext = () => {
     const listContainer = document.getElementById('upNextList');
@@ -199,10 +199,10 @@ const renderUpNext = () => {
         return;
     }
 
-    // Masalah Teratasi: Gunakan Set untuk melacak lagu unik agar tidak ada duplikasi visual 
-    // jika playlist sangat pendek.
+    // Problem Solved: Use a Set to track unique songs to avoid visual duplication
+    // if the playlist is very short.
     const nextSongs = [];
-    const maxItems = Math.min(currentPlaylist.length, 5); // Batasi maksimal 5 lagu berikutnya
+    const maxItems = Math.min(currentPlaylist.length, 5); // Limit to a maximum of 5 upcoming songs
     const seenIds = new Set();
 
     for (let i = 0; i < currentPlaylist.length && nextSongs.length < maxItems; i++) {
@@ -215,9 +215,9 @@ const renderUpNext = () => {
     }
 
     const html = nextSongs.map((song, idx) => {
-        // isActive hanya untuk index pertama (lagu yang benar-benar diputar sekarang)
+        // isActive is only for the first index (the song that is actually playing now)
         const isActive = idx === 0; 
-        // Escape kutipan tunggal dan ganda agar tidak merusak HTML atribut
+        // Escape single and double quotes to avoid breaking HTML attributes
         const safeTitle = song.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const safeArtist = song.artist.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
@@ -246,7 +246,7 @@ const renderUpNext = () => {
         </div>
     `;}).join('');
 
-    // Menggunakan View Transitions API jika tersedia (Chrome/Safari 17.4+)
+    // Use View Transitions API if available (Chrome/Safari 17.4+)
     if (document.startViewTransition) {
         document.startViewTransition(() => {
             listContainer.innerHTML = html;
@@ -260,7 +260,7 @@ const triggerSongByIndex = (index) => {
     const song = currentPlaylist[index];
     if (!song) return;
 
-    // Cari elemen play-overlay yang spesifik agar tidak menimpa kontainer utama
+    // Find the specific play-overlay element to avoid overwriting the main container
     const activeEl = document.querySelector(`.is-active-song[data-id="${song.id}"]`) || 
                      document.querySelector(`[data-id="${song.id}"]`);
     const btn = activeEl?.querySelector('.play-overlay');
@@ -269,16 +269,16 @@ const triggerSongByIndex = (index) => {
 };
  
 /**
- * Fungsi untuk memperbarui aktivitas pengguna di Firestore
+ * Function to update user activity in Firestore
  */
 const updateMyActivity = async (songName) => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Batalkan timeout sebelumnya jika ada (Debouncing sesuai desktop)
+    // Cancel previous timeout if any (Debouncing as per desktop)
     if (activityUpdateTimeout) clearTimeout(activityUpdateTimeout);
 
-    // Hanya update jika lagu diputar lebih dari 5 detik
+    // Only update if the song has been playing for more than 5 seconds
     activityUpdateTimeout = setTimeout(async () => {
         try {
             await setDoc(doc(db, "friends_activity", user.uid), {
@@ -289,13 +289,13 @@ const updateMyActivity = async (songName) => {
             }, { merge: true });
             console.log("Activity updated:", songName);
         } catch (error) {
-            console.error("Gagal memperbarui aktivitas ke Firestore:", error);
+            console.error("Failed to update activity to Firestore:", error);
         }
     }, 5000);
 };
 
 /**
- * Fungsi untuk menyinkronkan status tombol Like di player
+ * Function to sync the Like button status in the player
  */
 const syncPlayerLikeButtons = (isLiked) => {
     const mobileLikeBtn = document.getElementById('mobileLoveBtn');
@@ -306,7 +306,7 @@ const syncPlayerLikeButtons = (isLiked) => {
 };
 
 /**
- * Fungsi untuk mengecek apakah lagu sudah di-like di Firestore
+ * Function to check if a song is liked in Firestore
  */
 const checkLikedStatus = async (songId) => {
     const user = auth.currentUser;
@@ -334,7 +334,7 @@ const checkLikedStatus = async (songId) => {
 };
 
 /**
- * Fungsi untuk membuat efek partikel hati (disederhanakan untuk mobile)
+ * Function to create heart particle effects (simplified for mobile)
  */
 const createHeartParticles = (el) => {
     if (!el) return;
@@ -376,14 +376,14 @@ const showToast = (message) => {
     toast.innerHTML = `<span>${message}</span>`;
     container.appendChild(toast);
     
-    // Otomatis hapus setelah animasi selesai (3 detik)
+    // Automatically remove after the animation finishes (3 seconds)
     setTimeout(() => {
         toast.remove();
     }, 3000);
 };
 
 /**
- * Fungsi untuk mengatur status online/offline pengguna saat ini di Realtime Database
+ * Function to set the current user's online/offline status in the Realtime Database
  */
 const setupUserPresence = (user) => {
     if (!user) return;
@@ -412,26 +412,26 @@ const setupUserPresence = (user) => {
         if (snapshot.val() === true) {
             setOnline();
             
-            // Set onDisconnect untuk mengubah status menjadi offline saat terputus
+            // Set onDisconnect to change status to offline when disconnected
             onDisconnect(userStatusRef).set({
                 state: 'offline',
                 last_changed: rtdbServerTimestamp()
             });
         }
         else {
-            setOffline();
+            // setOffline(); // This is handled by onDisconnect
         }
     });
 
-    // Perbaikan: Hanya set online saat kembali, jangan paksa offline saat sembunyi
-    // agar status 'Listening to...' tetap akurat saat background play.
+    // Fix: Only set online on return, don't force offline on hide
+    // so that 'Listening to...' status remains accurate during background play.
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') setOnline();
     });
 };
 
 /**
- * Fungsi untuk memantau status online teman secara real-time di mobile
+ * Function to monitor friends' online status in real-time on mobile
  */
 const listenToFriendPresence = (friendUid) => {
     if (activePresenceListeners.has(friendUid)) return;
@@ -443,7 +443,7 @@ const listenToFriendPresence = (friendUid) => {
         const isOnline = data?.state === 'online';
         friendOnlineStatus[friendUid] = isOnline;
         
-        // Update UI jika elemen teman ada di halaman (misal di daftar aktivitas)
+        // Update UI if the friend's element is on the page (e.g., in the activity list)
         const statusElements = document.querySelectorAll(`.friend-item[data-uid="${friendUid}"] .online-status`);
         statusElements.forEach(el => {
             if (isOnline) el.classList.remove('offline');
@@ -453,28 +453,28 @@ const listenToFriendPresence = (friendUid) => {
 };
 
 /**
- * Fungsi untuk mengambil aktivitas teman (sama seperti logika desktop)
+ * Function to fetch friend activity (same logic as desktop)
  */
 const renderMobileFriendActivity = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Bersihkan listener lama jika ada untuk mencegah kebocoran memori
+    // Clear old listeners if any to prevent memory leaks
     if (friendActivityListeners.length > 0) {
         friendActivityListeners.forEach(unsub => unsub());
         friendActivityListeners = [];
     }
 
     try {
-        // 1. Ambil daftar UID orang yang di-follow (Following)
+        // 1. Get the list of UIDs of people being followed (Following)
         const followingRef = collection(db, "users", user.uid, "following");
         const followingSnap = await getDocs(followingRef);
         const followingIds = followingSnap.docs.map(doc => doc.id).filter(id => id !== user.uid);
 
-        // Jika tidak mem-follow siapapun, tidak perlu melanjutkan
+        // If not following anyone, no need to proceed
         if (followingIds.length === 0) return;
 
-        // 2. Render container (asumsi ada di HTML atau tambahkan secara dinamis)
+        // 2. Render container (assuming it's in the HTML or add it dynamically)
         const container = document.getElementById('mobileFriendActivity');
 
         const q = query(collection(db, "friends_activity"), where(documentId(), "in", followingIds.slice(0, 30)), limit(5));
@@ -506,12 +506,12 @@ const renderMobileFriendActivity = async () => {
 
         friendActivityListeners.push(unsub);
     } catch (error) {
-        console.error("Gagal memuat aktivitas teman di mobile:", error);
+        console.error("Failed to load friend activity on mobile:", error);
     }
 };
 
 /**
- * Helper untuk format waktu relatif (sama seperti desktop)
+ * Helper for relative time format (same as desktop)
  */
 const formatRelativeTime = (timestamp) => {
     if (!timestamp) return "now";
@@ -560,12 +560,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logoutBtn');
     const greetingBadge = document.getElementById('greetingBadge');
 
-    let lastHour = -1; // Menyimpan status jam terakhir untuk optimasi render
+    let lastHour = -1; // Stores the last hour's status for rendering optimization
 
     const updateGreeting = () => {
         if (!greetingBadge) return;
         const hour = new Date().getHours();
-        if (hour === lastHour) return; // Optimasi: Hanya proses jika jam berubah
+        if (hour === lastHour) return; // Optimization: Only process if the hour has changed
         lastHour = hour;
 
         let greeting = "";
@@ -588,10 +588,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     updateGreeting();
-    // Perbarui sapaan setiap 1 menit agar tetap akurat jika halaman dibiarkan terbuka
+    // Update the greeting every 1 minute to keep it accurate if the page is left open
     setInterval(updateGreeting, 60000);
 
-    // Segera perbarui jika user kembali ke tab ini (Visibility API)
+    // Immediately update if the user returns to this tab (Visibility API)
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') updateGreeting();
     });
@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
-     * Fungsi utama untuk toggle Like/Unlike
+     * Main function to toggle Like/Unlike
      */
     const toggleLike = async (e) => {
         const user = auth.currentUser;
@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!wasLiked) {
             createHeartParticles(btn);
         } else {
-            // Efek feedback visual saat dislike (un-love)
+            // Visual feedback effect on dislike (un-love)
             btn.classList.add('dislike-anim');
             setTimeout(() => btn.classList.remove('dislike-anim'), 400);
         }
@@ -651,18 +651,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 /**
- * Fungsi khusus untuk memutar lagu dari hasil pencarian dropdown.
- * Berfungsi untuk memperbarui currentPlaylist agar fitur Next/Prev sinkron dengan hasil cari.
+ * Special function to play a song from the search dropdown results.
+ * It updates currentPlaylist so that the Next/Prev features are in sync with the search results.
  */
 window.playFromSearch = (audioUrl, title, artist, cover, id) => {
-    // Ambil durasi dari lastSearchResults jika tersedia
+    // Get duration from lastSearchResults if available
     const songData = window.lastSearchResults?.find(s => String(s.id) === String(id));
-    const duration = songData ? songData.duration : 0; // Default ke 0 jika tidak ditemukan
+    const duration = songData ? songData.duration : 0; // Default to 0 if not found
     window.playPreview(null, audioUrl, title, artist, cover, id, duration, 'search');
 };
 
     /**
-     * Fungsi untuk memutar/menghentikan audio
+     * Function to play/pause audio
      */
     window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
         if (!audioUrl) {
@@ -671,24 +671,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         currentContext = context; // Update global context
 
-        // Jika btn null (dipanggil dari Up Next/Next/Prev), coba cari tombolnya di DOM agar UI tersinkronisasi
+        // If btn is null (called from Up Next/Next/Prev), try to find the button in the DOM to sync the UI
         if (!btn) {
             const activeEl = document.querySelector(`.is-active-song[data-id="${id}"]`) || 
                              document.querySelector(`[data-id="${id}"]`);
             btn = activeEl?.querySelector('.play-overlay');
         }
 
-        // Hanya perbarui playlist jika context diberikan (Play baru dari section tertentu)
-        // Jika null (misal dari Next/Prev/Repeat), gunakan currentPlaylist yang sudah ada.
+        // Only update the playlist if a context is given (New play from a specific section)
+        // If null (e.g., from Next/Prev/Repeat), use the existing currentPlaylist.
         if (context) {
             let baseQueue = [];
             if (context === 'trending' || context === 'new') {
                 const masterPool = [...trendingPlaylist, ...newReleasesPlaylist];
                 baseQueue = Array.from(new Map(masterPool.map(s => [s.id, s])).values());
             } else if (context === 'search') {
-                baseQueue = [...searchPlaylist]; // Gunakan salinan agar antrean saat ini stabil
+                baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
             } else if (context === 'local') {
-                baseQueue = [...indonesianGridPlaylist]; // PERBAIKAN: Gunakan playlist grid lokal
+                baseQueue = [...indonesianGridPlaylist]; // FIX: Use the local grid playlist
             }
 
             if (isShuffle) {
@@ -709,13 +709,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const songId = String(id);
         const isSameSong = currentSongData && String(currentSongData.id) === songId;
 
-        // Logika Toggle Play/Pause untuk lagu yang sama
+        // Toggle Play/Pause logic for the same song
         if (isSameSong) {
             if (!activeAudio.paused) {
                 activeAudio.pause();
             } else {
                 try {
-                    // Jika lagu sudah selesai (ended), reset ke awal sebelum memutar ulang (Penting untuk Repeat)
+                    // If the song has ended, reset to the beginning before replaying (Important for Repeat)
                     if (activeAudio.ended) activeAudio.currentTime = 0;
                     await activeAudio.play();
                 } catch (e) {
@@ -725,17 +725,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             return;
         }
 
-        // Memutar Lagu Baru
+        // Playing a New Song
         currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration: duration };
 
-        // Set index lagu dalam playlist yang baru saja dibuat/diacak
-        // Ini sangat penting agar tombol Next/Prev tahu posisi relatifnya
+        // Set the song index in the newly created/shuffled playlist
+        // This is very important so that the Next/Prev buttons know their relative position
         currentSongIndex = currentPlaylist.findIndex(s => isSameAudio(s.audio, audioUrl));
 
-        // Render daftar lagu berikutnya secara instan (tidak menunggu lagu selesai dimuat)
+        // Render the list of next songs instantly (don't wait for the song to load)
         renderUpNext();
 
-        // Reset SEMUA status lagu (mencegah duplikat visual saat skip cepat)
+        // Reset ALL song statuses (prevents visual duplicates during fast skipping)
         document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
             el.classList.remove('is-active-song', 'is-paused');
         });
@@ -745,10 +745,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
         });
 
-        // Aktifkan class pada semua elemen dengan ID ini
+        // Activate the class on all elements with this ID
         document.querySelectorAll(`[data-id="${songId}"]`).forEach(el => el.classList.add('is-active-song'));
 
-        // Reset Mini Progress Bar ke 0 seketika sebelum lagu baru dimuat
+        // Reset Mini Progress Bar to 0 instantly before the new song loads
         document.querySelectorAll('.mobile-mini-progress-bar').forEach(thumb => thumb.style.width = '0%');
 
         currentPlayingBtn = btn;
@@ -761,7 +761,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         try {
             activeAudio.src = audioUrl;
 
-        // Update Document Title (Konsisten dengan desktop)
+        // Update Document Title (Consistent with desktop)
         document.title = `Spotiwind - Feel The Music, Ride The Wind`;
 
         // Media Session API integration
@@ -769,7 +769,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: title,
                 artist: artist,
-                album: 'Spotiwind', // Atau ambil dari currentSongData jika ada
+                album: 'Spotiwind', // Or get from currentSongData if available
                 artwork: [
                     { src: cover, sizes: '512x512', type: 'image/webp' }
                 ]
@@ -784,7 +784,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             syncPlayerLikeButtons(false);
             checkLikedStatus(id);
 
-            // Tampilkan dan update Mobile Player Bar
+            // Show and update Mobile Player Bar
             const mobileBar = document.getElementById('mobilePlayerBar');
             if (mobileBar) {
                 mobileBar.classList.add('active');
@@ -802,7 +802,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             document.getElementById('fullProgressBar').style.width = '0%';
 
             activeAudio.onerror = (e) => {
-                console.error("Kesalahan pemutaran audio:", e);
+                console.error("Audio playback error:", e);
                 resetBtnUI(btn);
                 currentPlayingBtn = null;
             };
@@ -816,7 +816,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error("Playback error:", error);
-            showToast(error.message || "Gagal memuat lagu.");
+            showToast(error.message || "Failed to load song.");
             if (btn) btn.classList.remove('btn-loading');
             document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
             currentPlayingBtn = null;
@@ -827,9 +827,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             currentPlayingBtn = null;
             if (isRepeat) {
                 if (currentSongIndex !== -1) {
-                    triggerSongByIndex(currentSongIndex); // Memutar ulang lagu yang sama
+                    triggerSongByIndex(currentSongIndex); // Replay the same song
                 } else if (currentSongData) {
-                    // Perbaikan: Pastikan pemutaran ulang lagu dari pencarian tetap bersih
+                    // Fix: Ensure replaying a song from search is clean
                     window.playPreview(null, currentSongData.audio, currentSongData.name, currentSongData.artist, currentSongData.cover, currentSongData.id, currentSongData.duration);
                 }
             } else if (currentPlaylist.length > 0) {
@@ -839,7 +839,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
-     * Fungsi untuk menampilkan daftar artis ke UI
+     * Function to render the artist list to the UI
      */
     const renderTopArtists = (artists) => {
         const artistsGrid = document.querySelector('.artists-grid');
@@ -853,14 +853,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
-     * Fungsi untuk mengambil data artis populer dari Jamendo
+     * Function to fetch popular artist data from Jamendo
      */
     const fetchTopArtists = async () => {
         const artistsGrid = document.querySelector('.artists-grid');
         try {
             const url = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total`;
             const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Gagal menghubungi server Jamendo");
+            if (!response.ok) throw new Error("Failed to contact Jamendo server");
             const data = await response.json();
             
             if (data.results) {
@@ -874,24 +874,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     }));
                 
                 if (artistsWithPhotos.length === 0) {
-                    return false; // Sinyal untuk mencoba lagi jika tidak ada artis dengan foto.
+                    return false; // Signal to retry if no artists with photos are found.
                 }
                 renderTopArtists(artistsWithPhotos);
-                return true; // Berhasil
+                return true; // Success
             }
         } catch (error) {
-            console.error("Gagal mengambil data artis:", error);
-            throw error; // Lemparkan error agar ditangkap oleh fetchWithContinuousRetry
+            console.error("Failed to fetch artist data:", error);
+            throw error; // Throw error to be caught by fetchWithContinuousRetry
         }
     };
 
     /**
-     * Menampilkan skeleton loader di dalam grid.
-     * @param {string} gridSelector - Selector CSS untuk container grid.
-     * @param {string} type - Tipe skeleton ('song' atau 'artist').
-     * @param {number} count - Jumlah skeleton yang akan ditampilkan.
+     * Displays a skeleton loader in the grid.
+     * @param {string} gridSelector - CSS selector for the grid container.
+     * @param {string} type - Skeleton type ('song' or 'artist').
+     * @param {number} count - Number of skeletons to display.
      */
-    const showSkeletonLoader = (gridSelector, type, count = 6) => {
+    const showSkeletonLoader = (gridSelector, type, count = 6) => { 
         const grid = document.querySelector(gridSelector);
         if (!grid) return;
 
@@ -919,26 +919,26 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
-     * Fungsi fetch dengan mekanisme retry dan exponential backoff.
-     * @param {string} url - URL API yang akan di-fetch.
-     * @param {object} options - Opsi untuk fetch.
-     * @param {number} retries - Jumlah percobaan ulang.
+     * Fetch function with a retry mechanism and exponential backoff.
+     * @param {string} url - The API URL to fetch.
+     * @param {object} options - Options for fetch.
+     * @param {number} retries - Number of retry attempts.
      * @returns {Promise<Response>}
      */
     const fetchWithRetry = async (url, options = {}, retries = 3) => {
         let lastError;
-        for (let i = 0; i < retries; i++) { // Melakukan percobaan sebanyak 'retries' kali
+        for (let i = 0; i < retries; i++) { // Attempt 'retries' times
             try {
                 const response = await fetch(url, options);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response; // Jika berhasil, kembalikan response
+                return response; // If successful, return the response
             } catch (error) {
                 lastError = error;
                 console.warn(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
                 if (i < retries - 1) await new Promise(res => setTimeout(res, 2 ** i * 1000)); // Exponential backoff: 1s, 2s, 4s...
             }
         }
-        throw lastError; // Lemparkan error terakhir setelah semua percobaan gagal
+        throw lastError; // Throw the last error after all attempts fail
     };
     // Helper function to format play counts (e.g., 1.2M, 500K, 300)
     const formatPlayCount = (count) => {
@@ -1033,15 +1033,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
-     * [FIX & REFACTOR] Fungsi render grid universal yang disinkronkan dengan desktop.
-     * Mampu menangani state loading (skeleton), empty, dan success.
-     * @param {string} gridSelector - Selector CSS untuk container grid.
-     * @param {Array|null} items - Array data. Jika null, tampilkan skeleton.
-     * @param {(item: object, context?: string) => string} itemRenderer - Fungsi untuk merender satu item menjadi HTML.
-     * @param {string} skeletonType - Tipe skeleton ('song' atau 'artist').
-     * @param {string} [context] - Konteks pemutaran (opsional).
-     * @param {string} [emptyMessage] - Pesan jika tidak ada item.
-     * @param {number} [skeletonCount] - Jumlah skeleton yang ditampilkan.
+     * [FIX & REFACTOR] Universal grid rendering function synced with desktop.
+     * Can handle loading (skeleton), empty, and success states.
+     * @param {string} gridSelector - CSS selector for the grid container.
+     * @param {Array|null} items - Data array. If null, show skeleton.
+     * @param {(item: object, context?: string) => string} itemRenderer - Function to render one item into HTML.
+     * @param {string} skeletonType - Skeleton type ('song' or 'artist').
+     * @param {string} [context] - Playback context (optional).
+     * @param {string} [emptyMessage] - Message if there are no items.
+     * @param {number} [skeletonCount] - Number of skeletons to display.
      */
     const renderGrid = (gridSelector, items, itemRenderer, skeletonType, context = '', emptyMessage = "No items found.", skeletonCount = 4) => {
         const grid = document.querySelector(gridSelector);
@@ -1050,7 +1050,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (items === null) {
             showSkeletonLoader(gridSelector, skeletonType, skeletonCount);
         } else if (items.length === 0) {
-            grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem;">${emptyMessage}</p>`;
+            grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">${emptyMessage}</p>`;
         } else {
             grid.innerHTML = items.map(item => itemRenderer(item, context)).join('');
         }
@@ -1150,28 +1150,28 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 searchPlaylist = rawSongs;
                 renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton', 'search');
             } else {
-                songGrid.innerHTML = '<p style="width: 100%; text-align: center; color: var(--text-muted);">Tidak ada hasil ditemukan.</p>';
+                songGrid.innerHTML = '<p style="width: 100%; text-align: center; color: var(--text-muted);">No results found.</p>';
             }
         } catch (error) {
             console.error("Search Music Error:", error);
-            songGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">Gagal mencari lagu. Coba lagi nanti.</p>`;
+            songGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">Failed to search for songs. Try again later.</p>`;
         }
     };
 
     /**
-     * Fungsi untuk mengambil data rilis terbaru dari Jamendo
+     * Function to fetch the latest release data from Jamendo
      */
     const fetchNewReleases = async () => {
         const gridSelector = '#newReleasesGrid';
 
         try {
-            // Kita ambil limit lebih banyak (50) untuk difilter agar setiap artis unik
+            // We take a higher limit (50) to filter for unique artists
             const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=releasedate_desc&include=stats`;
             const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Gagal menghubungi server Jamendo");
+            if (!response.ok) throw new Error("Failed to contact Jamendo server");
             const data = await response.json();
 
-            // Filter agar setiap artis hanya muncul sekali di daftar rilis terbaru
+            // Filter to ensure each artist appears only once in the new releases list
             const seenArtists = new Set();
             const uniqueResults = [];
             for (const item of data.results) {
@@ -1190,35 +1190,35 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 cover: item.image,
                 audio: item.audio,
                 duration: item.duration,
-                // Rilis baru biasanya memiliki jumlah putar yang lebih rendah
+                // New releases usually have a lower play count
                 plays: formatPlayCount(Math.floor(Math.random() * 50000) + 1000)
             }));
 
-            // [FIX] Hanya render dan return true jika ada data untuk ditampilkan.
+            // [FIX] Only render and return true if there is data to display.
             if (rawSongs.length === 0) {
-                console.warn("fetchNewReleases: Tidak ada lagu unik ditemukan setelah filter, mencoba lagi...");
-                return false; // Beri sinyal ke retry-wrapper untuk mencoba lagi.
+                console.warn("fetchNewReleases: No unique songs found after filtering, retrying...");
+                return false; // Signal the retry-wrapper to try again.
             }
 
             newReleasesPlaylist = rawSongs;
             renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'new');
-            return true; // Berhasil
+            return true; // Success
         } catch (error) {
-            console.error("Gagal mengambil rilis terbaru:", error);
-            throw error; // Lemparkan error agar ditangkap oleh fetchWithContinuousRetry
+            console.error("Failed to fetch new releases:", error);
+            throw error; // Throw error to be caught by fetchWithContinuousRetry
         }
     };
 
     /**
-     * Fungsi untuk mengambil lagu lokal Indonesia dari manifest JSON.
-     * Sumber file audio: Elemen/Lagu .../*.mp3
-     * Sumber cover: Elemen/Images Song/*.jpg (nama file sesuai nama lagu)
+     * Function to fetch local Indonesian songs from a JSON manifest.
+     * Audio file source: Elemen/Lagu .../*.mp3
+     * Cover source: Elemen/Images Song/*.jpg (filename matches song name)
      */
     const fetchIndonesianSongs = async () => {
         const gridSelector = '#indonesianSongsGrid';
 
-        // Daftar 12 lagu yang akan ditampilkan secara manual di grid utama.
-        // Data ini tidak lagi diambil dari slice, tetapi didefinisikan langsung di sini.
+        // List of 12 songs to be manually displayed in the main grid.
+        // This data is no longer taken from a slice, but defined directly here.
         const IndonesianGridSongs = [
             {
                 "id": "backstreet-boys-shape-of-my-heart", "name": "Shape Of My Heart", "artist": "Backstreet Boys", "plays": "98.1M", "duration": 228,
@@ -1275,49 +1275,49 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             if (!res.ok) throw new Error(`Failed to load manifest: ${res.status}`);
             const data = await res.json();
 
-            // Simpan SEMUA lagu lokal ke buffer global
+            // Save ALL local songs to the global buffer
             indonesianSongsPlaylist = (data.songs || []).map((s, idx) => ({
                 id: s.id || `local-${idx}`,
                 name: s.name,
                 artist: s.artist,
                 cover: s.cover,
                 audio: s.audio,
-                duration: s.duration || 0, // Ambil durasi dari manifest, atau default ke 0
+                duration: s.duration || 0, // Get duration from manifest, or default to 0
                 plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
             }));
 
-            // PERBAIKAN: Simpan 12 lagu grid ke variabel global agar bisa diakses oleh player
+            // FIX: Save the 12 grid songs to a global variable so the player can access them
             indonesianGridPlaylist = IndonesianGridSongs;
 
-            // Render grid utama dengan daftar lagu yang sudah didefinisikan manual di atas.
-            // Konteks 'local' digunakan untuk logika pemutaran.
-            // Sekarang data 'plays' sudah statis dan ada di dalam IndonesianGridSongs.
+            // Render the main grid with the manually defined song list above.
+            // The 'local' context is used for playback logic.
+            // The 'plays' data is now static and inside IndonesianGridSongs.
             renderGridProgressively(gridSelector, IndonesianGridSongs, createSongCardHTML, '.song-card-skeleton', 'local');
             return true; // NEW: Signal successful loading to fetchWithContinuousRetry
 
-            // Catatan: `indonesianSongsPlaylist` yang berisi SEMUA lagu tetap disimpan
-            // untuk digunakan oleh fungsi pencarian di `fetchDropdownResults`.
+            // Note: `indonesianSongsPlaylist` which contains ALL songs is still stored
+            // to be used by the search function in `fetchDropdownResults`.
         } catch (error) {
-            console.error('Gagal memuat Indonesian Songs:', error);
-            throw error; // Lemparkan error agar ditangkap oleh fetchWithContinuousRetry
+            console.error('Failed to load Indonesian Songs:', error);
+            throw error; // Throw error to be caught by fetchWithContinuousRetry
         }
     };
 
     /**
-     * Fungsi untuk mengambil data lagu populer dari Jamendo
+     * Function to fetch popular song data from Jamendo
      */
     const fetchTrendingMusic = async () => {
-        const gridSelector = '.popular-section .song-grid';
+        const gridSelector = '.popular-section .song-grid'; 
         const sectionTitle = document.getElementById('sectionTitle');
         try {
             if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
-            // Kita ambil limit lebih banyak (50) untuk difilter agar setiap artis unik di grid
+            // We take a higher limit (50) to filter for unique artists in the grid
             const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total&include=stats`;
             const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Gagal menghubungi server Jamendo");
+            if (!response.ok) throw new Error("Failed to contact Jamendo server");
             const data = await response.json();
 
-            // Logika filter: Hanya ambil satu lagu per artis untuk variasi visual
+            // Filter logic: Only take one song per artist for visual variety
             const seenArtists = new Set();
             const uniqueResults = [];
             for (const item of data.results) {
@@ -1336,30 +1336,30 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     cover: item.image,
                     audio: item.audio,
                     duration: item.duration,
-                    // Rentang baru: 300 ribu hingga 5 juta agar terasa lebih populer
+                    // New range: 300k to 5 million to feel more popular
                     plays: formatPlayCount(Math.floor(Math.random() * 4700000) + 300000)
         }));
 
-        // [FIX] Hanya render dan return true jika ada data untuk ditampilkan.
+        // [FIX] Only render and return true if there is data to display.
         if (rawSongs.length === 0) {
-            console.warn("fetchTrendingMusic: Tidak ada lagu unik ditemukan setelah filter, mencoba lagi...");
-            return false; // Beri sinyal ke retry-wrapper untuk mencoba lagi.
+            console.warn("fetchTrendingMusic: No unique songs found after filtering, retrying...");
+            return false; // Signal the retry-wrapper to try again.
         }
 
         trendingPlaylist = rawSongs;
         renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'trending');
-        return true; // Berhasil
+        return true; // Success
         } catch (error) {
-            console.error("Gagal mengambil data musik:", error);
-            throw error; // Lemparkan error agar ditangkap oleh fetchWithContinuousRetry
+            console.error("Failed to fetch music data:", error);
+            throw error; // Throw error to be caught by fetchWithContinuousRetry
         }
     };
 
     /**
-     * NEW: Wrapper untuk mencoba ulang fungsi fetch secara terus-menerus saat gagal.
-     * Ini memastikan skeleton loader tetap ada dan aplikasi terus mencoba memuat data.
-     * @param {() => Promise<boolean>} fetchFunction - Fungsi async yang akan dijalankan.
-     * @param {number} delay - Jeda waktu (ms) sebelum mencoba lagi.
+     * NEW: Wrapper to continuously retry a fetch function upon failure.
+     * This ensures the skeleton loader remains and the app keeps trying to load data.
+     * @param {() => Promise<boolean>} fetchFunction - The async function to execute.
+     * @param {number} delay - The delay (ms) before retrying.
      */
     const fetchWithContinuousRetry = async (fetchFunction, delay = 5000) => {
     // NEW: True Promise-based retry loop. This will hold Promise.all until success.
@@ -1369,10 +1369,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             if (success) {
                 return true; // Success! Exit the loop and resolve the promise.
             }
-            // If fetchFunction returns false (e.g., empty results), log it and retry.
+            // If fetchFunction returns false (e.g., empty results), log and retry.
             console.warn(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
         } catch (error) {
-            // If fetchFunction throws an error (e.g., network failure), log it and retry.
+            // If fetchFunction throws an error (e.g., network failure), log and retry.
             console.error(`Error in ${fetchFunction.name}. Retrying in ${delay}ms...`, error);
             }
         // Wait for the specified delay before the next iteration of the loop.
@@ -1380,12 +1380,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    // Logic Klik untuk Bottom Navigation
+    // Click Logic for Bottom Navigation
     const bottomNavItems = document.querySelectorAll('.mobile-bottom-nav .nav-item');
     bottomNavItems.forEach(item => {
         item.addEventListener('click', (e) => {
-            const targetPage = item.getAttribute('data-target');
-            // Jika target sama dengan halaman saat ini, jangan lakukan apa-apa
+            const targetPage = item.getAttribute('href');
+            // If the target is the same as the current page, do nothing
             if (window.location.pathname.includes(targetPage)) return;
             
             e.preventDefault();
@@ -1393,11 +1393,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         });
     });
 
-    // Fungsi Helper untuk Navigasi dengan Animasi
+    // Helper Function for Navigation with Animation
     const navigateTo = (url) => {
         const overlay = document.getElementById('pageTransition');
 
-        // Segera sembunyikan container utama agar tidak terlihat berantakan saat resize
+        // Immediately hide the main container to avoid a messy look during resize
         document.body.classList.add('is-transitioning');
 
         if (overlay) {
@@ -1408,7 +1408,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    // Fungsi sederhana untuk langsung menyembunyikan overlay loading
+    // Simple function to immediately hide the loading overlay
     const hideLoadingOverlay = () => {
         const overlay = document.getElementById('pageTransition');
         document.body.classList.remove('is-transitioning');
@@ -1417,7 +1417,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    // Listener untuk perubahan ukuran layar secara real-time
+    // Listener for real-time screen size changes
     let isNavigating = false;
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768 && !isNavigating) {
@@ -1427,8 +1427,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     });
 
     /**
-     * NEW: Menampilkan semua skeleton loader secara sinkron di awal.
-     * Ini memastikan skeleton selalu terlihat, bahkan saat refresh cepat.
+     * NEW: Display all skeleton loaders synchronously at the start.
+     * This ensures skeletons are always visible, even on a quick refresh.
      */
     const initializeSkeletons = () => {
         showSkeletonLoader('.popular-section .song-grid', 'song', 6);
@@ -1439,33 +1439,33 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // Proteksi: Jika dibuka di Desktop, lempar balik ke halaman desktop
+            // Protection: If opened on Desktop, redirect back to the desktop page
             if (window.innerWidth > 768) {
                 navigateTo('desktop.html');
                 return;
             }
 
-            // FIX: Tambahkan jeda saat refresh agar transisi terasa konsisten
-            // seperti saat login. Ini akan menahan layar loading selama 1 detik.
+            // FIX: Add a delay on refresh to make the transition feel consistent
+            // like on login. This will hold the loading screen for 1 second.
             setTimeout(() => {
                 hideLoadingOverlay();
             }, 500);
-            // Perbarui nama pengguna (Username)
+            // Update username
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
                 userNameElement.textContent = user.displayName || user.email.split('@')[0];
             }
 
-            // Setup presence untuk user yang sedang login
+            // Setup presence for the currently logged-in user
             setupUserPresence(user);
 
-            // Mulai memantau aktivitas teman agar status online mereka ter-sync
+            // Start monitoring friend activity to sync their online status
             renderMobileFriendActivity();
 
-            // Jalankan pengambilan data API secara paralel agar lebih cepat (sinkron dengan pola desktop)
+            // Run API data fetching in parallel for faster loading (sync with desktop pattern)
             const initializeData = () => {
-                // [FIX] Hapus Promise.all agar setiap grid bisa render secara independen.
-                // Ini memungkinkan data tampil satu per satu saat sudah siap, tanpa menunggu yang lain.
+                // [FIX] Remove Promise.all so each grid can render independently.
+                // This allows data to appear one by one as it's ready, without waiting for others.
                 fetchWithContinuousRetry(fetchTrendingMusic);
                 fetchWithContinuousRetry(fetchTopArtists);
                 fetchWithContinuousRetry(fetchNewReleases);
@@ -1474,13 +1474,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             initializeData();
 
-            // Inisialisasi Fitur Search Slidedown
+            // Initialize Search Slidedown Feature
             const searchInput = document.getElementById('searchInput');
             const searchDropdown = document.getElementById('searchDropdown');
 
             let searchAbortController = null;
 
-            // NEW: Fungsi helper untuk menyinkronkan tinggi dropdown dengan hero-card secara dinamis
+            // NEW: Helper function to dynamically sync dropdown height with the hero-card
             const updateSearchDropdownHeight = () => {
                 const heroCard = document.querySelector('.hero-card');
                 const searchBox = document.querySelector('.search-box');
@@ -1492,11 +1492,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     // Jarak total dari bawah kotak pencarian ke bawah hero card
                     const distanceToBottom = heroRect.bottom - searchRect.bottom;
 
-                    // Ambil nilai margin-top dari dropdown (0.5rem) agar tidak 'offside' ke bawah
+                    // Get the margin-top value of the dropdown (0.5rem) to prevent it from going 'offside' downwards
                     const dropdownStyle = window.getComputedStyle(searchDropdown);
                     const marginTop = parseFloat(dropdownStyle.marginTop) || 0;
                     
-                    // Tinggi maksimal adalah jarak dikurangi margin agar pas di garis bawah hero card
+                    // The maximum height is the distance minus the margin to fit perfectly at the bottom line of the hero card
                     const finalHeight = Math.max(0, distanceToBottom - marginTop);
                     searchDropdown.style.setProperty('--search-dropdown-height', `${finalHeight}px`);
                 }
@@ -1512,23 +1512,23 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 try {
                     const cleanQuery = query.trim().toLowerCase();
 
-                    // --- START: LOGIKA PENCARIAN LOKAL ---
+                    // --- START: LOCAL SEARCH LOGIC --- 
                     const localResults = indonesianSongsPlaylist
                         .filter(song => {
                             const fullText = `${song.name} ${song.artist}`.toLowerCase();
                             return fullText.includes(cleanQuery);
                         })
-                        .map(song => ({ // Ubah format agar konsisten dengan Jamendo
-                            ...song,
+                        .map(song => ({ // Change format to be consistent with Jamendo
+                            ...song, 
                             artist_name: song.artist,
                             image: song.cover,
-                            isLocal: true // Tandai sebagai lagu lokal
+                            isLocal: true // Mark as a local song
                         }));
-                    // --- END: LOGIKA PENCARIAN LOKAL ---
+                    // --- END: LOCAL SEARCH LOGIC --- 
 
                     const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=15&include=stats`;
                     
-                    // Gunakan Hybrid Search juga di Dropdown dengan signal pembatalan
+                    // Use Hybrid Search in the Dropdown as well, with a cancellation signal
                     const [res1, res2] = await Promise.all([
                         fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
                         fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
@@ -1540,29 +1540,29 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     
                     const qWords = cleanQuery.split(/\s+/);
                     
-                    // 1. Hilangkan Duplikat
+                    // 1. Remove Duplicates
                     const uniqueMap = new Map();
                     combined.forEach(item => uniqueMap.set(item.id, item));
                     const allTracks = Array.from(uniqueMap.values());
 
-                    // 2. Filter Prioritas (Harus mengandung semua kata yang diketik)
+                    // 2. Priority Filter (Must contain all typed words)
                     const priorityMatches = allTracks.filter(item => {
                         const fullText = `${item.name} ${item.artist_name || item.artist}`.toLowerCase();
                         return qWords.every(word => fullText.includes(word));
                     });
 
-                // 3. Sortir dengan memprioritaskan lagu lokal
+                // 3. Sort by prioritizing local songs 
                 const customSort = (a, b) => {
                     const aIsLocal = a.isLocal || false;
                     const bIsLocal = b.isLocal || false;
 
                     if (aIsLocal && !bIsLocal) {
-                        return -1; // Lagu lokal (a) muncul duluan
+                        return -1; // Local song (a) comes first
                     }
                     if (!aIsLocal && bIsLocal) {
-                        return 1; // Lagu lokal (b) muncul duluan
+                        return 1; // Local song (b) comes first
                     }
-                    // Jika keduanya lokal atau keduanya eksternal, sortir berdasarkan popularitas
+                    // If both are local or both are external, sort by popularity
                     return (b.stats?.rate_downloads_total || 0) - (a.stats?.rate_downloads_total || 0);
                 };
 
@@ -1572,7 +1572,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         const tracks = sortedTracks;
                         const items = [];
                         
-                        // LOGIKA BARU: Tampilkan Artis hanya jika:
+                        // NEW LOGIC: Show Artist only if:
                         // 1. Input user SANGAT mirip dengan nama artis (Exact match)
                         // 2. Atau input user pendek dan belum mengandung spasi (User baru mulai mengetik nama artis)
                         const topTrack = tracks[0];
@@ -1590,7 +1590,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             });
                         }
 
-                        // Batasi hasil lagu agar tidak terlalu panjang di mobile
+                        // Limit song results to avoid being too long on mobile
                         const finalUniqueTracks = [];
                         const seen = new Set();
                         tracks.forEach(t => {
@@ -1601,7 +1601,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             }
                         });
 
-                        // Simpan hasil lagu ke window agar bisa diakses oleh playFromSearch
+                        // Save song results to window so they can be accessed by playFromSearch
                         window.lastSearchResults = finalUniqueTracks.slice(0, 6).map(song => ({
                             id: song.id,
                             name: song.name,
@@ -1610,7 +1610,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             cover: song.image,
                             audio: song.audio,
                             duration: song.duration,
-                            // Data plays disamakan dengan format grid utama
+                            // Plays data matched to the main grid format
                             plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5)
                         }));
                         searchPlaylist = window.lastSearchResults;
@@ -1619,11 +1619,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             const isActive = currentSongData && String(song.id) === String(currentSongData.id);
                             items.push({
                                 type: 'Song',
-                                id: song.id, // Tambahkan ID di sini agar data-id terisi di HTML
-                                name: song.name,
+                                id: song.id, // Add ID here so data-id is populated in HTML
+                                name: song.name, // Ensure name is here
                                 sub: song.artist_name || song.artist,
                                 image: song.image,
-                                audio: song.audio, // Pastikan audio dan duration ada di sini
+                                audio: song.audio, // Ensure audio and duration are here
                                 duration: song.duration,
                                 action: `playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist_name || song.artist).replace(/'/g, "\\'")}', '${song.image}', '${song.id}')`,
                                 isActive: isActive,
@@ -1660,17 +1660,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 const clearSearchBtn = document.getElementById('clearSearch');
 
                 const debouncedSearch = debounce((query) => {
-                    const cleanQuery = query.trim();
+                    const cleanQuery = query.trim(); 
                     if (cleanQuery.length > 0) {
-                        updateSearchDropdownHeight(); // Update tinggi sebelum ditampilkan
+                        updateSearchDropdownHeight(); // Update height before displaying
                         searchDropdown.classList.add('active');
                         fetchDropdownResults(cleanQuery);
                     } else {
                         searchDropdown.classList.remove('active');
-                    }
+                    } 
                 }, 500);
 
-                // Pastikan tinggi dropdown tetap akurat jika orientasi layar berubah
+                // Ensure dropdown height remains accurate if screen orientation changes
                 window.addEventListener('resize', debounce(updateSearchDropdownHeight, 250));
 
                 searchInput.addEventListener('input', (e) => {
@@ -1697,7 +1697,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     searchInput.focus();
                 });
 
-                searchInput.addEventListener('focus', () => {
+                searchInput.addEventListener('focus', (e) => {
                     if (searchInput.value.trim().length > 0) {
                         updateSearchDropdownHeight();
                         searchDropdown.classList.add('active');
@@ -1711,12 +1711,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 });
             }
 
-            // Event Listeners untuk kontrol player mobile
-            // Listener untuk Hero Card Play button
+            // Event Listeners for mobile player controls
+            // Listener for Hero Card Play button 
             const togglePlayHandler = async () => {
                 if (currentPlayingBtn) {
                     currentPlayingBtn.click();
-                } else if (activeAudio.src && activeAudio.src !== "") {
+                } else if (activeAudio.src && activeAudio.src !== "") { 
                     // Jika sedang memutar lagu (misal via auto-next) tapi tidak ada tombol grid aktif
                     try {
                         if (activeAudio.paused) await activeAudio.play();
@@ -1730,7 +1730,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             document.getElementById('mobileMainPlayBtn')?.addEventListener('click', togglePlayHandler);
             document.getElementById('mobileLoveBtn')?.addEventListener('click', toggleLike);
 
-            // --- LOGIKA FULL SCREEN PLAYER ---
+            // --- FULL SCREEN PLAYER LOGIC ---
             const fullPlayer = document.getElementById('mobileFullPlayer');
             const miniPlayer = document.getElementById('mobilePlayerBar');
             const closeFullBtn = document.getElementById('closeFullPlayer');
@@ -1745,7 +1745,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 document.body.classList.remove('full-player-open');
             };
 
-            // Buka full player saat klik bar mini player (kecuali klik tombol di dalamnya)
+            // Open full player on mini player bar click (unless a button inside is clicked)
             miniPlayer?.addEventListener('click', (e) => {
                 if (!e.target.closest('button')) {
                     openFullPlayer();
@@ -1754,7 +1754,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             closeFullBtn?.addEventListener('click', closeFullPlayer);
 
-            // Kontrol di Full Player
+            // Controls in Full Player
             document.getElementById('fullMainPlayBtn')?.addEventListener('click', togglePlayHandler);
             document.getElementById('fullPrevBtn')?.addEventListener('click', window.playPrevious);
             document.getElementById('fullNextBtn')?.addEventListener('click', window.playNext);
@@ -1786,13 +1786,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 btn.classList.toggle('active', isShuffle);
                 document.getElementById('fullRepeatBtn')?.classList.toggle('active', isRepeat);
                 
-                // Perbarui daftar UP NEXT untuk mencerminkan urutan baru
+                // Update the UP NEXT list to reflect the new order
                 renderUpNext();
             });
 
             document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {
                 isRepeat = !isRepeat;
-                if (isRepeat) isShuffle = false; // Matikan shuffle jika repeat aktif
+                if (isRepeat) isShuffle = false; // Turn off shuffle if repeat is active
                 const btn = e.currentTarget;
                 btn.classList.add('btn-pop');
                 setTimeout(() => btn.classList.remove('btn-pop'), 400);
@@ -1800,7 +1800,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
             });
 
-            // Progress bar seeking untuk Full Player
+            // Progress bar seeking for Full Player
             const fullProgressTrack = document.getElementById('fullProgressTrack');
             if (fullProgressTrack) {
                 const seek = (e) => {
@@ -1810,7 +1810,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     const x = clientX - rect.left;
                     const percentage = Math.max(0, Math.min(1, x / rect.width));
                     
-                    // Update UI secara instan saat digeser
+                    // Update UI instantly when dragging
                     document.getElementById('fullProgressBar').style.width = `${percentage * 100}%`;
                     document.getElementById('fullCurrentTime').textContent = formatTime(percentage * activeAudio.duration);
                     
@@ -1841,18 +1841,18 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 window.addEventListener('touchmove', moveDragging, { passive: false });
                 window.addEventListener('touchend', stopDragging);
                 
-                // Tambahkan dukungan Mouse untuk drag (penting untuk testing di desktop/tablet)
+                // Add Mouse support for drag (important for testing on desktop/tablet)
                 fullProgressTrack.addEventListener('mousedown', startDragging);
                 window.addEventListener('mousemove', moveDragging);
                 window.addEventListener('mouseup', stopDragging);
                 
-                // Tetap aktifkan klik biasa
+                // Keep regular click enabled
                 fullProgressTrack.addEventListener('click', seek);
             }
 
-            // --- END LOGIKA FULL SCREEN PLAYER ---
+            // --- END FULL SCREEN PLAYER LOGIC --- 
 
-            // Perbarui foto profil (Avatar) - Query langsung di sini agar lebih akurat
+            // Update profile picture (Avatar) - Query directly here for more accuracy
             const avatarElement = document.getElementById('userAvatar') || document.querySelector('.mobile-avatar');
             
             if (avatarElement) {
@@ -1860,24 +1860,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
                 const originalPhotoURL = user.photoURL;
                 
-                let originalRetry = 0;
-                const maxRetries = 2;
+                let originalRetry = 0; 
+                const maxRetries = 2; 
 
-                // Gunakan no-referrer untuk menghindari blokir 403 dari provider seperti Google/Facebook
+                // Use no-referrer to avoid 403 blocks from providers like Google/Facebook
                 avatarElement.referrerPolicy = "no-referrer";
 
-                // Pasang event listener untuk mencoba memuat ulang jika gagal
+                // Set up an event listener to try reloading if it fails
                 avatarElement.onerror = function() {
                     if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
                         originalRetry++;
-                        console.warn(`Mobile: Gagal memuat foto asli, mencoba lagi (${originalRetry}/${maxRetries})...`);
+                        console.warn(`Mobile: Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
                         setTimeout(() => {
                             const sep = originalPhotoURL.includes('?') ? '&' : '?';
                             this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
                         }, 2000);
                     } 
                     else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
-                        console.warn("Mobile: Foto asli gagal, beralih ke inisial...");
+                        console.warn("Mobile: Original photo failed, switching to initials...");
                         this.src = defaultAvatar;
                     } else {
                         this.onerror = null;
@@ -1887,7 +1887,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 avatarElement.src = originalPhotoURL || defaultAvatar;
             }
         } else {
-            // Jika tidak login, kembali ke login page
+            // If not logged in, return to the login page
             window.location.href = 'index.html';
         }
     });

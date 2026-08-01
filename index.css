@@ -53,8 +53,7 @@ body.login-page {
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    /* Memastikan border-radius bekerja pada anak elemen */
+    overflow: hidden; /* Ensures border-radius works on child elements */
 }
 
 .branding-side {
@@ -130,8 +129,7 @@ body.login-page {
     position: relative;
     z-index: 10;
     display: flex;
-    background: rgba(15, 23, 42, 0.8);
-    /* Latar belakang lebih solid menggunakan warna gelap yang serasi */
+    background: rgba(15, 23, 42, 0.8); /* A more solid background using a matching dark color */
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -195,7 +193,7 @@ body.login-page {
     overflow-y: auto;
 }
 
-/* Custom Scrollbar agar tetap elegan (Glassmorphism style) */
+/* Custom Scrollbar to keep it elegant (Glassmorphism style) */
 .form-side::-webkit-scrollbar {
     width: 4px;
 }
@@ -248,26 +246,26 @@ body.login-page {
     color: var(--text-muted);
     font-weight: bold;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: color 0.2s, border-color 0.2s;
 }
 
 .tab-btn.active {
     color: var(--text-main);
-    border-bottom: 2px solid var(--accent-color);
+    border-bottom: 2px solid var(--accent-color); 
 }
 
 .tab-btn:hover:not(.active) {
     color: #d1d5db;
 }
 
-/* Pengaturan Umum Form */
+/* General Form Settings */
 #loginForm,
 #registerForm {
     display: flex;
     flex-direction: column;
 }
 
-/* Spesifik untuk Login - Lebih lega karena input sedikit */
+/* Specific to Login - More spacious due to fewer inputs */
 #loginForm {
     gap: 1.25rem;
 }
@@ -276,7 +274,7 @@ body.login-page {
     gap: 1rem;
 }
 
-/* Spesifik untuk Register - Lebih padat agar pas di frame */
+/* Specific to Register - More compact to fit the frame */
 #registerForm {
     gap: 0.75rem;
 }
@@ -286,8 +284,7 @@ body.login-page {
 }
 
 #registerForm .input-field {
-    padding: 0.375rem 1rem 0.375rem 2.75rem;
-    /* Sedikit lebih ramping */
+    padding: 0.375rem 1rem 0.375rem 2.75rem; /* Slightly slimmer */
 }
 
 .input-group {
@@ -499,8 +496,7 @@ body.login-page {
     }
 
     .features-grid {
-        display: none;
-        /* Disembunyikan agar header branding tidak terlalu panjang di mobile */
+        display: none; /* Hidden so the branding header isn't too long on mobile */
     }
 
     .main-container {
@@ -546,7 +542,7 @@ body.login-page {
     50% { transform: scale(1.05); opacity: 0.9; }
 }
 
-/* Sembunyikan form saat sedang mengecek auth atau transisi */
+/* Hide form while checking auth or during transition */
 .is-transitioning .main-container {
     display: none !important;
 }
