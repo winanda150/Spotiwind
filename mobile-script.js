@@ -1383,18 +1383,65 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     // Click Logic for Bottom Navigation
     const bottomNavItems = document.querySelectorAll('.mobile-bottom-nav .nav-item');
     bottomNavItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            const targetPage = item.getAttribute('href');
-            // If the target is the same as the current page, do nothing
-            if (window.location.pathname.includes(targetPage)) return;
-            
+        item.addEventListener('click', async (e) => {
             e.preventDefault();
-            navigateTo(targetPage);
+            const targetPage = item.dataset.target; // Gunakan data-target
+            const currentActive = document.querySelector('.mobile-bottom-nav .nav-item.active');
+
+            if (currentActive === item) return; // Jangan lakukan apa-apa jika item yang sama diklik
+
+            // Pindahkan kelas 'active'
+            if (currentActive) currentActive.classList.remove('active');
+            item.classList.add('active');
+
+            // Muat konten halaman baru
+            await loadPageContent(targetPage);
         });
     });
 
-    // Helper Function for Navigation with Animation
-    const navigateTo = (url) => {
+    // [REFACTOR] Fungsi untuk memuat konten halaman secara dinamis (SPA-style)
+    const loadPageContent = async (page) => {
+        const contentContainer = document.querySelector('.app-container');
+        if (!contentContainer) return;
+
+        // Tambahkan efek transisi keluar
+        contentContainer.style.opacity = '0';
+        contentContainer.style.transform = 'translateY(10px)';
+
+        try {
+            // Ambil hanya bagian <div class="app-container"> dari file HTML target
+            const response = await fetch(page);
+            if (!response.ok) throw new Error(`Could not load ${page}`);
+            const text = await response.text();
+            
+            // Gunakan DOMParser untuk mengekstrak konten yang kita butuhkan
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const newContent = doc.querySelector('.app-container')?.innerHTML;
+
+            if (newContent) {
+                // Tunggu animasi keluar selesai
+                await new Promise(res => setTimeout(res, 200));
+
+                contentContainer.innerHTML = newContent;
+
+                // Re-inisialisasi skeleton loaders dan fetch data untuk halaman baru
+                initializeSkeletons();
+                initializeData();
+
+                // Efek transisi masuk
+                contentContainer.style.opacity = '1';
+                contentContainer.style.transform = 'translateY(0)';
+            }
+        } catch (error) {
+            console.error('Failed to load page content:', error);
+            contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load content.</p>`;
+            contentContainer.style.opacity = '1'; // Tampilkan pesan error
+        }
+    };
+
+    // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
+    const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke desktop.html
         const overlay = document.getElementById('pageTransition');
 
         // Immediately hide the main container to avoid a messy look during resize
@@ -1407,7 +1454,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             window.location.href = url;
         }
     };
-
     // Simple function to immediately hide the loading overlay
     const hideLoadingOverlay = () => {
         const overlay = document.getElementById('pageTransition');

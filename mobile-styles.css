@@ -34,7 +34,7 @@ body.mobile-view {
 /* Berikan ruang di bawah agar konten tidak tertutup bar navigasi & player */
 .app-container {
     padding-bottom: 65px;
-    transition: padding-bottom 0.4s ease;
+    transition: padding-bottom 0.4s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 /* Sesuaikan padding saat player bar muncul agar konten tidak tertutup */
