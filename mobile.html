@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
-    <link rel="icon" type="image/x-icon" href="Elemen/Logo/Spotiwind.ico">
+    <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <!-- NEW: Add Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="mobile-styles.css">
+    <link rel="stylesheet" href="frontend/src/assets/css/mobile-styles.css">
 </head>
 
 <body class="mobile-view is-transitioning">
@@ -22,7 +22,7 @@
     <div class="app-container">
         <header class="mobile-header">
             <div class="header-left">
-                <img src="Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
+                <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
                 <span class="mobile-brand-name">Spotiwind</span>
             </div>
             <div class="header-right">
@@ -62,7 +62,7 @@
 
         <!-- Hero Card Section -->
         <section class="hero-section" style="padding: 0 1.5rem;">
-            <div class="hero-card">
+            <div class="hero-card" style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('frontend/public/Elemen/Logo/Gambar1.webp');">
                 <span class="badge" id="greetingBadge"></span>
                 <h1>Feel the <span class="theme-text">Music</span> <br> Ride the <span class="theme-text">Wind</span>
                 </h1>
@@ -267,7 +267,7 @@
 
             <!-- Magic Suggestion Box -->
             <section class="magic-box-section">
-                <div class="magic-box">
+                <div class="magic-box" style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.7)), url('frontend/public/Elemen/Logo/Gambar2.webp');">
                     <div class="magic-box-content">
                         <h3 class="magic-box-title">Don't know what to listen to?</h3>
                         <p class="magic-box-desc">Let Spotiwind choose the best song for you.</p>
@@ -391,7 +391,7 @@
             <div class="footer-container">
                 <div class="footer-left">
                     <div class="footer-brand">
-                        <img src="Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo">
+                        <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo">
                         <span class="footer-brand-name">Spotiwind</span>
                     </div>
                     <p class="footer-desc">Find the best music for every moment of your life.</p>
@@ -625,7 +625,7 @@
             </svg>
             <span>Home</span>
         </a>
-        <a class="nav-item" data-target="search-mobile.html">
+        <a class="nav-item" data-target="frontend/src/pages/search-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8" />
@@ -633,14 +633,14 @@
             </svg>
             <span>Search</span>
         </a>
-        <a class="nav-item" data-target="library-mobile.html">
+        <a class="nav-item" data-target="frontend/src/pages/library-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M12 20v-6M6 20V10M18 20V4" />
             </svg>
             <span>Library</span>
         </a>
-        <a class="nav-item" data-target="radio-mobile.html">
+        <a class="nav-item" data-target="frontend/src/pages/radio-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
@@ -651,7 +651,7 @@
             </svg>
             <span>Radio</span>
         </a>
-        <a class="nav-item" data-target="profile-mobile.html">
+        <a class="nav-item" data-target="frontend/src/pages/profile-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -661,7 +661,7 @@
         </a>
     </nav>
 
-    <script type="module" src="mobile-script.js"></script>
+    <script type="module" src="frontend/src/assets/js/mobile-script.js"></script>
 </body>
 
 </html>

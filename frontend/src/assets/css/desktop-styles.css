@@ -229,7 +229,7 @@ body.player-active .right-sidebar {
 }
 
 .hero-card {
-    background: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('Elemen/Logo/Gambar1.webp');
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('../../../public/Elemen/Logo/Gambar1.webp');
     background-size: 100% 130%;
     background-position: center calc(50% + 10px);
     background-repeat: no-repeat;

@@ -382,7 +382,7 @@ body.player-active .app-container {
 
 /* Hero Card Styles for Mobile */
 .hero-card {
-    background: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('Elemen/Logo/Gambar1.webp');
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('../../../public/Elemen/Logo/Gambar1.webp');
     background-size: 100% 130%;
     background-position: center calc(50% + 10px);
     border: 1px solid var(--glass-border);
@@ -718,7 +718,7 @@ body.player-active .app-container {
 }
 
 .magic-box {
-    background: linear-gradient(to right, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.7)), url('Elemen/Logo/Gambar2.webp');
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.7)), url('../../../public/Elemen/Logo/Gambar2.webp');
     background-size: cover; /* Memastikan gambar menutupi seluruh box */
     background-position: center; /* Memastikan bagian tengah gambar terlihat */
     background-repeat: no-repeat;

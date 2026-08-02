@@ -403,10 +403,12 @@ const toggleLike = async (e) => {
  * Core Playback Logic - Synchronized with Mobile context-awareness
  */
 window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
+    const songId = String(id);
+
     // Context-aware playlist management
     if (context && currentPlaylist.length > 0) {
         if (isShuffle) {
-            const selectedTrack = currentPlaylist.find(s => String(s.id) === songId) || 
+            const selectedTrack = currentPlaylist.find(s => String(s.id) === songId) ||
                                 { id, audio: audioUrl, name: title, artist, cover, duration };
             const remainingTracks = currentPlaylist.filter(s => String(s.id) !== songId);
             
@@ -420,7 +422,6 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
 
     if (!audioUrl) return;
 
-    const songId = String(id);
     const isSameSong = currentSongData && String(currentSongData.id) === songId;
 
     if (isSameSong) {
@@ -505,7 +506,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         // Update UI Sidebars & Bottom Bar
         document.querySelector('.now-playing-card')?.classList.add('active');
         const sidebarTitle = document.querySelector('.now-playing-title');
-        const sidebarArtist = document.querySelector('.now-playing-artist');
+        const sidebarArtist = document.querySelector('.now-playing-artist'); 
         const sidebarCover = document.querySelector('.now-playing-cover');
         if (sidebarTitle) sidebarTitle.textContent = title;
         if (sidebarArtist) sidebarArtist.textContent = artist;
@@ -1189,7 +1190,10 @@ const isUserPremium = async (uid) => {
      * Helper to format Firestore timestamp to relative time (e.g., 2m, 1h)
      */
     const formatRelativeTime = (timestamp) => {
-        if (!timestamp) return "now";
+        // Add robust check to prevent errors if timestamp is not a valid Firestore timestamp
+        if (!timestamp || typeof timestamp.toDate !== 'function') {
+            return '...';
+        }
         const now = new Date();
         const date = timestamp.toDate();
         const diffInSeconds = Math.floor((now - date) / 1000);
@@ -1578,7 +1582,7 @@ const isUserPremium = async (uid) => {
             const avatarElement = document.getElementById('userAvatar');
             if (avatarElement) {
                 const nameForAvatar = user.displayName || user.email.split('@')[0];
-                const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff`;
+                const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
                 const originalPhotoURL = user.photoURL;
                 
                 let originalRetry = 0;

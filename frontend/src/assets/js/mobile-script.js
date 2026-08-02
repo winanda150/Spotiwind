@@ -548,12 +548,11 @@ const renderMobileFriendActivity = async () => {
  * Helper for relative time format (same as desktop)
  */
 const formatRelativeTime = (timestamp) => {
-    // [FIX] Tambahkan pengecekan null atau undefined untuk timestamp
+    // [FIX] Add null or undefined check for timestamp
     if (!timestamp || typeof timestamp.toDate !== 'function') {
-        // Jika timestamp tidak valid, kembalikan string default atau kosong
+        // If the timestamp is invalid, return a default or empty string
         return '...';
     }
-    if (!timestamp) return "now";
     const now = new Date();
     const date = timestamp.toDate();
     const diffInSeconds = Math.floor((now - date) / 1000);
@@ -722,7 +721,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             } else if (context === 'search') {
                 baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
             } else if (context === 'local') {
-                baseQueue = [...indonesianGridPlaylist]; // FIX: Use the local grid playlist
+                // [FIX] When playing from the Indonesian grid, the playlist context should be ALL Indonesian songs,
+                // not just the 12 visible on the grid, to allow for full playlist navigation.
+                baseQueue = [...indonesianSongsPlaylist];
             }
 
             if (isShuffle) {
@@ -1105,7 +1106,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (sectionTitle) sectionTitle.textContent = "Search Results";
 
         try {
-            const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=40&include=stats&order=popularity_total`;
+            const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=25&include=stats&order=popularity_total`;
             const qWords = cleanQuery.toLowerCase().split(' ');
             
             // Pencarian Hybrid: Global search + Name search
@@ -1116,7 +1117,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             const data1 = await res1.json();
             const data2 = await res2.json();
-            const combined = [...(data1.results || []), ...(data2.results || [])];
+
+            // [FIX] Include local songs in the main search results.
+            const localResultsForGrid = indonesianSongsPlaylist.map(song => ({
+                ...song, artist_name: song.artist, image: song.cover, isLocal: true
+            }));
+
+            const combined = [...(data1.results || []), ...(data2.results || []), ...localResultsForGrid];
 
             const uniqueMap = new Map();
             combined.forEach(item => {
@@ -1158,8 +1165,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     if (title.startsWith(qWords[0])) score += 80;
 
                     // 6. Popularity Tie-breaker
-                    score += (item.stats.rate_downloads_total / 1000);
-                    
+                    // [FIX] Handle scoring for both local and API songs.
+                    if (item.isLocal) {
+                        // Give a significant boost to local songs if they are a good match.
+                        if (matchesAll) score += 150;
+                    } else {
+                        score += ((item.stats?.rate_downloads_total || 0) / 1000);
+                    }
                     item.relevanceScore = score;
                     uniqueMap.set(item.id, item);
                 }
@@ -1178,7 +1190,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         cover: item.image || 'https://via.placeholder.com/400',
                         audio: item.audio || '',
                         duration: item.duration,
-                        plays: formatPlayCount(item.stats.rate_downloads_total * 5) // Data real dari Jamendo
+                        // [FIX] Correctly assign play counts for local and API songs.
+                        plays: item.isLocal ? item.plays : formatPlayCount((item.stats?.rate_downloads_total || 0) * 5)
                     }));
 
                 searchPlaylist = rawSongs;
@@ -1244,96 +1257,97 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
-     * Function to fetch local Indonesian songs from a JSON manifest.
-     * Audio file source: Elemen/Lagu .../*.mp3
-     * Cover source: Elemen/Images Song/*.jpg (filename matches song name)
+     * [FIXED & REFACTORED] Function to fetch and render local Indonesian songs.
+     * This fixes two critical issues:
+     * 1. The Indonesian Songs grid now renders independently, so it will always appear even if the manifest for search fails to load.
+     * 2. The path to `indonesian-songs-manifest.json` is corrected to a more robust location, fixing the local search feature.
      */
     const fetchIndonesianSongs = async () => {
         const gridSelector = '#indonesianSongsGrid';
 
-        // List of 12 songs to be manually displayed in the main grid.
-        // This data is no longer taken from a slice, but defined directly here.
+        // [FIX] Revert to a manual, hardcoded list for the grid songs to ensure correct paths,
+        // especially for collaboration tracks where the folder name doesn't match the full artist string.
         const IndonesianGridSongs = [
             {
                 "id": "backstreet-boys-shape-of-my-heart", "name": "Shape Of My Heart", "artist": "Backstreet Boys", "plays": "98.1M", "duration": 228,
-                "audio": "Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3", "cover": "Elemen/Backstreet%20Boys/Image%20Songs/Shape%20Of%20My%20Heart.webp" 
+                "audio": "frontend/public/Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3", "cover": "frontend/public/Elemen/Backstreet%20Boys/Image%20Songs/Shape%20Of%20My%20Heart.webp" 
             },
             {
                 "id": "riam-laode-dunia-yang-nanti", "name": "Dunia Yang Nanti", "artist": "Raim Laode", "plays": "75.3M", "duration": 200,
-                "audio": "Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3", "cover": "Elemen/Raim%20Laode/Image%20Songs/Dunia%20Yang%20Nanti.webp"
+                "audio": "frontend/public/Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3", "cover": "frontend/public/Elemen/Raim%20Laode/Image%20Songs/Dunia%20Yang%20Nanti.webp"
             },
             {
                 "id": "hindia-evaluasi", "name": "Evaluasi", "artist": "Hindia", "plays": "68.9M", "duration": 202,
-                "audio": "Elemen/Hindia/Evaluasi.mp3", "cover": "Elemen/Hindia/Image%20Songs/Evaluasi.webp"
+                "audio": "frontend/public/Elemen/Hindia/Evaluasi.mp3", "cover": "frontend/public/Elemen/Hindia/Image%20Songs/Evaluasi.webp"
             },
             {
                 "id": "rizky-febian-&-adrian-khalif-alamak", "name": "Alamak", "artist": "Rizky Febian & Adrian Khalif", "plays": "55.2M", "duration": 221,
-                "audio": "Elemen/Rizky%20Febian/Alamak.mp3", "cover": "Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp"
+                "audio": "frontend/public/Elemen/Rizky%20Febian/Alamak.mp3", "cover": "frontend/public/Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp"
             },
             {
                 "id": "feast-nina", "name": "Nina", "artist": ".Feast", "plays": "43.1M", "duration": 283,
-                "audio": "Elemen/Feast/Nina.mp3", "cover": "Elemen/Feast/Image%20Songs/Nina.webp"
+                "audio": "frontend/public/Elemen/Feast/Nina.mp3", "cover": "frontend/public/Elemen/Feast/Image%20Songs/Nina.webp"
             },
             {
                 "id": "idgitaf-sedia-aku-sebelum-hujan", "name": "Sedia Aku Sebelum Hujan", "artist": "Idgitaf", "plays": "39.8M", "duration": 233,
-                "audio": "Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3", "cover": "Elemen/Idgitaf/Image%20Songs/Sedia%20Aku%20Sebelum%20Hujan.webp"
+                "audio": "frontend/public/Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3", "cover": "frontend/public/Elemen/Idgitaf/Image%20Songs/Sedia%20Aku%20Sebelum%20Hujan.webp"
             },
             {
                 "id": "juicy-luicy-lantas", "name": "Lantas", "artist": "Juicy Luicy", "plays": "35.5M", "duration": 234,
-                "audio": "Elemen/Juicy%20Luicy/Lantas.mp3", "cover": "Elemen/Juicy%20Luicy/Image%20Songs/Lantas.webp"
+                "audio": "frontend/public/Elemen/Juicy%20Luicy/Lantas.mp3", "cover": "frontend/public/Elemen/Juicy%20Luicy/Image%20Songs/Lantas.webp"
             },
             {
                 "id": "vierra-seandainya", "name": "Seandainya", "artist": "Vierra", "plays": "31.2M", "duration": 263,
-                "audio": "Elemen/Vierra/Seandainya.mp3", "cover": "Elemen/Vierra/Image%20Songs/Seandainya.webp"
+                "audio": "frontend/public/Elemen/Vierra/Seandainya.mp3", "cover": "frontend/public/Elemen/Vierra/Image%20Songs/Seandainya.webp"
             },
             {
                 "id": "for-revenge,-stereo-wall-jakarta-hari-ini", "name": "Jakarta Hari Ini", "artist": "For Revenge, Stereo Wall", "plays": "28.9M", "duration": 224,
-                "audio": "Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3", "cover": "Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp"
+                "audio": "frontend/public/Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3", "cover": "frontend/public/Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp"
             },
             {
                 "id": "radiohead-creep", "name": "Creep", "artist": "Radiohead", "plays": "25.7M", "duration": 236,
-                "audio": "Elemen/Radiohead/Creep.mp3", "cover": "Elemen/Radiohead/Image%20Songs/Creep.webp"
+                "audio": "frontend/public/Elemen/Radiohead/Creep.mp3", "cover": "frontend/public/Elemen/Radiohead/Image%20Songs/Creep.webp"
             },
             {
                 "id": "batas-senja-kita-usahakan-lagi", "name": "Kita Usahakan Lagi", "artist": "Batas Senja", "plays": "22.4M", "duration": 234,
-                "audio": "Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3", "cover": "Elemen//Batas%20Senja/Image%20Songs/Kita%20Usahakan%20Lagi.webp"
+                "audio": "frontend/public/Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3", "cover": "frontend/public/Elemen/Batas%20Senja/Image%20Songs/Kita%20Usahakan%20Lagi.webp"
             },
             {
                 "id": "bilal-indrajaya-niscaya", "name": "Niscaya", "artist": "Bilal Indrajaya", "plays": "19.1M", "duration": 241,
-                "audio": "Elemen/Bilal%20Indrajaya/Niscaya.mp3", "cover": "Elemen/Bilal%20Indrajaya/Image%20Songs/Niscaya.webp"
+                "audio": "frontend/public/Elemen/Bilal%20Indrajaya/Niscaya.mp3", "cover": "frontend/public/Elemen/Bilal%20Indrajaya/Image%20Songs/Niscaya.webp"
             }
         ];
 
+        // [FIX 1] Render the grid immediately. This ensures the grid is always visible.
+        indonesianGridPlaylist = IndonesianGridSongs;
+        renderGridProgressively(gridSelector, IndonesianGridSongs, createSongCardHTML, '.song-card-skeleton', 'local');
+
         try {
-            const res = await fetchWithRetry('./indonesian-songs-manifest.json');
+            // [FIX 2] Correct the path to the manifest file. Assuming it's in the public assets folder.
+            const res = await fetchWithRetry('frontend/public/indonesian-songs-manifest.json');
             if (!res.ok) throw new Error(`Failed to load manifest: ${res.status}`);
             const data = await res.json();
 
-            // Save ALL local songs to the global buffer
-            indonesianSongsPlaylist = (data.songs || []).map((s, idx) => ({
-                id: s.id || `local-${idx}`,
-                name: s.name,
-                artist: s.artist,
-                cover: s.cover,
-                audio: s.audio,
-                duration: s.duration || 0, // Get duration from manifest, or default to 0
-                plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
-            }));
+            // [FIX] Now, populate the full playlist for the search functionality.
+            // Instead of reconstructing paths (which can fail if names don't match file names),
+            // we now trust the paths in the manifest and simply prepend the required prefix.
+            indonesianSongsPlaylist = (data.songs || []).map((s, idx) => {
+                return {
+                    id: s.id || `local-${idx}`,
+                    name: s.name,
+                    artist: s.artist,
+                    cover: `frontend/public/${s.cover}`,
+                    audio: `frontend/public/${s.audio}`,
+                    duration: s.duration || 0,
+                    plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
+                };
+            });
 
-            // FIX: Save the 12 grid songs to a global variable so the player can access them
-            indonesianGridPlaylist = IndonesianGridSongs;
+            return true;
 
-            // Render the main grid with the manually defined song list above.
-            // The 'local' context is used for playback logic.
-            // The 'plays' data is now static and inside IndonesianGridSongs.
-            renderGridProgressively(gridSelector, IndonesianGridSongs, createSongCardHTML, '.song-card-skeleton', 'local');
-            return true; // NEW: Signal successful loading to fetchWithContinuousRetry
-
-            // Note: `indonesianSongsPlaylist` which contains ALL songs is still stored
-            // to be used by the search function in `fetchDropdownResults`.
         } catch (error) {
-            console.error('Failed to load Indonesian Songs:', error);
-            throw error; // Throw error to be caught by fetchWithContinuousRetry
+            console.error('Failed to load Indonesian song manifest for search:', error);
+            throw error; // Re-throw to allow fetchWithContinuousRetry to work.
         }
     };
 
@@ -1447,7 +1461,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             
         if (avatarElement) {
             const nameForAvatar = user.displayName || user.email.split('@')[0];
-            const defaultAvatar = `<https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true>`;
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
             const originalPhotoURL = user.photoURL;
             
             let originalRetry = 0; 
@@ -1548,13 +1562,21 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 contentContainer.innerHTML = newContent;
 
-                // [FIX] Re-inisialisasi event listener dan data yang spesifik untuk halaman baru
-                // Contoh: Jika halaman 'search-mobile.html' punya script khusus, panggil di sini.
-                // Untuk sekarang, kita re-inisialisasi semua data untuk memastikan konsistensi.
-                // Anda bisa optimalkan ini nanti jika diperlukan.
-                initializeSkeletons(); // Tampilkan skeleton di halaman baru
-                initializeData(); // Muat data yang relevan untuk halaman baru
+                // [FIX] Re-initialize common elements and page-specific logic.
+                const user = auth.currentUser;
+                if (user) {
+                    updateUserAvatar(user); // Always update avatar on any page load.
+                }
 
+                // Re-initialize search functionality as it might be on the new page.
+                initializeSearch();
+
+                // Only load home page data if we are not on a dedicated search page.
+                if (!page.includes('search-mobile.html')) {
+                    initializeSkeletons();
+                    initializeData();
+                }
+                
                 // Efek transisi masuk
                 contentContainer.style.opacity = '1';
                 contentContainer.style.transform = 'translateY(0)';
@@ -1674,8 +1696,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
             try {
                 const cleanQuery = query.trim().toLowerCase();
-                const localResults = indonesianSongsPlaylist.filter(song => `${song.name} ${song.artist}`.toLowerCase().includes(cleanQuery)).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
-                const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=15&include=stats`;
+                // [FIX] Use a more flexible word-by-word search for local songs, matching the logic for API results.
+                // This fixes cases where search terms are not sequential (e.g., "dunia raim").
+                const qWordsForLocal = cleanQuery.split(/\s+/);
+                const localResults = indonesianSongsPlaylist.filter(song => 
+                    qWordsForLocal.every(word => `${song.name} ${song.artist}`.toLowerCase().includes(word))
+                ).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
+                const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&include=stats`;
                 const [res1, res2] = await Promise.all([
                     fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
                     fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
@@ -1700,9 +1727,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             seen.add(uniqueKey);
                         }
                     });
-                    window.lastSearchResults = finalUniqueTracks.slice(0, 6).map(song => ({ id: song.id, name: song.name, artist: song.artist_name || song.artist, album: song.album_name, cover: song.image, audio: song.audio, duration: song.duration, plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5) }));
-                    searchPlaylist = window.lastSearchResults;
-                    searchDropdown.innerHTML = window.lastSearchResults.map(song => {
+
+                    // [FIX] Create a larger playlist for navigation context, but only display a few in the dropdown.
+                    const fullMappedResults = finalUniqueTracks.map(song => ({ 
+                        id: song.id, 
+                        name: song.name, 
+                        artist: song.artist_name || song.artist, 
+                        album: song.album_name, 
+                        cover: song.image, 
+                        audio: song.audio, 
+                        duration: song.duration, 
+                        plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5) 
+                    }));
+
+                    searchPlaylist = fullMappedResults.slice(0, 20); // The full context for playback is up to 20 songs.
+                    const dropdownTracks = searchPlaylist.slice(0, 6); // But we only show 6 in the UI.
+                    window.lastSearchResults = dropdownTracks; // Keep for compatibility with playFromSearch
+
+                    searchDropdown.innerHTML = dropdownTracks.map(song => {
                         const isActive = currentSongData && String(song.id) === String(currentSongData.id);
                         const isPaused = isActive && activeAudio.paused;
                         return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist).replace(/'/g, "\\'")}', '${song.cover}', '${song.id}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div> <div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;

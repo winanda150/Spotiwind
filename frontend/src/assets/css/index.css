@@ -64,7 +64,7 @@ body.login-page {
     align-items: flex-start;
     justify-content: flex-start;
     padding: 2.5rem 2.5rem 1.5rem 2.5rem;
-    background-image: url('Elemen/Logo/Gambar1.webp');
+    background-image: url('../../../public/Elemen/Logo/Gambar1.webp');
     background-size: cover;
     background-position: calc(50% + 50px) center;
 }

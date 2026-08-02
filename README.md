@@ -1,6 +1,6 @@
 ## Spotiwind - Feel The Music, Ride The Wind.
 
-![Spotiwind Banner](Elemen/Logo/Banner.png)
+![Spotiwind Banner](frontend/public/Elemen/Logo/Banner.png)
 
 Spotiwind adalah platform musik modern dengan desain futuristik dan responsif yang dirancang untuk menghadirkan pengalaman mendengarkan musik yang nyaman dan premium.
 
