@@ -1110,6 +1110,16 @@ body.player-active .app-container {
     height: 22px;
 }
 
+.mobile-bottom-nav .nav-item .search-icon-inner-circle {
+    fill: none; /* Sembunyikan lingkaran dalam secara default */
+    transition: fill 0.3s ease;
+}
+
+.mobile-bottom-nav .nav-item:hover .search-icon-inner-circle,
+.mobile-bottom-nav .nav-item.active .search-icon-inner-circle {
+    fill: currentColor; /* Tampilkan lingkaran dalam saat item navigasi di-hover atau aktif */
+}
+
 .play-overlay.btn-loading {
     pointer-events: none;
     overflow: visible;
