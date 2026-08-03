@@ -1776,6 +1776,88 @@ body.full-player-open {
     mix-blend-mode: normal;
 }
 
+/* NEW: Artist Page Specific Styles */
+.artist-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    position: sticky; /* Sticky is better than fixed within a scrollable container */
+    top: 0;
+    background: transparent; /* Changed to transparent as requested */
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    border-bottom: 1px solid transparent; /* Placeholder for smooth transition */
+}
+
+.artist-page-header.scrolled {
+    background: rgba(15, 23, 42, 0.85);
+    border-bottom-color: var(--glass-border);
+}
+
+.back-btn {
+    background: rgba(0, 0, 0, 0.3); /* Added background for the circle */
+    border: none;
+    color: var(--text-main);
+    width: 40px; /* Set fixed width */
+    height: 40px; /* Set fixed height */
+    border-radius: 50%; /* Make it a circle */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.back-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.artist-page-title {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5); /* Added shadow for readability */
+}
+
+.artist-page-content {
+    margin-top: -64px; /* Pull content up to overlap the sticky header */
+}
+
+.artist-hero-section {
+    position: relative;
+    width: 100%;
+    height: 300px; /* Fixed height for the hero image */
+    padding-top: 64px; /* Push hero content down to make space for the header */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 1.5rem;
+    color: white;
+    background-size: cover;
+    background-position: top 0px; /* Set initial position for parallax */
+}
+
+.artist-hero-section::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 10%, rgba(15, 23, 42, 0) 70%);
+}
+
+.artist-hero-name {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    z-index: 2;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
 /* NEW: Mobile Footer Styles */
 .mobile-footer {
     background-color: #0c1222; /* Sedikit lebih terang dari background utama */

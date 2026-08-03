@@ -1,3 +1,24 @@
 <!-- Konten ini akan disuntikkan ke dalam .app-container di mobile.html -->
-<div class="app-container">
+<div class="artist-page-header">
+    <button class="back-btn" aria-label="Go back">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </button>
+    <h2 id="artistPageName" class="artist-page-title"></h2>
+    <div class="header-placeholder" style="width: 40px;"></div> <!-- Placeholder to balance the back button -->
+</div>
+
+<div id="artistPageContent" class="artist-page-content">
+    <!-- Hero Section with Artist Photo -->
+    <div id="artistHero" class="artist-hero-section">
+        <!-- Content will be injected by JS -->
+    </div>
+
+    <!-- Popular Songs Section -->
+    <div class="section-header" style="padding: 0 1.5rem; margin-top: 1.5rem;">
+        <h2 class="section-title">Popular Songs</h2>
+    </div>
+    <div id="artistSongsGrid" class="song-grid" style="padding-top: 1rem;"></div>
 </div>

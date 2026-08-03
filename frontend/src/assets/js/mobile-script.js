@@ -1602,52 +1602,114 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    // [NEW] Fungsi untuk memuat halaman artis
+    // [REFACTOR] Fungsi untuk memuat halaman artis dengan detail lengkap dan efek parallax
     const loadArtistPage = async (artist) => {
         const contentContainer = document.querySelector('.app-container');
-        if (!contentContainer) return;
+        if (!contentContainer || !artist || !artist.id) return;
 
-        // Tambahkan efek transisi keluar
+        // Deactivate all bottom nav items as this is a sub-page
+        document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
+
+        // [NEW] Define parallax handler here to manage its lifecycle
+        const parallaxHandler = () => {
+            const hero = document.getElementById('artistHero');
+            const header = document.querySelector('.artist-page-header');
+
+            // If elements don't exist (e.g., page changed), stop the effect
+            if (!hero || !header) {
+                window.removeEventListener('scroll', parallaxHandler);
+                return;
+            }
+            const scrollTop = window.scrollY;
+
+            // 1. Parallax effect for hero image
+            hero.style.backgroundPositionY = `${scrollTop * 0.5}px`;
+
+            // 2. [NEW] Header background change on scroll
+            header.classList.toggle('scrolled', scrollTop > 10);
+        };
+
+        // Transition out
         contentContainer.style.opacity = '0';
         contentContainer.style.transform = 'translateY(10px)';
 
         try {
-            // Tunggu animasi keluar selesai
-            await new Promise(res => setTimeout(res, 200));
+            await new Promise(res => setTimeout(res, 200)); // Wait for transition
 
-            // Ambil template halaman artis. Path ini relatif dari root (mobile.html)
+            // Fetch the page template
             const response = await fetch('frontend/src/pages/artist-mobile.html');
-            if (!response.ok) {
-                // Jika file tidak ditemukan, jangan lempar error, cukup lanjutkan dengan konten kosong.
-                console.warn(`Could not load artist-mobile.html. Status: ${response.status}. Displaying blank page.`);
-                contentContainer.innerHTML = '';
-            } else {
-                const newContentHTML = await response.text();
-                // Suntikkan konten yang diambil. Jika file kosong, halaman akan menjadi kosong.
-                contentContainer.innerHTML = newContentHTML;
-            }
+            if (!response.ok) throw new Error('Could not load artist page template.');
+            
+            contentContainer.innerHTML = await response.text();
 
-            // [FUTURE-PROOFING] Coba tambahkan event listener untuk tombol kembali JIKA ada di template.
-            // Ini tidak akan error jika file HTML masih kosong.
-            const backButton = contentContainer.querySelector('.nav-item[data-target="mobile.html"]');
+            // --- Populate Page Content ---
+
+            // 1. Header
+            document.getElementById('artistPageName').textContent = artist.name;
+            const backButton = contentContainer.querySelector('.back-btn');
             if (backButton) {
                 backButton.addEventListener('click', async (e) => {
                     e.preventDefault();
+                    // [NEW] Clean up parallax listener before navigating
+                    window.removeEventListener('scroll', parallaxHandler);
+
+                    // Find the home button and set it to active before loading
                     document.querySelector('.mobile-bottom-nav .nav-item[data-target="mobile.html"]')?.classList.add('active');
                     await loadPageContent('mobile.html');
                 });
             }
-            
-            // Efek transisi masuk
+
+            // 2. Hero Section
+            const artistHero = document.getElementById('artistHero');
+            if (artistHero) {
+                artistHero.style.backgroundImage = `url('${artist.photo}')`;
+                artistHero.innerHTML = `<h1 class="artist-hero-name">${artist.name}</h1>`;
+            }
+
+            // 3. Fetch and Render Songs
+            const songsGrid = document.getElementById('artistSongsGrid');
+            if (songsGrid) {
+                showSkeletonLoader('#artistSongsGrid', 'song', 4); // Show loader
+
+                try {
+                    const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=20&artist_id=${artist.id}&order=popularity_total&include=stats`;
+                    const songResponse = await fetchWithRetry(url);
+                    const songData = await songResponse.json();
+
+                    if (songData.results && songData.results.length > 0) {
+                        const artistSongs = songData.results.map(item => ({
+                            id: item.id,
+                            name: item.name,
+                            artist: item.artist_name,
+                            cover: item.image,
+                            audio: item.audio,
+                            duration: item.duration,
+                            plays: formatPlayCount(item.stats?.rate_downloads_total || 0)
+                        }));
+                        // Use a new context for this playlist
+                        renderGrid('#artistSongsGrid', artistSongs, (song) => createSongCardHTML(song, `artist-${artist.id}`), 'song');
+                    } else {
+                        songsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">No popular songs found for this artist.</p>`;
+                    }
+                } catch (songError) {
+                    console.error(`Failed to fetch songs for artist ${artist.id}:`, songError);
+                    songsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">Could not load songs.</p>`;
+                }
+            }
+
+            // [NEW] Attach the parallax scroll listener
+            window.addEventListener('scroll', parallaxHandler);
+
+            // Transition in
             contentContainer.style.opacity = '1';
             contentContainer.style.transform = 'translateY(0)';
 
         } catch (error) {
-            // Jika ada error network saat fetch, tampilkan halaman kosong.
-            console.error('Failed to load artist page content:', error);
-            contentContainer.innerHTML = ''; 
+            console.error('Failed to load artist page:', error);
+            // [NEW] Ensure listener is removed on error too
+            window.removeEventListener('scroll', parallaxHandler);
+            contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load artist page.</p>`;
             contentContainer.style.opacity = '1';
-            contentContainer.style.transform = 'translateY(0)';
         }
     };
 
