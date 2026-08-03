@@ -143,7 +143,7 @@ body.dashboard-page {
 
 .nav-item:hover svg,
 .nav-item.active svg {
-    fill: currentColor;
+    fill: currentColor; /* Pertahankan ini untuk ikon lain (Home, Library) */
     transition: all 0.3s ease;
 }
 
@@ -152,6 +152,18 @@ body.dashboard-page {
 .nav-item:hover:nth-child(5) svg,
 .nav-item.active:nth-child(5) svg {
     fill: none;
+}
+
+/* Styling spesifik untuk ikon Search (nav-item kedua) */
+.nav-item:nth-child(2) .search-icon-inner-circle,
+.nav-item:nth-child(2) .search-icon-inner-circle {
+    fill: none;
+    transition: fill 0.3s ease;
+}
+
+.nav-item:nth-child(2):hover .search-icon-inner-circle,
+.nav-item:nth-child(2).active .search-icon-inner-circle {
+    fill: currentColor; /* Isi lingkaran dalam saat hover/active */
 }
 
 .main-content {

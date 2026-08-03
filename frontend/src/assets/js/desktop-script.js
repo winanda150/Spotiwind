@@ -937,36 +937,36 @@ const isUserPremium = async (uid) => {
     // Listener for music controls in the sidebar
     document.querySelector('button[title="Next"]')?.addEventListener('click', playNext);
     document.querySelector('button[title="Previous"]')?.addEventListener('click', playPrevious);
-
-    // Helper function to sync Shuffle & Repeat buttons
-    const syncControlButtons = () => {
-        document.querySelectorAll('button[title="Repeat"], #bottomRepeat').forEach(btn => {
-            btn.classList.toggle('active', isRepeat);
-            btn.classList.add('btn-pop');
-            setTimeout(() => btn.classList.remove('btn-pop'), 300);
-        });
-        document.querySelectorAll('button[title="Shuffle"], #bottomShuffle').forEach(btn => {
-            btn.classList.toggle('active', isShuffle);
-            btn.classList.add('btn-pop');
-            setTimeout(() => btn.classList.remove('btn-pop'), 300);
-        });
-    };
-
+    
     // Listener for Repeat (Sidebar & Bottom)
-    document.querySelectorAll('button[title="Repeat"], #bottomRepeat').forEach(btn => {
-        btn.addEventListener('click', () => {
+    document.querySelectorAll('#sidebarRepeat, #bottomRepeat').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             isRepeat = !isRepeat;
             if (isRepeat) isShuffle = false; // Sync with Mobile: Turn off shuffle if repeat is active
-            syncControlButtons();
+
+            // Animate only the clicked button
+            e.currentTarget.classList.add('btn-pop');
+            setTimeout(() => e.currentTarget.classList.remove('btn-pop'), 300);
+
+            // Sync active state for all corresponding buttons
+            document.querySelectorAll('#sidebarRepeat, #bottomRepeat').forEach(b => b.classList.toggle('active', isRepeat));
+            document.querySelectorAll('#sidebarShuffle, #bottomShuffle').forEach(b => b.classList.toggle('active', isShuffle));
         });
     });
 
     // Listener for Shuffle (Sidebar & Bottom)
-    document.querySelectorAll('button[title="Shuffle"], #bottomShuffle').forEach(btn => {
-        btn.addEventListener('click', () => {
+    document.querySelectorAll('#sidebarShuffle, #bottomShuffle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             isShuffle = !isShuffle;
             if (isShuffle) isRepeat = false; // Sync with Mobile: Turn off repeat if shuffle is active
-            syncControlButtons();
+
+            // Animate only the clicked button
+            e.currentTarget.classList.add('btn-pop');
+            setTimeout(() => e.currentTarget.classList.remove('btn-pop'), 300);
+
+            // Sync active state for all corresponding buttons
+            document.querySelectorAll('#sidebarShuffle, #bottomShuffle').forEach(b => b.classList.toggle('active', isShuffle));
+            document.querySelectorAll('#sidebarRepeat, #bottomRepeat').forEach(b => b.classList.toggle('active', isRepeat));
         });
     });
     
