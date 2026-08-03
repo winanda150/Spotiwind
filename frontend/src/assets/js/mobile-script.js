@@ -573,15 +573,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // This prevents multiple listeners from being attached and causing race conditions.
     document.body.addEventListener('click', (e) => {
         const playBtn = e.target.closest('.song-card .play-overlay') || e.target.closest('.song-card .play-mini-btn');
-        if (!playBtn) return;
+        if (playBtn) {
+            // Prevent the click from bubbling up to other potential listeners (like the mini player bar)
+            e.stopPropagation();
 
-        // Prevent the click from bubbling up to other potential listeners (like the mini player bar)
-        e.stopPropagation();
+            const card = playBtn.closest('.song-card');
+            const overlay = card.querySelector('.play-overlay'); // Always get data from the main overlay
+            const d = overlay.dataset;
+            window.playPreview(overlay, d.audio, d.name, d.artist, d.cover, card.dataset.id, Number(d.duration), d.context);
+            return;
+        }
 
-        const card = playBtn.closest('.song-card');
-        const overlay = card.querySelector('.play-overlay'); // Always get data from the main overlay
-        const d = overlay.dataset;
-        window.playPreview(overlay, d.audio, d.name, d.artist, d.cover, card.dataset.id, Number(d.duration), d.context);
+        const artistCard = e.target.closest('.artist-card');
+        if (artistCard) {
+            e.preventDefault();
+            const { artistId, artistName, artistPhoto } = artistCard.dataset;
+            loadArtistPage({ id: artistId, name: artistName, photo: artistPhoto });
+            return;
+        }
     });
 
     // NEW: Footer Dropdown Logic
@@ -721,9 +730,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             } else if (context === 'search') {
                 baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
             } else if (context === 'local') {
-                // [FIX] When playing from the Indonesian grid, the playlist context should be ALL Indonesian songs,
-                // not just the 12 visible on the grid, to allow for full playlist navigation.
-                baseQueue = [...indonesianSongsPlaylist];
+                // [FIX] When playing from the Indonesian grid, the playlist context should be the songs
+                // from that specific grid, not the entire local song library.
+                baseQueue = [...indonesianGridPlaylist];
             }
 
             if (isShuffle) {
@@ -879,8 +888,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const renderTopArtists = (artists) => {
         const artistsGrid = document.querySelector('.artists-grid');
         if (!artistsGrid) return;
-        artistsGrid.innerHTML = artists.map(artist => ` 
-            <div class="artist-card">
+        artistsGrid.innerHTML = artists.map(artist => `
+            <div class="artist-card" 
+                 data-artist-id="${artist.id}" 
+                 data-artist-name="${artist.name.replace(/"/g, '&quot;')}" 
+                 data-artist-photo="${artist.photo}"
+                 style="cursor: pointer;">
                 <div class="artist-photo" style="background-image: url('${artist.photo}')"></div>
                 <span class="artist-name">${artist.name}</span>
             </div>
@@ -1436,14 +1449,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const targetPage = item.dataset.target;
             const currentActive = document.querySelector('.mobile-bottom-nav .nav-item.active');
 
-            if (currentActive === item) return; // Jangan lakukan apa-apa jika item yang sama diklik
+            // [FIX] Revert logic: If the clicked item is already active, do nothing.
+            // This prevents navigation when on a sub-page (like an artist page).
+            if (currentActive === item) return;
 
-            // Pindahkan kelas 'active'
-            if (currentActive) currentActive.classList.remove('active'); // Tetap hapus kelas aktif dari yang lama
+            // Only navigate if a different item is clicked
+            if (currentActive) currentActive.classList.remove('active');
             item.classList.add('active');
+            
             document.body.scrollTop = document.documentElement.scrollTop = 0; // Scroll ke atas
-
-            // Muat konten halaman baru
             await loadPageContent(targetPage);
         });
     });
@@ -1585,6 +1599,55 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             console.error('Failed to load page content:', error);
             contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load content.</p>`;
             contentContainer.style.opacity = '1'; // Tampilkan pesan error
+        }
+    };
+
+    // [NEW] Fungsi untuk memuat halaman artis
+    const loadArtistPage = async (artist) => {
+        const contentContainer = document.querySelector('.app-container');
+        if (!contentContainer) return;
+
+        // Tambahkan efek transisi keluar
+        contentContainer.style.opacity = '0';
+        contentContainer.style.transform = 'translateY(10px)';
+
+        try {
+            // Tunggu animasi keluar selesai
+            await new Promise(res => setTimeout(res, 200));
+
+            // Ambil template halaman artis. Path ini relatif dari root (mobile.html)
+            const response = await fetch('frontend/src/pages/artist-mobile.html');
+            if (!response.ok) {
+                // Jika file tidak ditemukan, jangan lempar error, cukup lanjutkan dengan konten kosong.
+                console.warn(`Could not load artist-mobile.html. Status: ${response.status}. Displaying blank page.`);
+                contentContainer.innerHTML = '';
+            } else {
+                const newContentHTML = await response.text();
+                // Suntikkan konten yang diambil. Jika file kosong, halaman akan menjadi kosong.
+                contentContainer.innerHTML = newContentHTML;
+            }
+
+            // [FUTURE-PROOFING] Coba tambahkan event listener untuk tombol kembali JIKA ada di template.
+            // Ini tidak akan error jika file HTML masih kosong.
+            const backButton = contentContainer.querySelector('.nav-item[data-target="mobile.html"]');
+            if (backButton) {
+                backButton.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    document.querySelector('.mobile-bottom-nav .nav-item[data-target="mobile.html"]')?.classList.add('active');
+                    await loadPageContent('mobile.html');
+                });
+            }
+            
+            // Efek transisi masuk
+            contentContainer.style.opacity = '1';
+            contentContainer.style.transform = 'translateY(0)';
+
+        } catch (error) {
+            // Jika ada error network saat fetch, tampilkan halaman kosong.
+            console.error('Failed to load artist page content:', error);
+            contentContainer.innerHTML = ''; 
+            contentContainer.style.opacity = '1';
+            contentContainer.style.transform = 'translateY(0)';
         }
     };
 
