@@ -10,15 +10,24 @@
     <div class="header-placeholder" style="width: 40px;"></div> <!-- Placeholder to balance the back button -->
 </div>
 
-<div id="artistPageContent" class="artist-page-content">
-    <!-- Hero Section with Artist Photo -->
-    <div id="artistHero" class="artist-hero-section">
-        <!-- Content will be injected by JS -->
-    </div>
+<!-- Hero Section with Artist Photo -->
+<div id="artistHero" class="artist-hero-section"> 
+    <img id="artistHeroImage" class="artist-hero-image" src="" alt="">
+    <!-- Nama artis tidak lagi disuntikkan di sini -->
+</div>
 
-    <!-- Popular Songs Section -->
-    <div class="section-header" style="padding: 0 1.5rem; margin-top: 1.5rem;">
-        <h2 class="section-title">Popular Songs</h2>
+<!-- [FIX] Wrapper for all scrollable content, positioned over the hero -->
+<div class="artist-content-scroll-wrapper">
+    <!-- [FIX] Wrapper untuk nama artis, agar bisa ikut scroll -->
+    <div id="artistNameWrapper" class="artist-name-wrapper">
+        <!-- Nama akan disuntikkan di sini oleh JS -->
     </div>
-    <div id="artistSongsGrid" class="song-grid" style="padding-top: 1rem;"></div>
+    <!-- This inner wrapper has the solid background that scrolls up -->
+    <div class="artist-songs-content">
+        <!-- Popular Songs Section -->
+        <div class="section-header" style="padding: 1.5rem 1.5rem 0 1.5rem;">
+            <h2 class="section-title">Popular Songs</h2>
+        </div>
+        <div id="artistSongsGrid" class="song-grid" style="padding-top: 1rem;"></div>
+    </div>
 </div>

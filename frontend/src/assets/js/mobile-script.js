@@ -1527,7 +1527,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (page === 'mobile.html') {
             if (initialHomeContent) {
                 contentContainer.style.opacity = '0';
-                contentContainer.style.transform = 'translateY(10px)';
 
                 await new Promise(res => setTimeout(res, 200));
 
@@ -1547,7 +1546,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 initializeFooterDropdowns(contentContainer);
                 
                 contentContainer.style.opacity = '1';
-                contentContainer.style.transform = 'translateY(0)';
             } else {
                 // Fallback jika cache kosong, lakukan reload penuh
                 window.location.href = 'mobile.html';
@@ -1557,7 +1555,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         // Tambahkan efek transisi keluar
         contentContainer.style.opacity = '0';
-        contentContainer.style.transform = 'translateY(10px)';
 
         try {
             // Ambil hanya bagian <div class="app-container"> dari file HTML target
@@ -1593,7 +1590,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 
                 // Efek transisi masuk
                 contentContainer.style.opacity = '1';
-                contentContainer.style.transform = 'translateY(0)';
             }
         } catch (error) {
             console.error('Failed to load page content:', error);
@@ -1622,16 +1618,16 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             }
             const scrollTop = window.scrollY;
 
-            // 1. Parallax effect for hero image
-            hero.style.backgroundPositionY = `${scrollTop * 0.5}px`;
+            // 1. Efek blur pada gambar hero saat scroll
+            const blurValue = Math.min(scrollTop / 20, 10); // Nilai blur dari 0 sampai max 10px
+            hero.style.setProperty('--hero-blur', `${blurValue}px`);
 
-            // 2. [NEW] Header background change on scroll
+            // 2. Ubah background header saat scroll
             header.classList.toggle('scrolled', scrollTop > 10);
         };
 
         // Transition out
         contentContainer.style.opacity = '0';
-        contentContainer.style.transform = 'translateY(10px)';
 
         try {
             await new Promise(res => setTimeout(res, 200)); // Wait for transition
@@ -1662,8 +1658,21 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // 2. Hero Section
             const artistHero = document.getElementById('artistHero');
             if (artistHero) {
-                artistHero.style.backgroundImage = `url('${artist.photo}')`;
-                artistHero.innerHTML = `<h1 class="artist-hero-name">${artist.name}</h1>`;
+                const heroImage = document.getElementById('artistHeroImage');
+                if (heroImage) {
+                    heroImage.src = artist.photo;
+                    heroImage.alt = artist.name;
+                    heroImage.onerror = () => {
+                        console.error("ERROR: Failed to load artist image from URL:", artist.photo);
+                        heroImage.src = 'https://via.placeholder.com/500?text=Image+Load+Error'; // Fallback image
+                    };
+                }
+            }
+
+            // [FIX] Suntikkan nama ke dalam wrapper baru yang bisa di-scroll, bukan ke hero yang sticky
+            const artistNameWrapper = document.getElementById('artistNameWrapper');
+            if (artistNameWrapper) {
+                artistNameWrapper.innerHTML = `<h1 class="artist-hero-name">${artist.name}</h1>`;
             }
 
             // 3. Fetch and Render Songs
@@ -1702,7 +1711,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             // Transition in
             contentContainer.style.opacity = '1';
-            contentContainer.style.transform = 'translateY(0)';
 
         } catch (error) {
             console.error('Failed to load artist page:', error);
