@@ -62,6 +62,7 @@ let isDragging = false;
 let currentContext = null; // Store the active context globally
 let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
+let homeScrollPosition = 0; // NEW: To store scroll position of the home page
 let friendActivityListeners = []; // Store listeners so they can be cleared
 let lastSearchQuery = ''; // [NEW] Variable to store the last search query
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
@@ -587,6 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const artistCard = e.target.closest('.artist-card');
         if (artistCard) {
             e.preventDefault();
+
+            // Store current scroll position before navigating to artist page
+            // We assume that if an artist card is clicked, we are currently on the home page.
+            homeScrollPosition = document.documentElement.scrollTop;
+
+
             const { artistId, artistName, artistPhoto } = artistCard.dataset;
             loadArtistPage({ id: artistId, name: artistName, photo: artistPhoto });
             return;
@@ -1488,8 +1495,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // Only navigate if a different item is clicked
             if (currentActive) currentActive.classList.remove('active');
             item.classList.add('active');
-            
-            document.body.scrollTop = document.documentElement.scrollTop = 0; // Scroll ke atas
+
+            // Store current scroll position if we are navigating away from the home page
+            // We check for '.hero-card' as an indicator that we are on the home page content
+            if (document.querySelector('.app-container .hero-card')) {
+                homeScrollPosition = document.documentElement.scrollTop;
+            }
             await loadPageContent(targetPage);
         });
     });
@@ -1555,6 +1566,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
 
+        // For any page other than 'mobile.html', we want to scroll to the top.
+        // For 'mobile.html', we will restore the saved scroll position.
+        if (page !== 'mobile.html') {
+            document.documentElement.scrollTop = 0;
+        }
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'mobile.html') {
             if (initialHomeContent) {
@@ -1563,7 +1579,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 await new Promise(res => setTimeout(res, 200));
 
                 contentContainer.innerHTML = initialHomeContent;
-
+                // Restore scroll position for the home page
+                document.documentElement.scrollTop = homeScrollPosition;
+                
                 // Re-inisialisasi skeleton dan fetch data lagi untuk halaman home
                 initializeSkeletons();
                 initializeData(); // Panggil fungsi yang memuat semua data API
@@ -1584,9 +1602,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             }
             return; // Hentikan eksekusi lebih lanjut
         }
-
-        // Tambahkan efek transisi keluar
-        contentContainer.style.opacity = '0';
 
         try {
             // Ambil hanya bagian <div class="app-container"> dari file HTML target
@@ -1693,6 +1708,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             contentContainer.innerHTML = await response.text();
 
             // --- Populate Page Content ---
+            // Ensure the artist page itself starts at the top
+            document.documentElement.scrollTop = 0;
+
 
             // 1. Header
             document.getElementById('artistPageName').textContent = artist.name;

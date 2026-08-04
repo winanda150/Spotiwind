@@ -1800,6 +1800,7 @@ body.full-player-open {
     width: 48px; /* Set fixed width */
     height: 48px; /* Set fixed height */
     border-radius: 50%; /* Make it a circle */
+    cursor: pointer;
     transition: background 0.3s ease; /* [NEW] Transisi untuk perubahan background */
 }
 
