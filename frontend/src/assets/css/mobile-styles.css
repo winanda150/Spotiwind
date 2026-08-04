@@ -1784,7 +1784,7 @@ body.full-player-open {
     padding: 0.8rem 1rem;
     position: sticky; /* Sticky is better than fixed within a scrollable container */
     top: 0;
-    background: transparent; /* Header tetap transparan */
+    background: transparent;
     z-index: 1000;
 }
 
@@ -1792,10 +1792,11 @@ body.full-player-open {
     background: rgba(0, 0, 0, 0.3); /* Added background for the circle */
     border: none;
     color: var(--text-main);
-    width: 40px; /* Set fixed width */
-    height: 40px; /* Set fixed height */
+    width: 45px; /* Set fixed width */
+    height: 45px; /* Set fixed height */
     border-radius: 50%; /* Make it a circle */
     display: flex;
+    padding: 7px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1843,11 +1844,7 @@ body.full-player-open {
     left: 0;
     width: 100%;
     height: 45vh;
-    background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 10%, rgba(15, 23, 42, 0) 70%);
-    /* [FIX] Tambahkan backdrop-filter untuk efek blur yang dikontrol JS */
-    backdrop-filter: blur(var(--hero-blur, 0px));
-    -webkit-backdrop-filter: blur(var(--hero-blur, 0px)); /* Untuk Safari */
-    transition: backdrop-filter 0.1s linear; /* Transisi blur yang mulus */
+    background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.1) 20%);
     z-index: 1; /* [FIX] Set z-index to 1 to be above the image */
 }
 
@@ -1859,11 +1856,24 @@ body.full-player-open {
     color: white; /* Atur warna secara eksplisit */
 }
 
+/* [NEW] Styling for the verified badge below artist name */
+.artist-verified-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Jarak antara ikon dan teks */
+    color: white; /* Warna teks */
+    margin-bottom: 0.5rem; /* Jarak dari nama artis */
+    font-size: 0.85rem; /* Ukuran font */
+    font-weight: 500;
+    text-shadow: 0 1px 5px rgba(0,0,0,0.4); /* Bayangan tipis untuk keterbacaan */
+}
+.artist-verified-badge svg { width: 1.2em; height: 1.2em; flex-shrink: 0; }
+
 /* [FIX] Wrapper for all scrollable content, positioned over the hero */
 .artist-content-scroll-wrapper {
     position: relative;
     z-index: 2; /* This container sits on top of the sticky hero */
-    margin-top: -55vh; /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) untuk menutupi gambar */
+    margin-top: -56vh; /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) untuk menutupi gambar */
     background: transparent; /* This wrapper itself is transparent */
 }
 
@@ -1873,7 +1883,7 @@ body.full-player-open {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 2rem 1.5rem;
+    padding: 1rem 1.5rem;
     background: transparent; /* Wrapper ini transparan, berada di atas gambar hero */
 }
 
