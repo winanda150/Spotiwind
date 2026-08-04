@@ -62,6 +62,7 @@ let isDragging = false;
 let currentContext = null; // Store the active context globally
 let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
+let artistPageCurrentSongs = []; // [NEW] Buffer to store songs from the current artist page
 let homeScrollPosition = 0; // NEW: To store scroll position of the home page
 let friendActivityListeners = []; // Store listeners so they can be cleared
 let lastSearchQuery = ''; // [NEW] Variable to store the last search query
@@ -739,7 +740,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             } else if (context === 'local') {
                 // [FIX] When playing from the Indonesian grid, the playlist context should be the songs
                 // from that specific grid, not the entire local song library.
-                baseQueue = [...indonesianGridPlaylist];
+                baseQueue = [...indonesianGridPlaylist]; // [FIX] Use indonesianGridPlaylist for 'local' context
+            } else if (context.startsWith('artist-')) { // [NEW] Handle artist page context
+                // Use the songs currently displayed on the artist's page
+                baseQueue = [...artistPageCurrentSongs]; // [FIX] Use artistPageCurrentSongs for 'artist-' context
             }
 
             if (isShuffle) {
@@ -1777,6 +1781,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             duration: item.duration,
                             plays: formatPlayCount(item.stats?.rate_downloads_total || 0)
                         }));
+                        artistPageCurrentSongs = artistSongs; // [NEW] Store for playPreview
                         // Use a new context for this playlist
                         renderGrid('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artist.id}`), 'song');
                     } else {
