@@ -1621,9 +1621,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // 1. Efek blur pada gambar hero saat scroll
             const blurValue = Math.min(scrollTop / 20, 10); // Nilai blur dari 0 sampai max 10px
             hero.style.setProperty('--hero-blur', `${blurValue}px`);
-
-            // 2. Ubah background header saat scroll
-            header.classList.toggle('scrolled', scrollTop > 10);
         };
 
         // Transition out

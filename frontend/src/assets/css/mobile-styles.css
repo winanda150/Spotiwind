@@ -1781,20 +1781,11 @@ body.full-player-open {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.7rem 1rem;
+    padding: 0.8rem 1rem;
     position: sticky; /* Sticky is better than fixed within a scrollable container */
     top: 0;
-    background: transparent; /* Changed to transparent as requested */
+    background: transparent; /* Header tetap transparan */
     z-index: 1000;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-    border-bottom: 1px solid transparent; /* Placeholder for smooth transition */
-}
-
-.artist-page-header.scrolled {
-    background: rgba(15, 23, 42, 0.85);
-    border-bottom-color: var(--glass-border);
 }
 
 .back-btn {
@@ -1822,13 +1813,11 @@ body.full-player-open {
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.5); /* Added shadow for readability */
 }
 
 .artist-hero-section {
-    /* [FIX] Changed to sticky to create the overlap effect without zooming the image */
-    position: sticky;
-    top: 62px; /* [FIX] Hero section menempel tepat di bawah header (sekitar 62px) */
+    /* [FIX] Hapus position: sticky dan top. Ini harus menjadi elemen blok biasa. */
+    position: relative; /* Tetap relative untuk konteks positioning anak-anaknya */
 
     width: 100%;
     height: 45vh; /* Tinggi area gambar yang sticky */
@@ -1837,20 +1826,23 @@ body.full-player-open {
 }
 
 .artist-hero-image {
-    position: relative;
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: 45vh;
     object-fit: cover; /* [FIX] This ensures the image covers the container without excessive zoom */
-    z-index: 0; /* Place image behind the name and gradient */
+    object-position: top;
+    z-index: -1; /* Place image behind the name and gradient */
 }
 
 .artist-hero-section::after {
     content: '';
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45vh;
     background: linear-gradient(to top, rgba(15, 23, 42, 0.9) 10%, rgba(15, 23, 42, 0) 70%);
     /* [FIX] Tambahkan backdrop-filter untuk efek blur yang dikontrol JS */
     backdrop-filter: blur(var(--hero-blur, 0px));
@@ -1871,7 +1863,7 @@ body.full-player-open {
 .artist-content-scroll-wrapper {
     position: relative;
     z-index: 2; /* This container sits on top of the sticky hero */
-    margin-top: calc(-45vh - 62px); /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) + tinggi header (62px) */
+    margin-top: -55vh; /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) untuk menutupi gambar */
     background: transparent; /* This wrapper itself is transparent */
 }
 
