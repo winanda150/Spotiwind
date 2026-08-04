@@ -1781,7 +1781,7 @@ body.full-player-open {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.8rem 1rem;
+    padding: 0.8rem 1.3rem;
     position: sticky; /* Sticky is better than fixed within a scrollable container */
     top: 0;
     background: transparent;
@@ -1792,8 +1792,8 @@ body.full-player-open {
     background: rgba(0, 0, 0, 0.3); /* Added background for the circle */
     border: none;
     color: var(--text-main);
-    width: 45px; /* Set fixed width */
-    height: 45px; /* Set fixed height */
+    width: 43px; /* Set fixed width */
+    height: 43px; /* Set fixed height */
     border-radius: 50%; /* Make it a circle */
     display: flex;
     padding: 7px;
@@ -1804,7 +1804,7 @@ body.full-player-open {
 }
 
 .back-btn:hover {
-    background: rgba(0, 0, 0, 0.5);
+    color: rgb(204, 197, 197);
 }
 
 .artist-page-title {
@@ -1844,7 +1844,7 @@ body.full-player-open {
     left: 0;
     width: 100%;
     height: 45vh;
-    background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.1) 20%);
+    background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.3) 50%, rgba(15, 23, 42, 0) 100%);
     z-index: 1; /* [FIX] Set z-index to 1 to be above the image */
 }
 
@@ -1891,6 +1891,103 @@ body.full-player-open {
 .artist-songs-content {
     background-color: var(--bg-dark); /* The solid background starts here */
     position: relative; /* To ensure it's part of the flow */
+}
+
+/* [NEW] Vertical list layout for artist songs */
+.artist-songs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem; /* Spacing between items */
+    padding: 0rem 1.5rem 1.3rem 1.5rem; /* Adjust padding to match other sections, add top padding */
+    overflow-x: hidden; /* No horizontal scroll */
+    scrollbar-width: none; /* For Firefox */
+    -ms-overflow-style: none; /* For IE and Edge */
+}
+
+.artist-songs-list::-webkit-scrollbar {
+    display: none; /* For Chrome, Safari, and Opera */
+}
+
+.artist-song-list-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.8rem;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.artist-song-list-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+}
+
+.artist-song-list-item .item-left {
+    position: relative;
+    width: 50px; /* Fixed size for cover */
+    height: 50px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
+.artist-song-list-item .item-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.artist-song-list-item .item-info {
+    flex: 1;
+    min-width: 0; /* Allow text to truncate */
+    display: flex;
+    flex-direction: column;
+}
+
+.artist-song-list-item .item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-main);
+}
+
+.artist-song-list-item .item-artist {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Active song styling for list items */
+.artist-song-list-item.is-active-song .item-name {
+    color: #22c55e; /* Green color for active song */
+}
+
+/* Three dots icon for list items */
+.artist-song-list-item .item-right {
+    flex-shrink: 0;
+}
+
+.artist-song-list-item .more-options-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.artist-song-list-item .more-options-btn:hover {
+    color: var(--text-main);
 }
 
 /* NEW: Mobile Footer Styles */

@@ -1051,6 +1051,38 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
+     * [NEW] Renderer for a single song in the vertical artist song list.
+     * This is a custom layout for the artist's popular songs.
+     */
+    const createArtistSongListItemHTML = (song, context) => {
+        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+        const safeName = song.name.replace(/'/g, "\\'");
+        const safeArtist = song.artist.replace(/'/g, "\\'");
+
+        return `
+        <div class="artist-song-list-item ${isActive ? 'is-active-song' : ''} ${activeAudio.paused ? 'is-paused' : ''}" 
+            data-id="${song.id}" data-audio="${song.audio}"
+            onclick="playPreview(null, '${song.audio}', '${safeName}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration}, '${context}')">
+            <div class="item-left">
+                <img src="${song.cover}" class="item-cover" alt="${song.name}">                
+            </div>
+            <div class="item-info">
+                <h3 class="item-name">${song.name}</h3>
+                <p class="item-artist">${song.artist}</p>
+            </div>
+            <div class="item-right">
+                <button class="more-options-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <circle cx="12" cy="12" r="1.5" />
+                        <circle cx="12" cy="5" r="1.5" />
+                        <circle cx="12" cy="19" r="1.5" />
+                    </svg>
+                </button>
+            </div>
+        </div>`;
+    };
+
+    /**
      * [NEW & SYNC WITH DESKTOP] Renders items into a grid one by one for a progressive loading effect.
      * It replaces existing skeleton elements sequentially.
      * @param {string} gridSelector - The CSS selector for the grid container.
@@ -1603,9 +1635,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer || !artist || !artist.id) return;
 
-        // Deactivate all bottom nav items as this is a sub-page
-        document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
-
         // [NEW] Define parallax handler here to manage its lifecycle
         const parallaxHandler = () => {
             const hero = document.getElementById('artistHero');
@@ -1698,7 +1727,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             plays: formatPlayCount(item.stats?.rate_downloads_total || 0)
                         }));
                         // Use a new context for this playlist
-                        renderGrid('#artistSongsGrid', artistSongs, (song) => createSongCardHTML(song, `artist-${artist.id}`), 'song');
+                        renderGrid('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artist.id}`), 'song');
                     } else {
                         songsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">No popular songs found for this artist.</p>`;
                     }
