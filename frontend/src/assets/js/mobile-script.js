@@ -945,6 +945,51 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
+     * [NEW] Function to fetch artist songs.
+     * Extracted from loadArtistPage to be used with fetchWithContinuousRetry.
+     */
+    const fetchArtistSongs = async (artistId) => {
+        const songsGrid = document.getElementById('artistSongsGrid');
+        if (!songsGrid) return false; // Indicate failure if grid not found
+
+        let artistSongs = [];
+
+        try {
+            const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=20&artist_id=${artistId}&order=popularity_total&include=stats`;
+            const songResponse = await fetchWithRetry(url);
+            const songData = await songResponse.json();
+
+            if (songData.results && songData.results.length > 0) { // If songs are found
+                artistSongs = songData.results.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    artist: item.artist_name,
+                    cover: item.image,
+                    audio: item.audio,
+                    duration: item.duration,
+                    plays: formatPlayCount(item.stats?.rate_downloads_total || 0)
+                }));
+            }
+
+            artistPageCurrentSongs = artistSongs; // Store for playPreview
+
+            if (artistSongs.length > 0) {
+                await renderGridProgressively('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artistId}`), '.artist-song-list-item-skeleton', `artist-${artistId}`);
+                return true; // Success, songs rendered.
+            } else {
+                // No songs found, but API call was successful. Return false to keep retrying.
+                // The skeleton will remain because renderGridProgressively was not called with actual items.
+                console.warn(`No popular songs found for artist ${artistId}. Retrying...`);
+                return false; // Signal to fetchWithContinuousRetry to keep trying.
+            }
+        } catch (songError) {
+            console.error(`Failed to fetch songs for artist ${artistId}:`, songError);
+            // On error, return false to keep retrying. The skeleton will remain.
+            return false; // Signal to fetchWithContinuousRetry to keep trying.
+        }
+    };
+
+    /**
      * Displays a skeleton loader in the grid.
      * @param {string} gridSelector - CSS selector for the grid container.
      * @param {string} type - Skeleton type ('song' or 'artist').
@@ -970,6 +1015,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 <div class="artist-card-skeleton">
                     <div class="skeleton skeleton-photo"></div>
                     <div class="skeleton skeleton-name"></div>
+                </div>
+            `;
+        } else if (type === 'artist-song-list') { // [NEW] Skeleton for vertical artist song list
+            skeletonHTML = `
+                <div class="artist-song-list-item-skeleton skeleton">
+                    <div class="skeleton-item-left"></div>
+                    <div class="skeleton-item-info">
+                        <div class="skeleton-item-name"></div>
+                        <div class="skeleton-item-artist"></div>
+                    </div>
+                    <div class="skeleton-item-right"></div>
                 </div>
             `;
         }
@@ -1763,34 +1819,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             // 3. Fetch and Render Songs
             const songsGrid = document.getElementById('artistSongsGrid');
-            if (songsGrid) {
-                showSkeletonLoader('#artistSongsGrid', 'song', 4); // Show loader
-
-                try {
-                    const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=20&artist_id=${artist.id}&order=popularity_total&include=stats`;
-                    const songResponse = await fetchWithRetry(url);
-                    const songData = await songResponse.json();
-
-                    if (songData.results && songData.results.length > 0) {
-                        const artistSongs = songData.results.map(item => ({
-                            id: item.id,
-                            name: item.name,
-                            artist: item.artist_name,
-                            cover: item.image,
-                            audio: item.audio,
-                            duration: item.duration,
-                            plays: formatPlayCount(item.stats?.rate_downloads_total || 0)
-                        }));
-                        artistPageCurrentSongs = artistSongs; // [NEW] Store for playPreview
-                        // Use a new context for this playlist
-                        renderGrid('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artist.id}`), 'song');
-                    } else {
-                        songsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">No popular songs found for this artist.</p>`;
-                    }
-                } catch (songError) {
-                    console.error(`Failed to fetch songs for artist ${artist.id}:`, songError);
-                    songsGrid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">Could not load songs.</p>`;
-                }
+            if (songsGrid) { // [FIX] Use new skeleton type and fetchWithContinuousRetry
+                fetchWithContinuousRetry(() => fetchArtistSongs(artist.id), 3000); // Don't await, run in background
             }
 
             // [NEW] Attach the parallax scroll listener
@@ -1798,7 +1828,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             // Transition in
             contentContainer.style.opacity = '1';
-
+            
         } catch (error) {
             console.error('Failed to load artist page:', error);
             // [NEW] Ensure listener is removed on error too
