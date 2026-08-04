@@ -1786,17 +1786,31 @@ body.full-player-open {
     top: 0;
     background: transparent;
     z-index: 1000;
+    transition: background-color 0.3s ease; /* [NEW] Tambahkan transisi untuk perubahan background yang halus */
+}
+
+.artist-page-header.scrolled {
+    background-color: var(--bg-dark); /* [NEW] Warna background solid saat di-scroll */
 }
 
 .back-btn {
-    background: rgba(0, 0, 0, 0.3); /* Added background for the circle */
+    background: rgba(0, 0, 0, 0.3); /* Background default untuk lingkaran */
     border: none;
     color: var(--text-main);
-    width: 43px; /* Set fixed width */
-    height: 43px; /* Set fixed height */
+    width: 48px; /* Set fixed width */
+    height: 48px; /* Set fixed height */
     border-radius: 50%; /* Make it a circle */
+    transition: background 0.3s ease; /* [NEW] Transisi untuk perubahan background */
+}
+
+.back-btn svg {
+    width: 35px;
+    height: 35px;
+}
+
+.back-btn.transparent-bg {
+    background: transparent; /* [NEW] Background transparan saat di-scroll */
     display: flex;
-    padding: 7px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1813,7 +1827,15 @@ body.full-player-open {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-align: center;
+    text-align: center; /* Tetap di tengah */
+    opacity: 0; /* [NEW] Awalnya tersembunyi */
+    transition: opacity 0.3s ease; /* [NEW] Transisi fade yang halus */
+    pointer-events: none; /* [NEW] Mencegah interaksi saat tersembunyi */
+}
+
+.artist-page-title.visible {
+    opacity: 1; /* [NEW] Muncul saat kelas visible ditambahkan */
+    pointer-events: auto; /* [NEW] Memungkinkan interaksi saat terlihat */
 }
 
 .artist-hero-section {

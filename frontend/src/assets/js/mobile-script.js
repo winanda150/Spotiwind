@@ -1635,10 +1635,43 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer || !artist || !artist.id) return;
 
-        // [NEW] Define parallax handler here to manage its lifecycle
+        let artistPageTitleVisibilityTimeout = null; // [NEW] Untuk mengelola delay fade-in nama artis di header
+
+        // [REFACTOR] Define parallax handler here to manage its lifecycle
         const parallaxHandler = () => {
             const hero = document.getElementById('artistHero');
-            const header = document.querySelector('.artist-page-header');
+            const header = document.querySelector('.artist-page-header'); // Header yang akan berubah background
+            const backButton = document.querySelector('.artist-page-header .back-btn'); // [NEW] Tombol back
+            const artistPageTitle = document.getElementById('artistPageName'); // Nama artis di header
+            const artistNameWrapper = document.getElementById('artistNameWrapper'); // Wrapper yang berisi nama artis dan badge
+
+            // Logic to change header background, fade in artist name, and change back button background
+            if (header && artistNameWrapper && artistPageTitle && backButton) { // [FIX] Tambahkan backButton ke kondisi
+                const headerHeight = header.offsetHeight; // Tinggi header
+                const artistNameWrapperBottom = artistNameWrapper.getBoundingClientRect().bottom; // Posisi bawah wrapper nama artis relatif ke viewport
+
+                // [FIX] Logic to fade in/out artist name in header with delay for fade-in
+                const shouldShowArtistNameInHeader = artistNameWrapperBottom <= headerHeight;
+
+                if (shouldShowArtistNameInHeader) {
+                    if (!artistPageTitle.classList.contains('visible')) {
+                        clearTimeout(artistPageTitleVisibilityTimeout); // Hapus timeout sebelumnya jika ada
+                        artistPageTitleVisibilityTimeout = setTimeout(() => {
+                            artistPageTitle.classList.add('visible');
+                            artistPageTitle.setAttribute('aria-hidden', 'false');
+                        }, 50);
+                    }
+                } else {
+                    clearTimeout(artistPageTitleVisibilityTimeout); // Hapus timeout jika scroll kembali ke atas
+                    artistPageTitle.classList.remove('visible');
+                    artistPageTitle.setAttribute('aria-hidden', 'true');
+                }
+                // Header akan menjadi solid ketika bagian bawah artistNameWrapper sudah mencapai atau melewati bagian bawah header
+                header.classList.toggle('scrolled', artistNameWrapperBottom <= headerHeight);
+
+                // [NEW] Tombol back akan menjadi transparan saat header sudah di-scroll
+                backButton.classList.toggle('transparent-bg', artistNameWrapperBottom <= headerHeight);
+            }
 
             // If elements don't exist (e.g., page changed), stop the effect
             if (!hero || !header) {
