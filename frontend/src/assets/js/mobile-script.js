@@ -1719,6 +1719,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const backButton = document.querySelector('.artist-page-header .back-btn'); // [NEW] Tombol back
             const artistPageTitle = document.getElementById('artistPageName'); // Nama artis di header
             const artistNameWrapper = document.getElementById('artistNameWrapper'); // Wrapper yang berisi nama artis dan badge
+            const artistNameWrapperTop = artistNameWrapper.getBoundingClientRect().top; // Posisi atas wrapper nama artis
 
             // Logic to change header background, fade in artist name, and change back button background
             if (header && artistNameWrapper && artistPageTitle && backButton) { // [FIX] Tambahkan backButton ke kondisi
@@ -1746,6 +1747,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 // [NEW] Tombol back akan menjadi transparan saat header sudah di-scroll
                 backButton.classList.toggle('transparent-bg', artistNameWrapperBottom <= headerHeight);
+
+                // NEW: Logic for dynamic background shadow on artist name wrapper
+                // Add shadow if the artist name wrapper has scrolled up past its initial position
+                // or if it's overlapping the header.
+                const shouldShowShadow = artistNameWrapperTop < 0 || artistNameWrapperBottom <= headerHeight;
+                artistNameWrapper.classList.toggle('has-dynamic-shadow', shouldShowShadow);
             }
 
             // If elements don't exist (e.g., page changed), stop the effect

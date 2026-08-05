@@ -1849,17 +1849,6 @@ body.full-player-open {
     padding: 0;
 }
 
-.artist-hero-image {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 45vh;
-    object-fit: cover; /* [FIX] This ensures the image covers the container without excessive zoom */
-    object-position: top;
-    z-index: -1; /* Place image behind the name and gradient */
-}
-
 .artist-hero-section::after {
     content: '';
     position: fixed;
@@ -1869,6 +1858,17 @@ body.full-player-open {
     height: 45vh;
     background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.3) 50%, rgba(15, 23, 42, 0) 100%);
     z-index: 1; /* [FIX] Set z-index to 1 to be above the image */
+}
+
+.artist-hero-image {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45vh;
+    object-fit: cover; /* [FIX] This ensures the image covers the container without excessive zoom */
+    object-position: top;
+    z-index: -1; /* Place image behind the name and gradient */
 }
 
 .artist-hero-name {
@@ -1906,8 +1906,32 @@ body.full-player-open {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 1rem 1.5rem;
+    padding: 0rem 1.5rem;
     background: transparent; /* Wrapper ini transparan, berada di atas gambar hero */
+}
+
+/* NEW: Dynamic background shadow for artist name wrapper */
+.artist-name-wrapper {
+    position: relative; /* Needed for absolute positioning of pseudo-element */
+    /* Tambahkan background-color transparan agar pseudo-element tidak terhalang */
+    background-color: transparent;
+}
+
+.artist-name-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0)); /* Dark at bottom, transparent at top */
+    z-index: -1; /* Behind the text */
+    opacity: 0; /* Initially hidden */
+    transition: opacity 0.3s ease;
+}
+
+.artist-name-wrapper.has-dynamic-shadow::before {
+    opacity: 1; /* Show shadow when scrolled */
 }
 
 /* [FIX] This inner wrapper has the solid background that scrolls up */
