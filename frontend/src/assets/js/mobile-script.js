@@ -1626,11 +1626,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
 
-        // For any page other than 'mobile.html', we want to scroll to the top.
-        // For 'mobile.html', we will restore the saved scroll position.
-        if (page !== 'mobile.html') {
-            document.documentElement.scrollTop = 0;
-        }
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'mobile.html') {
             if (initialHomeContent) {
@@ -1664,6 +1659,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
 
         try {
+            // [FIX] Start the fade-out transition immediately to hide old content and prevent flicker.
+            contentContainer.style.opacity = '0';
+            await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
+
             // Ambil hanya bagian <div class="app-container"> dari file HTML target
             const response = await fetch(page);
             if (!response.ok) throw new Error(`Could not load ${page}`);
@@ -1675,8 +1674,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const newContent = doc.querySelector('.app-container')?.innerHTML;
 
             if (newContent) {
-                // Tunggu animasi keluar selesai
-                await new Promise(res => setTimeout(res, 200));
+                // [FIX] Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
+                // This prevents the jarring scroll jump on the old page.
+                document.documentElement.scrollTop = 0;
 
                 contentContainer.innerHTML = newContent;
 
@@ -1695,13 +1695,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     initializeData();
                 }
                 
-                // Efek transisi masuk
+                // [FIX] Fade the new content in.
                 contentContainer.style.opacity = '1';
             }
         } catch (error) {
             console.error('Failed to load page content:', error);
             contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load content.</p>`;
-            contentContainer.style.opacity = '1'; // Tampilkan pesan error
+            // Ensure the container is visible to show the error message.
+            contentContainer.style.opacity = '1';
         }
     };
 
@@ -1905,11 +1906,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     // Panggil initializeHomeContent sekali saat halaman pertama kali dimuat.
     initializeHomeContent();
 
-    /**
-     * [NEW] Encapsulates all search-related logic and event listeners.
-     * This function can be called to re-initialize search functionality
-     * when the home page content is reloaded.
-     */
     const initializeSearch = () => {
         const searchInput = document.getElementById('searchInput');
         const searchDropdown = document.getElementById('searchDropdown');
@@ -2221,10 +2217,4 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     });
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await signOut(auth);
-        });
-    }
 });

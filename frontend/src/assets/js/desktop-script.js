@@ -887,7 +887,6 @@ const isUserPremium = async (uid) => {
 };
 
     const logoutBtn = document.getElementById('logoutBtn');
-    const greetingBadge = document.getElementById('greetingBadge');
 
     let lastHour = -1; // Stores the last hour's status for rendering optimization
 
@@ -895,7 +894,7 @@ const isUserPremium = async (uid) => {
      * Updates the greeting text based on the device's local time
      */
     const updateGreeting = () => {
-        if (!greetingBadge) return;
+        const greetingBadge = document.getElementById('greetingBadge'); // Get it here as it might be re-rendered
         const hour = new Date().getHours();
         if (hour === lastHour) return; // Optimization: Do nothing if the hour hasn't changed
         lastHour = hour;
@@ -932,8 +931,6 @@ const isUserPremium = async (uid) => {
     });
 
     // Initialize search with Slidedown Dropdown feature
-    const searchInput = document.getElementById('searchInput');
-    const searchDropdown = document.getElementById('searchDropdown');
     // Listener for music controls in the sidebar
     document.querySelector('button[title="Next"]')?.addEventListener('click', playNext);
     document.querySelector('button[title="Previous"]')?.addEventListener('click', playPrevious);
@@ -1629,18 +1626,4 @@ const isUserPremium = async (uid) => {
             // However, onDisconnect usually handles this well enough.
         }
     });
-
-    // 2. Logout Function
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                await signOut(auth);
-                console.log("User signed out");
-                // After sign out, onAuthStateChanged will automatically redirect to index.html
-            } catch (error) {
-                console.error("Logout Error:", error);
-            }
-        });
-    }
 });
