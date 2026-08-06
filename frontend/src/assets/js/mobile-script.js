@@ -66,6 +66,7 @@ let artistPageCurrentSongs = []; // [NEW] Buffer to store songs from the current
 let homeScrollPosition = 0; // NEW: To store scroll position of the home page
 let friendActivityListeners = []; // Store listeners so they can be cleared
 let lastSearchQuery = ''; // [NEW] Variable to store the last search query
+let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
@@ -251,12 +252,19 @@ const renderUpNext = () => {
     `;}).join('');
 
     // Use View Transitions API if available (Chrome/Safari 17.4+)
-    if (document.startViewTransition) {
-        document.startViewTransition(() => {
+    if (document.startViewTransition && !isTransitioningUpNext) {
+        isTransitioningUpNext = true;
+        const transition = document.startViewTransition(() => {
             listContainer.innerHTML = html;
         });
+
+        // The .finished promise resolves when the transition is complete.
+        // Use .finally() to ensure the flag is always reset.
+        transition.finished.finally(() => {
+            isTransitioningUpNext = false;
+        });
     } else {
-        listContainer.innerHTML = html;
+        listContainer.innerHTML = html; // Fallback for browsers without the API or if a transition is active
     }
 };
 
