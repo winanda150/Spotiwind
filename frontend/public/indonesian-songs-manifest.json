@@ -35,9 +35,9 @@
       "duration": 289
     },
     {
-      "id": "feast-kelelawar",
+      "id": "feast-&-karaeng-adjie-kelelawar",
       "name": "Kelelawar",
-      "artist": ".Feast",
+      "artist": ".Feast & Karaeng Adjie",
       "audio": "Elemen/Feast/Kelelawar.mp3",
       "cover": "Elemen/Feast/Image%20Songs/Kelelawar.webp",
       "duration": 265
@@ -65,6 +65,30 @@
       "audio": "Elemen/Feast/Kami%20Belum%20Tentu.mp3",
       "cover": "Elemen/Feast/Image%20Songs/Kami%20Belum%20Tentu.webp",
       "duration": 231
+    },
+    {
+      "id": "feast-fastest-man-alive",
+      "name": "Fastest Man Alive",
+      "artist": ".Feast",
+      "audio": "Elemen/Feast/Fastest%20Man%20Alive.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Fastest%20Man%20Alive.webp",
+      "duration": 213
+    },
+    {
+      "id": "feast-camkan",
+      "name": "Camkan",
+      "artist": ".Feast",
+      "audio": "Elemen/Feast/Camkan.mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Camkan.webp",
+      "duration": 268
+    },
+    {
+      "id": "feast-&-janitra-satriani-wives-of-ゴジラ-(we-belong-dead)",
+      "name": "Wives of ゴジラ (We Belong Dead)",
+      "artist": ".Feast & Janitra Satriani",
+      "audio": "Elemen/Feast/Wives%20of%20ゴジラ%20(We%20Belong%20Dead).mp3",
+      "cover": "Elemen/Feast/Image%20Songs/Wives%20of%20ゴジラ%20(We%20Belong%20Dead).webp",
+      "duration": 276
     },
     {
       "id": "hindia-evaluasi",
@@ -459,12 +483,116 @@
       "duration": 234
     },
     {
+      "id": "sheila-on-7-dan...",
+      "name": "Dan...",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Dan....mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Dan....webp",
+      "duration": 283
+    },
+    {
       "id": "sheila-on-7-bila-kau-tak-disampingku",
       "name": "Bila Kau Tak Disampingku",
       "artist": "Sheila On 7",
       "audio": "Elemen/Sheila%20On%207/Bila%20Kau%20Tak%20Disampingku.mp3",
       "cover": "Elemen/Sheila%20On%207/Image%20Songs/Bila%20Kau%20Tak%20Disampingku.webp",
       "duration": 257
+    },
+    {
+      "id": "sheila-on-7-kita",
+      "name": "Kita",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Kita.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Kita.webp",
+      "duration": 220
+    },
+    {
+      "id": "sheila-on-7-sephia",
+      "name": "Sephia",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Sephia.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Sephia.webp",
+      "duration": 291
+    },
+    {
+      "id": "sheila-on-7-seberapa-pantas",
+      "name": "Seberapa Pantas",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Seberapa%20Pantas.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Seberapa%20Pantas.webp",
+      "duration": 234
+    },
+    {
+      "id": "sheila-on-7-pemuja-rahasia",
+      "name": "Pemuja Rahasia",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Pemuja%20Rahasia.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Pemuja%20Rahasia.webp",
+      "duration": 235
+    },
+    {
+      "id": "sheila-on-7-hari-bersamanya",
+      "name": "Hari Bersamanya",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Hari%20Bersamanya.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Hari%20Bersamanya.webp",
+      "duration": 233
+    },
+    {
+      "id": "sheila-on-7-sebuah-kisah-klasik",
+      "name": "Sebuah Kisah Klasik",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Sebuah%20Kisah%20Klasik.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Sebuah%20Kisah%20Klasik.webp",
+      "duration": 238
+    },
+    {
+      "id": "sheila-on-7-film-favorit",
+      "name": "Film Favorit",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Film%20Favorit.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Film%20Favorit.webp",
+      "duration": 223
+    },
+    {
+      "id": "sheila-on-7-j.a.p",
+      "name": "J.A.P",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/J.A.P.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/J.A.P.webp",
+      "duration": 282
+    },
+    {
+      "id": "sheila-on-7-anugerah-terindah-yang-pernah-kumiliki",
+      "name": "Anugerah Terindah Yang Pernah Kumiliki",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Anugerah%20Terindah%20Yang%20Pernah%20Kumiliki.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Anugerah%20Terindah%20Yang%20Pernah%20Kumiliki.webp",
+      "duration": 268
+    },
+    {
+      "id": "sheila-on-7-perhatikan,-rani!",
+      "name": "Perhatikan, Rani!",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Perhatikan,%20Rani!.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Perhatikan,%20Rani!.webp",
+      "duration": 313
+    },
+    {
+      "id": "sheila-on-7-terlintas-2-kata",
+      "name": "Terlintas 2 Kata",
+      "artist": "Sheila On 7",
+      "audio": "Elemen/Sheila%20On%207/Terlintas%202%20Kata.mp3",
+      "cover": "Elemen/Sheila%20On%207/Image%20Songs/Terlintas%202%20Kata.webp",
+      "duration": 270
+    },
+    {
+      "id": "Andmesh-anugerah-terindah",
+      "name": "Anugerah Terindah",
+      "artist": "Andmesh",
+      "audio": "Elemen/Andmesh/Anugerah%20Terindah.mp3",
+      "cover": "Elemen/Andmesh/Image%20Songs/Anugerah%20Terindah.webp",
+      "duration": 282
     },
     {
       "id": "bilal-indrajaya-niscaya",
