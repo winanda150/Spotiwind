@@ -1203,119 +1203,125 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    const searchMusic = async (query) => {
-        const songGrid = document.querySelector('.popular-section .song-grid'); // TARGET SPECIFIC GRID
-        const sectionTitle = document.getElementById('sectionTitle');
-        if (!songGrid) return;
-        
-        const cleanQuery = query.trim().replace(/\s+/g, ' ');
-        if (!cleanQuery) {
-            fetchTrendingMusic();
-            return;
+    const calculateRelevance = (item, cleanQuery, qWords) => {
+        let score = 0;
+        const title = (item.name || "").toLowerCase();
+        const artist = (item.artist_name || item.artist || "").toLowerCase();
+        const album = (item.album_name || "").toLowerCase();
+
+        // 1. Exact Match Priority
+        if (title === cleanQuery) score += 500;
+        if (artist === cleanQuery) score += 200;
+
+        // 2. Cross-Field Match
+        const matchInTitle = qWords.some(word => title.includes(word));
+        const matchInArtist = qWords.some(word => artist.includes(word));
+        if (matchInTitle && matchInArtist) score += 400;
+
+        // 3. Combined String Match
+        const combinedString = `${artist} ${title}`;
+        const reversedString = `${title} ${artist}`;
+        if (combinedString.includes(cleanQuery) || reversedString.includes(cleanQuery)) score += 250;
+
+        // 4. Word-by-word Match
+        const fullText = `${title} ${artist} ${album}`;
+        const matchesAll = qWords.every(word => fullText.includes(word));
+        if (matchesAll) score += 100;
+
+        // 5. Phrase Matching
+        if (title.includes(cleanQuery)) score += 100;
+
+        // 6. Start-with Bonus
+        if (title.startsWith(qWords[0])) score += 80;
+
+        // 7. Popularity & Local Boost
+        if (item.isLocal) {
+            if (matchesAll) score += 150;
+        } else {
+            score += ((item.stats?.rate_downloads_total || 0) / 1000);
         }
-
-        showSkeletonLoader('.song-grid', 'song', 6);
-        if (sectionTitle) sectionTitle.textContent = "Search Results";
-
-        try {
-            const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=25&include=stats&order=popularity_total`;
-            const qWords = cleanQuery.toLowerCase().split(' ');
-            
-            // Pencarian Hybrid: Global search + Name search
-            const [res1, res2] = await Promise.all([
-                fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`),
-                fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`)
-            ]);
-
-            const data1 = await res1.json();
-            const data2 = await res2.json();
-
-            // [FIX] Include local songs in the main search results.
-            const localResultsForGrid = indonesianSongsPlaylist.map(song => ({
-                ...song, artist_name: song.artist, image: song.cover, isLocal: true
-            }));
-
-            const combined = [...(data1.results || []), ...(data2.results || []), ...localResultsForGrid];
-
-            const uniqueMap = new Map();
-            combined.forEach(item => {
-                if (!uniqueMap.has(item.id)) {
-                    let score = 0;
-                    const title = (item.name || "").toLowerCase();
-                    const artist = (item.artist_name || "").toLowerCase();
-                    const album = (item.album_name || "").toLowerCase();
-
-                    // 1. Exact Match Priority (Paling Tinggi)
-                    if (title === cleanQuery.toLowerCase()) score += 500; 
-                    if (artist === cleanQuery.toLowerCase()) score += 200;
-
-                    // 2. Cross-Field Match (Kunci untuk "Survive Jekk")
-                    // Jika kata-kata yang diketik user tersebar di Judul DAN Artis
-                    const matchInTitle = qWords.some(word => title.includes(word));
-                    const matchInArtist = qWords.some(word => artist.includes(word));
-                    
-                    if (matchInTitle && matchInArtist) {
-                        score += 400; // Bonus besar jika menemukan kombinasi Lagu + Artis
-                    }
-                    
-                    // Bonus tambahan jika input user persis mengikuti pola "NamaArtis NamaLagu" atau sebaliknya
-                    const combinedString = `${artist} ${title}`.toLowerCase();
-                    const reversedString = `${title} ${artist}`.toLowerCase();
-                    if (combinedString.includes(cleanQuery.toLowerCase()) || reversedString.includes(cleanQuery.toLowerCase())) {
-                        score += 250;
-                    }
-
-                    // 3. Pengecekan kata per kata secara menyeluruh
-                    const fullText = `${title} ${artist} ${album}`;
-                    const matchesAll = qWords.every(word => fullText.includes(word));
-                    if (matchesAll) score += 100; 
-
-                    // 4. Phrase Matching (Urutan kata sesuai)
-                    if (title.includes(cleanQuery.toLowerCase())) score += 100;
-
-                    // 5. Start-with Bonus
-                    if (title.startsWith(qWords[0])) score += 80;
-
-                    // 6. Popularity Tie-breaker
-                    // [FIX] Handle scoring for both local and API songs.
-                    if (item.isLocal) {
-                        // Give a significant boost to local songs if they are a good match.
-                        if (matchesAll) score += 150;
-                    } else {
-                        score += ((item.stats?.rate_downloads_total || 0) / 1000);
-                    }
-                    item.relevanceScore = score;
-                    uniqueMap.set(item.id, item);
-                }
-            });
-
-            const finalResults = Array.from(uniqueMap.values())
-                .sort((a, b) => b.relevanceScore - a.relevanceScore)
-                .slice(0, 15);
-
-            if (finalResults.length > 0) {
-                const rawSongs = finalResults.map(item => ({
-                        id: item.id,
-                        name: item.name,
-                        artist: item.artist_name,
-                        album: item.album_name,
-                        cover: item.image || 'https://via.placeholder.com/400',
-                        audio: item.audio || '',
-                        duration: item.duration,
-                        // [FIX] Correctly assign play counts for local and API songs.
-                        plays: item.isLocal ? item.plays : formatPlayCount((item.stats?.rate_downloads_total || 0) * 5)
-                    }));
-
-                searchPlaylist = rawSongs;
-                renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton', 'search');
-            } else {
-                songGrid.innerHTML = '<p style="width: 100%; text-align: center; color: var(--text-muted);">No results found.</p>';
-            }
-        } catch (error) {
-            console.error("Search Music Error:", error);
-            songGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">Failed to search for songs. Try again later.</p>`;
-        }
+        return score;
     };
+
+    const fetchApiResults = async (cleanQuery) => {
+        const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=25&include=stats&order=popularity_total`;
+        const [res1, res2] = await Promise.all([
+            fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`),
+            fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`)
+        ]);
+        const data1 = await res1.json();
+        const data2 = await res2.json();
+        return [...(data1.results || []), ...(data2.results || [])];
+    };
+
+    const getLocalResults = () => {
+        return indonesianSongsPlaylist.map(song => ({
+            ...song, artist_name: song.artist, image: song.cover, isLocal: true
+        }));
+    };
+
+     const searchMusic = async (query) => {
+         const songGrid = document.querySelector('.popular-section .song-grid');
+         const sectionTitle = document.getElementById('sectionTitle');
+         if (!songGrid) return;
+
+         const cleanQuery = query.trim().replace(/\s+/g, ' ');
+         if (!cleanQuery) {
+             fetchTrendingMusic();
+             return;
+         }
+
+         showSkeletonLoader('.song-grid', 'song', 6);
+         if (sectionTitle) sectionTitle.textContent = "Search Results";
+
+         try {
+             const qWords = cleanQuery.toLowerCase().split(' ');
+
+             // 1. Fetch data from all sources in parallel
+             const [apiResults, localResults] = await Promise.all([
+                 fetchApiResults(cleanQuery),
+                 getLocalResults()
+             ]);
+
+             const combined = [...apiResults, ...localResults];
+
+             // 2. Deduplicate and calculate relevance score
+             const uniqueMap = new Map();
+             combined.forEach(item => {
+                 if (!uniqueMap.has(item.id)) {
+                     item.relevanceScore = calculateRelevance(item, cleanQuery.toLowerCase(), qWords);
+                     uniqueMap.set(item.id, item);
+                 }
+             });
+
+             // 3. Sort by score and slice
+             const finalResults = Array.from(uniqueMap.values())
+                 .sort((a, b) => b.relevanceScore - a.relevanceScore)
+                 .slice(0, 15);
+
+             // 4. Render results
+             if (finalResults.length > 0) {
+                 const rawSongs = finalResults.map(item => ({
+                     id: item.id,
+                     name: item.name,
+                     artist: item.artist_name || item.artist,
+                     album: item.album_name,
+                     cover: item.image || 'https://via.placeholder.com/400',
+                     audio: item.audio || '',
+                     duration: item.duration,
+                     plays: item.isLocal ? item.plays : formatPlayCount((item.stats?.rate_downloads_total || 0) * 5)
+                 }));
+
+                 searchPlaylist = rawSongs;
+                 renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton', 'search');
+             } else {
+                 songGrid.innerHTML = '<p style="width: 100%; text-align: center; color: var(--text-muted);">No results found.</p>';
+             }
+         } catch (error) {
+             console.error("Search Music Error:", error);
+             songGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">Failed to search for songs. Try again later.</p>`;
+         }
+     };
 
     /**
      * Function to fetch the latest release data from Jamendo
