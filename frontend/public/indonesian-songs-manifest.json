@@ -1,6 +1,143 @@
 {
   "version": 1,
   "id": "local_indonesian_songs",
+  "artists": [
+    {
+      "id": "feast",
+      "name": ".Feast",
+      "photo": "Elemen/Feast/Artis/Feast.webp"
+    },
+    {
+      "id": "hindia",
+      "name": "Hindia",
+      "photo": "Elemen/Hindia/Artis/Hindia.webp"
+    },
+    {
+      "id": "raim-laode",
+      "name": "Raim Laode",
+      "photo": "Elemen/Raim%20Laode/Artis/Raim%20Laode.webp"
+    },
+    {
+      "id": "rizky-febian",
+      "name": "Rizky Febian",
+      "photo": "Elemen/Rizky%20Febian/Artis/Rizky%20Febian.webp"
+    },
+    {
+      "id": "aruma",
+      "name": "Aruma",
+      "photo": "Elemen/Aruma/Artis/Aruma.webp"
+    },
+    {
+      "id": "adrian-khalif",
+      "name": "Adrian Khalif",
+      "photo": "Elemen/Adrian%20Khalif/Artis/Adrian%20Khalif.webp"
+    },
+    {
+      "id": "ari-lesmana",
+      "name": "Ari Lesmana",
+      "photo": "Elemen/Ari%20Lesmana/Artis/Ari%20Lesmana.webp"
+    },
+    {
+      "id": "vierra",
+      "name": "Vierra",
+      "photo": "Elemen/Vierra/Artis/Vierra.webp"
+    },
+    {
+      "id": "radiohead",
+      "name": "Radiohead",
+      "photo": "Elemen/Radiohead/Artis/Radiohead.webp"
+    },
+    {
+      "id": "backstreet-boys",
+      "name": "Backstreet Boys",
+      "photo": "Elemen/Backstreet%20Boys/Artis/Backstreet%20Boys.webp"
+    },
+    {
+      "id": "barasuara",
+      "name": "Barasuara",
+      "photo": "Elemen/Barasuara/Artis/Barasuara.webp"
+    },
+    {
+      "id": "bernadya",
+      "name": "Bernadya",
+      "photo": "Elemen/Bernadya/Artis/Bernadya.webp"
+    },
+    {
+      "id": "ghea-indrawari",
+      "name": "Ghea Indrawari",
+      "photo": "Elemen/Ghea%20Indrawari/Artis/Ghea%20Indrawari.webp"
+    },
+    {
+      "id": "idgitaf",
+      "name": "Idgitaf",
+      "photo": "Elemen/Idgitaf/Artis/Idgitaf.webp"
+    },
+    {
+      "id": "juicy-luicy",
+      "name": "Juicy Luicy",
+      "photo": "Elemen/Juicy%20Luicy/Artis/Juicy%20Luicy.webp"
+    },
+    {
+      "id": "for-revenge",
+      "name": "For Revenge",
+      "photo": "Elemen/For%20Revenge/Artis/For%20Revenge.webp"
+    },
+    {
+      "id": "nadhif-basalamah",
+      "name": "Nadhif Basalamah",
+      "photo": "Elemen/Nadhif%20Basalamah/Artis/Nadhif%20Basalamah.webp"
+    },
+    {
+      "id": "batas-senja",
+      "name": "Batas Senja",
+      "photo": "Elemen/Batas%20Senja/Artis/Batas%20Senja.webp"
+    },
+    {
+      "id": "sheila-on-7",
+      "name": "Sheila On 7",
+      "photo": "Elemen/Sheila%20On%207/Artis/Sheila%20On%207.webp"
+    },
+    {
+      "id": "andmesh",
+      "name": "Andmesh",
+      "photo": "Elemen/Andmesh/Artis/Andmesh.webp"
+    },
+    {
+      "id": "bilal-indrajaya",
+      "name": "Bilal Indrajaya",
+      "photo": "Elemen/Bilal%20Indrajaya/Artis/Bilal%20Indrajaya.webp"
+    },
+    {
+      "id": "hivi!",
+      "name": "Hivi!",
+      "photo": "Elemen/Hivi!/Artis/Hivi!.webp"
+    },
+    {
+      "id": "dhot-design",
+      "name": "DHOT DESIGN",
+      "photo": "Elemen/DHOT%20DESIGN/Artis/DHOT%20DESIGN.webp"
+    },
+    {
+      "id": "stevan-pasaribu",
+      "name": "Stevan Pasaribu",
+      "photo": "Elemen/Stevan%20Pasaribu/Artis/Stevan%20Pasaribu.webp"
+    },
+    {
+      "id": "mahen",
+      "name": "Mahen",
+      "photo": "Elemen/Mahen/Artis/Mahen.webp"
+    },
+    {
+      "id": "npd",
+      "name": "NPD",
+      "photo": "Elemen/NPD/Artis/NPD.webp"
+    },
+    {
+      "id": "eńau",
+      "name": "eńau",
+      "photo": "Elemen/eńau/Artis/eńau.webp"
+    }
+  ],
   "songs": [
     {
       "id": "feast-arteri",
@@ -459,11 +596,11 @@
       "duration": 250
     },
     {
-      "id": "for-revenge,-stereo-wall-jakarta-hari-ini",
+      "id": "for-revenge-&-stereo-wall-jakarta-hari-ini",
       "name": "Jakarta Hari Ini",
-      "artist": "For Revenge, Stereo Wall",
-      "audio": "Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3",
-      "cover": "Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp",
+      "artist": "For Revenge & Stereo Wall",
+      "audio": "Elemen/For%20Revenge/Jakarta%20Hari%20Ini.mp3",
+      "cover": "Elemen/For%20Revenge/Image%20Songs/Jakarta%20Hari%20Ini.webp",
       "duration": 224
     },
     {
@@ -614,8 +751,8 @@
       "id": "eńau-&-ari-lesmana-sesi-potret",
       "name": "Sesi Potret",
       "artist": "eńau & Ari Lesmana",
-      "audio": "Elemen/Ari%20Lesmana/Sesi%20Potret.mp3",
-      "cover": "Elemen/Ari%20Lesmana/Image%20Songs/Sesi%20Potret.webp",
+      "audio": "Elemen/eńau/Sesi%20Potret.mp3",
+      "cover": "Elemen/eńau/Image%20Songs/Sesi%20Potret.webp",
       "duration": 243
     },
     {

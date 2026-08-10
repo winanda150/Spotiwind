@@ -55,6 +55,7 @@ let newReleasesPlaylist = []; // Buffer to store the list of new releases
 let searchPlaylist = []; // Buffer to store search results
 let indonesianSongsPlaylist = []; // NEW: Buffer for all local songs
 let indonesianGridPlaylist = []; // NEW: Buffer specifically for the 12 songs in the Indonesian grid
+let indonesianArtistsPlaylist = []; // NEW: Buffer for local artists
 let currentSongIndex = -1;
 let isShuffle = false;
 let isRepeat = false;
@@ -1021,6 +1022,46 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     /**
+     * [NEW] Function to fetch songs for a local Indonesian artist.
+     */
+    const fetchLocalArtistSongs = async (artist) => {
+        const songsGrid = document.getElementById('artistSongsGrid');
+        if (!songsGrid) return false; // Indicate failure if grid not found
+
+        // Extract the artist's folder name from their photo path. This is more reliable than using the name,
+        // especially for collaborations where folder names might differ.
+        const photoPathParts = artist.photo.split('/');
+        const artistFolderName = photoPathParts.length > 3 ? decodeURIComponent(photoPathParts[3]) : artist.name; // Fallback to name
+
+        // Filter songs by checking if their audio path is within the artist's specific folder.
+        // This is the key to solving the duplicate song issue for collaborations.
+        const artistSongs = indonesianSongsPlaylist.filter(song => {
+            try {
+                // song.audio path is URL-encoded (e.g., "Raim%20Laode"). We decode it to match the plain folder name.
+                const decodedAudioPath = decodeURIComponent(song.audio);
+                return decodedAudioPath.includes(`/Elemen/${artistFolderName}/`);
+            } catch (e) {
+                console.warn(`Could not decode URI for song audio path: ${song.audio}`, e);
+                return false;
+            }
+        });
+
+        artistPageCurrentSongs = artistSongs; // Update context for playback
+
+        if (artistSongs.length > 0) {
+            // Create a unique context for this local artist's page
+            const context = `artist-local-${artist.name.replace(/\s+/g, '-').toLowerCase()}`;
+            await renderGridProgressively('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, context), '.artist-song-list-item-skeleton');
+            return true; // Success, songs were found and rendered
+        } else {
+            // If no songs are found, display a message.
+            songsGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">No songs found for this artist.</p>`;
+            return true; // Operation is complete, even if no songs were found.
+        }
+    };
+
+
+    /**
      * Displays a skeleton loader in the grid.
      * @param {string} gridSelector - CSS selector for the grid container.
      * @param {string} type - Skeleton type ('song' or 'artist').
@@ -1450,8 +1491,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 "audio": "frontend/public/Elemen/Vierra/Seandainya.mp3", "cover": "frontend/public/Elemen/Vierra/Image%20Songs/Seandainya.webp"
             },
             {
-                "id": "for-revenge,-stereo-wall-jakarta-hari-ini", "name": "Jakarta Hari Ini", "artist": "For Revenge, Stereo Wall", "plays": "28.9M", "duration": 224,
-                "audio": "frontend/public/Elemen/For%20Revenge,%20Stereo%20Wall/Jakarta%20Hari%20Ini.mp3", "cover": "frontend/public/Elemen/For%20Revenge,%20Stereo%20Wall/Image%20Songs/Jakarta%20Hari%20Ini.webp"
+                "id": "for-revenge-&-stereo-wall-jakarta-hari-ini", "name": "Jakarta Hari Ini", "artist": "For Revenge & Stereo Wall", "plays": "28.9M", "duration": 224,
+                "audio": "frontend/public/Elemen/For%20Revenge/Jakarta%20Hari%20Ini.mp3", "cover": "frontend/public/Elemen/For%20Revenge/Image%20Songs/Jakarta%20Hari%20Ini.webp"
             },
             {
                 "id": "radiohead-creep", "name": "Creep", "artist": "Radiohead", "plays": "25.7M", "duration": 236,
@@ -1476,6 +1517,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const res = await fetchWithRetry('frontend/public/indonesian-songs-manifest.json');
             if (!res.ok) throw new Error(`Failed to load manifest: ${res.status}`);
             const data = await res.json();
+
+            // [NEW] Populate local artists from the manifest
+            if (data.artists) {
+                indonesianArtistsPlaylist = (data.artists || []).map(artist => ({
+                    ...artist,
+                    photo: `frontend/public/${artist.photo}` // Prepend the correct path to the artist photo
+                }));
+            }
 
             // [FIX] Now, populate the full playlist for the search functionality.
             // Instead of reconstructing paths (which can fail if names don't match file names),
@@ -1753,10 +1802,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         // [REFACTOR] Define parallax handler here to manage its lifecycle
         const parallaxHandler = () => {
             const hero = document.getElementById('artistHero');
-            const header = document.querySelector('.artist-page-header'); // Header yang akan berubah background
-            const backButton = document.querySelector('.artist-page-header .back-btn'); // [NEW] Tombol back
+            const header = document.querySelector('.artist-page-header'); 
+            const backButton = document.querySelector('.artist-page-header .back-btn'); 
             const artistPageTitle = document.getElementById('artistPageName'); // Nama artis di header
             const artistNameWrapper = document.getElementById('artistNameWrapper'); // Wrapper yang berisi nama artis dan badge
+            
+            // [FIX] If elements don't exist (e.g., page changed), stop the effect
+            if (!hero || !header || !artistNameWrapper || !artistPageTitle || !backButton) {
+                window.removeEventListener('scroll', parallaxHandler);
+                return;
+            }
+
             const artistNameWrapperTop = artistNameWrapper.getBoundingClientRect().top; // Posisi atas wrapper nama artis
 
             // Logic to change header background, fade in artist name, and change back button background
@@ -1793,11 +1849,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 artistNameWrapper.classList.toggle('has-dynamic-shadow', shouldShowShadow);
             }
 
-            // If elements don't exist (e.g., page changed), stop the effect
-            if (!hero || !header) {
-                window.removeEventListener('scroll', parallaxHandler);
-                return;
-            }
         };
 
         // Transition out
@@ -1865,7 +1916,16 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // 3. Fetch and Render Songs
             const songsGrid = document.getElementById('artistSongsGrid');
             if (songsGrid) { // [FIX] Use new skeleton type and fetchWithContinuousRetry
-                fetchWithContinuousRetry(() => fetchArtistSongs(artist.id), 3000); // Don't await, run in background
+                // [NEW] Differentiate between Jamendo (numeric ID) and Local (string ID) artists
+                const isLocalArtist = isNaN(parseInt(artist.id));
+
+                if (isLocalArtist) {
+                    // Fetch songs for the local artist from the in-memory playlist
+                    fetchWithContinuousRetry(() => fetchLocalArtistSongs(artist), 3000);
+                } else {
+                    // Fetch songs for the Jamendo artist from the API
+                    fetchWithContinuousRetry(() => fetchArtistSongs(artist.id), 3000);
+                }
             }
 
             // [NEW] Attach the parallax scroll listener
@@ -1992,6 +2052,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     qWordsForLocal.every(word => `${song.name} ${song.artist}`.toLowerCase().includes(word))
                 ).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
 
+                // [NEW] Search for local artists from the dedicated playlist
+                const localArtists = indonesianArtistsPlaylist.filter(artist =>
+                    artist.name.toLowerCase().includes(cleanQuery)
+                ).map(artist => ({
+                    ...artist,
+                    type: 'artist'
+                }));
+
             const songBaseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&include=stats`;
             const artistBaseUrl = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=3`;
 
@@ -2048,7 +2116,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             }));
 
             // 3. Combine artists and songs
-            const finalItems = [...artists, ...fullMappedResults];
+            const finalItems = [...localArtists, ...artists, ...fullMappedResults];
 
             if (finalItems.length > 0) {
                 searchPlaylist = fullMappedResults.slice(0, 20);
@@ -2057,7 +2125,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 searchDropdown.innerHTML = dropdownItems.map(item => {
                     if (item.type === 'artist') {
-                        // Escape single quotes for safe use in the onclick attribute
+                        // Pass data to handleArtistClick for navigation
                         const safeName = item.name.replace(/'/g, "\\'");
                         const safePhoto = item.photo.replace(/'/g, "\\'");
                         return `
@@ -2068,11 +2136,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             <div class="dropdown-track-info" style="flex: 1; min-width: 0; justify-content: center;">
                                 <div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center;">
                                     <span>${item.name}</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="verified-badge-icon" width="1em" height="1em" viewBox="0 0 256 256">
-                                    <path d="M0 0h256v256H0z" fill="none" />
-                                    <path fill="#0095f6"
-                                    d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57c-1.36-3.27-1.44-8.69-1.52-13.94c-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52c-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14c-3.25 1.36-8.69 1.44-13.94 1.52c-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94c-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18m-52.2 6.84l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32" />
-                                    </svg>
+                                    <svg class="verified-badge-icon" viewBox="0 0 24 24" width="14" height="14" fill="#3897f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.03 15.87l-4.9-4.9a1.5 1.5 0 0 1 2.12-2.12l2.78 2.78 6.9-6.9a1.5 1.5 0 1 1 2.12 2.12l-9 9z"></path></svg>
                                 </div>
                                 <div class="dropdown-artist-label">Artist</div>
                             </div>
