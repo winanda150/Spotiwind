@@ -1845,7 +1845,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // NEW: Logic for dynamic background shadow on artist name wrapper
                 // Add shadow if the artist name wrapper has scrolled up past its initial position
                 // or if it's overlapping the header.
-                const shouldShowShadow = artistNameWrapperTop < 0 || artistNameWrapperBottom <= headerHeight;
+                const hasScrolled = document.documentElement.scrollTop > 0;
+                const shouldShowShadow = hasScrolled && (artistNameWrapperTop < 0 || artistNameWrapperBottom <= headerHeight);
                 artistNameWrapper.classList.toggle('has-dynamic-shadow', shouldShowShadow);
             }
 
@@ -2179,7 +2180,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             lastSearchQuery = value; // [FIX] Update the global variable on every input
             debouncedSearch(value);
         });
-        clearSearchBtn?.addEventListener('click', () => { searchInput.value = ''; if (searchAbortController) searchAbortController.abort(); clearSearchBtn.classList.remove('visible'); searchDropdown.classList.remove('active'); searchInput.focus(); });
+        clearSearchBtn?.addEventListener('click', () => { 
+            searchInput.value = ''; 
+            lastSearchQuery = ''; // [FIX] Clear the stored query as well
+            if (searchAbortController) searchAbortController.abort(); 
+            clearSearchBtn.classList.remove('visible'); 
+            searchDropdown.classList.remove('active'); searchInput.focus(); 
+        });
         
         // [FIX] Modified focus event to also trigger a search if the input already has a value.
         searchInput.addEventListener('focus', (e) => { 
