@@ -709,6 +709,29 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 /**
+ * [NEW] Handles clicks on artist items in the search dropdown.
+ */
+window.handleArtistClick = (id, name, photo) => {
+    try {
+        // Reconstruct the artist data object from the arguments
+        const artistData = { id, name, photo };
+        const searchDropdown = document.getElementById('searchDropdown');
+        const searchInput = document.getElementById('searchInput');
+        if (searchDropdown) {
+            searchDropdown.classList.remove('active');
+        }
+        if (searchInput) {
+            searchInput.blur(); // Remove focus from search input
+        }
+        // Store current scroll position before navigating
+        homeScrollPosition = document.documentElement.scrollTop;
+        loadArtistPage(artistData);
+    } catch (error) {
+        console.error("Failed to handle artist click:", error);
+    }
+};
+
+/**
  * Special function to play a song from the search dropdown results.
  * It updates currentPlaylist so that the Next/Prev features are in sync with the search results.
  */
@@ -1963,58 +1986,103 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
             try {
                 const cleanQuery = query.trim().toLowerCase();
-                // [FIX] Use a more flexible word-by-word search for local songs, matching the logic for API results.
-                // This fixes cases where search terms are not sequential (e.g., "dunia raim").
+            
                 const qWordsForLocal = cleanQuery.split(/\s+/);
                 const localResults = indonesianSongsPlaylist.filter(song => 
                     qWordsForLocal.every(word => `${song.name} ${song.artist}`.toLowerCase().includes(word))
                 ).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
-                const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&include=stats`;
-                const [res1, res2] = await Promise.all([
-                    fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
-                    fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
+
+            const songBaseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&include=stats`;
+            const artistBaseUrl = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=3`;
+
+            const [songRes1, songRes2, artistRes] = await Promise.all([
+                fetchWithRetry(`${songBaseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
+                fetchWithRetry(`${songBaseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
+                fetchWithRetry(`${artistBaseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
                 ]);
-                const data1 = await res1.json();
-                const data2 = await res2.json();
-                const combined = [...(data1.results || []), ...(data2.results || []), ...localResults];
+
+            const songData1 = await songRes1.json();
+            const songData2 = await songRes2.json();
+            const artistData = await artistRes.json();
+
+            // 1. Process Artists
+            const artists = (artistData.results || [])
+                .filter(a => a.image) // Only artists with images
+                .map(artist => ({
+                    id: artist.id,
+                    name: artist.name,
+                    photo: artist.image,
+                    type: 'artist'
+                }));
+
+            // 2. Process Songs
+            const combinedSongs = [...(songData1.results || []), ...(songData2.results || []), ...localResults];
                 const qWords = cleanQuery.split(/\s+/);
-                const uniqueMap = new Map();
-                combined.forEach(item => uniqueMap.set(item.id, item));
-                const allTracks = Array.from(uniqueMap.values());
+            const uniqueSongMap = new Map();
+            combinedSongs.forEach(item => uniqueSongMap.set(item.id, item));
+            
+            const allTracks = Array.from(uniqueSongMap.values());
                 const priorityMatches = allTracks.filter(item => qWords.every(word => `${item.name} ${item.artist_name || item.artist}`.toLowerCase().includes(word)));
                 const sortedTracks = priorityMatches.sort((a, b) => (a.isLocal && !b.isLocal) ? -1 : (!a.isLocal && b.isLocal) ? 1 : (b.stats?.rate_downloads_total || 0) - (a.stats?.rate_downloads_total || 0));
 
-                if (sortedTracks.length > 0) {
-                    const finalUniqueTracks = [];
-                    const seen = new Set();
-                    sortedTracks.forEach(t => {
-                        const uniqueKey = t.name + (t.artist_name || t.artist);
-                        if (!seen.has(uniqueKey)) {
-                            finalUniqueTracks.push(t);
-                            seen.add(uniqueKey);
-                        }
-                    });
+            const finalUniqueTracks = [];
+            const seen = new Set();
+            sortedTracks.forEach(t => {
+                const uniqueKey = t.name + (t.artist_name || t.artist);
+                if (!seen.has(uniqueKey)) {
+                    finalUniqueTracks.push(t);
+                    seen.add(uniqueKey);
+                }
+            });
 
-                    // [FIX] Create a larger playlist for navigation context, but only display a few in the dropdown.
-                    const fullMappedResults = finalUniqueTracks.map(song => ({ 
-                        id: song.id, 
-                        name: song.name, 
-                        artist: song.artist_name || song.artist, 
-                        album: song.album_name, 
-                        cover: song.image, 
-                        audio: song.audio, 
-                        duration: song.duration, 
-                        plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5) 
-                    }));
+            const fullMappedResults = finalUniqueTracks.map(song => ({ 
+                id: song.id, 
+                name: song.name, 
+                artist: song.artist_name || song.artist, 
+                album: song.album_name, 
+                cover: song.image, 
+                audio: song.audio, 
+                duration: song.duration, 
+                plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5),
+                type: 'song' // Add type for songs
+            }));
 
-                    searchPlaylist = fullMappedResults.slice(0, 20); // The full context for playback is up to 20 songs.
-                    const dropdownTracks = searchPlaylist.slice(0, 6); // But we only show 6 in the UI.
-                    window.lastSearchResults = dropdownTracks; // Keep for compatibility with playFromSearch
+            // 3. Combine artists and songs
+            const finalItems = [...artists, ...fullMappedResults];
 
-                    searchDropdown.innerHTML = dropdownTracks.map(song => {
+            if (finalItems.length > 0) {
+                searchPlaylist = fullMappedResults.slice(0, 20);
+                const dropdownItems = finalItems.slice(0, 7); // Show max 7 items total
+                window.lastSearchResults = dropdownItems.filter(i => i.type === 'song');
+
+                searchDropdown.innerHTML = dropdownItems.map(item => {
+                    if (item.type === 'artist') {
+                        // Escape single quotes for safe use in the onclick attribute
+                        const safeName = item.name.replace(/'/g, "\\'");
+                        const safePhoto = item.photo.replace(/'/g, "\\'");
+                        return `
+                        <div class="dropdown-item dropdown-item-artist" onclick="window.handleArtistClick('${item.id}', '${safeName}', '${safePhoto}')">
+                            <div class="dropdown-cover-wrapper">
+                                <img src="${item.photo}" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                            <div class="dropdown-track-info" style="flex: 1; min-width: 0; justify-content: center;">
+                                <div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center;">
+                                    <span>${item.name}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="verified-badge-icon" width="1em" height="1em" viewBox="0 0 256 256">
+                                    <path d="M0 0h256v256H0z" fill="none" />
+                                    <path fill="#0095f6"
+                                    d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57c-1.36-3.27-1.44-8.69-1.52-13.94c-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52c-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14c-3.25 1.36-8.69 1.44-13.94 1.52c-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94c-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18m-52.2 6.84l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32" />
+                                    </svg>
+                                </div>
+                                <div class="dropdown-artist-label">Artist</div>
+                            </div>
+                        </div>`;
+                    } else { // It's a song
+                        const song = item;
                         const isActive = currentSongData && String(song.id) === String(currentSongData.id);
                         const isPaused = isActive && activeAudio.paused;
                         return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist).replace(/'/g, "\\'")}', '${song.cover}', '${song.id}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div> <div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
+                    }
                     }).join('');
                 } else {
                     searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';

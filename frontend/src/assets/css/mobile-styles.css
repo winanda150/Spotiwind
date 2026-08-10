@@ -319,6 +319,20 @@ body.player-active .app-container {
     border-bottom: none;
 }
 
+.dropdown-item-artist .dropdown-cover-wrapper {
+    border-radius: 50%;
+}
+
+.dropdown-item-artist .dropdown-artist-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.dropdown-info-name .verified-badge-icon {
+    flex-shrink: 0; /* Mencegah ikon mengecil jika nama artis terlalu panjang */
+    margin-left: 5px; /* Memberi sedikit jarak dari nama */
+}
+
 /* Warna hijau untuk lagu aktif (Berlaku di Grid dan Dropdown) */
 .dropdown-item.is-active-song {
     color: #22c55e !important;
