@@ -819,20 +819,6 @@ body.is-dragging-progress .progress-thumb {
     /* Limit width to prevent layout issues */
 }
 
-.premium-badge {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #FFD700;
-    /* Gold-like color for premium */
-    background: rgba(255, 215, 0, 0.15);
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.3rem;
-    margin-top: 2px;
-    /* Small gap from username */
-    display: inline-block;
-    /* To apply padding and background correctly */
-}
-
 .notification-btn svg {
     width: 20px;
     height: 20px;

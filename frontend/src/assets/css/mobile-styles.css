@@ -74,6 +74,7 @@ body.player-active .app-container {
     display: flex;
     align-items: center;
     gap: 1rem;
+    position: relative; /* To position the dropdown */
 }
 
 .notification-btn {
@@ -125,6 +126,97 @@ body.player-active .app-container {
     box-shadow: none;
 }
 
+/* Profile Dropdown Styles */
+.profile-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px); /* Position below the header */
+    right: 0;
+    width: 200px;
+    background: #181924;
+    border: 1px solid var(--glass-border);
+    border-radius: 0.8rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 10001;
+    padding: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+    transform-origin: top right;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+.profile-dropdown-menu.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.dropdown-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    cursor: default; /* Make it non-clickable */
+}
+
+.dropdown-user-info img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.dropdown-user-info .user-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Important for text truncation */
+}
+
+.dropdown-user-info .user-details span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-dropdown-menu .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.profile-dropdown-menu .dropdown-item:hover {
+    background-color: var(--glass-bg);
+    color: var(--text-main);
+}
+
+.profile-dropdown-menu .dropdown-item svg {
+    width: 18px;
+    height: 18px;
+}
+
+#dropdownUserName {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+#dropdownUserEmail {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
 /* Page Transition Overlay */
 .page-transition-overlay {
     position: fixed;
@@ -157,6 +249,20 @@ body.player-active .app-container {
     50% { transform: scale(1.05); opacity: 0.9; }
 }
 
+.profile-dropdown-menu .dropdown-separator {
+    height: 1px;
+    background-color: var(--glass-border);
+    margin: 0.5rem 0;
+}
+
+.profile-dropdown-menu .dropdown-item-logout {
+    color: #f87171; /* Red color for logout */
+}
+
+.profile-dropdown-menu .dropdown-item-logout:hover {
+    background-color: rgba(248, 113, 113, 0.1);
+    color: #ef4444;
+}
 /* Toast Notification for Mobile */
 .toast-container {
     position: fixed;

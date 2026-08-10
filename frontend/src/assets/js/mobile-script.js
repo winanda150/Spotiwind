@@ -1658,14 +1658,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
      * [NEW] Reusable function to update the user's avatar.
      * This is extracted to be called on initial load and on navigation back to home.
      * @param {object} user - The Firebase user object.
+     * @param {HTMLElement} avatarElement - The <img> element to update.
      */
-    const updateUserAvatar = (user) => {
-        if (!user) return;
+    const updateUserAvatar = (user, avatarElement) => {
+        if (!user || !avatarElement) return;
 
-        // Find the avatar element, which might have been re-added to the DOM.
-        const avatarElement = document.getElementById('userAvatar') || document.querySelector('.mobile-avatar');
-            
-        if (avatarElement) {
             const nameForAvatar = user.displayName || user.email.split('@')[0];
             const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
             const originalPhotoURL = user.photoURL;
@@ -1692,7 +1689,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 }
             };
             avatarElement.src = originalPhotoURL || defaultAvatar;
-        }
     };
 
     /**
@@ -2370,11 +2366,60 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // --- END FULL SCREEN PLAYER LOGIC --- 
 
             // Update profile picture (Avatar) - Query directly here for more accuracy
-            updateUserAvatar(user);
+            updateUserAvatar(user, document.getElementById('userAvatar'));
+
+            // NEW: Update profile info in the dropdown
+            const dropdownAvatar = document.getElementById('dropdownUserAvatar');
+            const dropdownName = document.getElementById('dropdownUserName');
+            const dropdownEmail = document.getElementById('dropdownUserEmail');
+
+            if (dropdownAvatar) {
+                updateUserAvatar(user, dropdownAvatar);
+            }
+            if (dropdownName) {
+                dropdownName.textContent = user.displayName || 'No Name';
+            }
+            if (dropdownEmail) {
+                dropdownEmail.textContent = user.email;
+            }
         } else {
             // If not logged in, return to the login page
             window.location.href = 'index.html';
         }
     });
 
+    // Profile Dropdown Logic
+    const avatarContainer = document.querySelector('.header-right .avatar-container');
+    const profileDropdown = document.getElementById('profileDropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (avatarContainer && profileDropdown) {
+        avatarContainer.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the document click listener from firing immediately
+            profileDropdown.classList.toggle('active');
+        });
+    }
+
+    // Logout functionality
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                // The onAuthStateChanged listener will automatically handle the redirect
+                console.log("User logged out.");
+            } catch (error) {
+                console.error("Logout Error:", error);
+                showToast("Failed to log out. Please try again.");
+            }
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (profileDropdown && profileDropdown.classList.contains('active')) {
+            if (!avatarContainer.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('active');
+            }
+        }
+    });
 });
