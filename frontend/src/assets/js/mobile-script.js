@@ -574,12 +574,66 @@ const formatRelativeTime = (timestamp) => {
     return `${Math.floor(diffInMinutes / 60)}h`;
 };
 
+/**
+ * [NEW] Initializes the profile dropdown menu functionality.
+ * This includes opening, closing, and the logout action.
+ */
+const initializeProfileDropdown = () => {
+    const avatarContainer = document.querySelector('.header-right .avatar-container');
+    const profileDropdown = document.getElementById('profileDropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (avatarContainer && profileDropdown) {
+        // Use replaceWith to clear any old listeners and prevent duplicates
+        const newAvatarContainer = avatarContainer.cloneNode(true);
+        avatarContainer.parentNode.replaceChild(newAvatarContainer, avatarContainer);
+        
+        newAvatarContainer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('profileDropdown').classList.toggle('active');
+        });
+    }
+
+    if (logoutBtn) {
+        const newLogoutBtn = logoutBtn.cloneNode(true);
+        logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+
+        newLogoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged will handle the redirect
+                console.log("User logged out.");
+            } catch (error) {
+                console.error("Logout Error:", error);
+                showToast("Failed to log out. Please try again.");
+            }
+        });
+    }
+
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
     const appContainer = document.querySelector('.app-container');
     if (appContainer) {
         initialHomeContent = appContainer.innerHTML;
     }
+
+    // [FIX] Attach the "click outside to close dropdown" listener only once.
+    // The handler is smart enough to find the current elements each time it runs.
+    document.addEventListener('click', (e) => {
+        // These elements are queried every time to ensure we have the latest references,
+        // especially after page navigation.
+        const avatarContainer = document.querySelector('.header-right .avatar-container');
+        const profileDropdown = document.getElementById('profileDropdown');
+
+        if (profileDropdown && profileDropdown.classList.contains('active')) {
+            // Close if the click is outside the avatar AND outside the dropdown menu itself.
+            if (avatarContainer && !avatarContainer.contains(e.target) && !profileDropdown.contains(e.target)) {
+                profileDropdown.classList.remove('active');
+            }
+        }
+    });
 
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
@@ -1706,7 +1760,26 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         updateGreeting(true); // Force update when home content is re-initialized
     };
 
-    // [REFACTOR] Fungsi untuk memuat konten halaman secara dinamis (SPA-style)
+    /**
+     * [NEW] Updates all user-specific UI elements like avatar and name.
+     * @param {object} user - The Firebase user object.
+     */
+    const initializeUserUI = (user) => {
+        if (!user) return;
+
+        // Update main header avatar
+        updateUserAvatar(user, document.getElementById('userAvatar'));
+
+        // Update dropdown info
+        const dropdownAvatar = document.getElementById('dropdownUserAvatar');
+        const dropdownName = document.getElementById('dropdownUserName');
+        const dropdownEmail = document.getElementById('dropdownUserEmail');
+
+        if (dropdownAvatar) updateUserAvatar(user, dropdownAvatar);
+        if (dropdownName) dropdownName.textContent = user.displayName || 'No Name';
+        if (dropdownEmail) dropdownEmail.textContent = user.email;
+    };
+
     const loadPageContent = async (page) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
@@ -1730,8 +1803,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // Re-run logic for home-specific elements
                 initializeHomeContent();
                 const user = auth.currentUser;
-                if (user) updateUserAvatar(user);
-
+                initializeProfileDropdown();
+                if (user) {
+                    initializeUserUI(user);
+                }
                 // Re-initialize footer dropdown logic
                 initializeFooterDropdowns(contentContainer);
                 
@@ -1762,13 +1837,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // [FIX] Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
                 // This prevents the jarring scroll jump on the old page.
                 document.documentElement.scrollTop = 0;
-
                 contentContainer.innerHTML = newContent;
 
-                // [FIX] Re-initialize common elements and page-specific logic.
+                // [FIX] Re-initialize dropdown listeners first before other UI updates.
+                initializeProfileDropdown();
+
+                // Now, update user-specific UI elements.
                 const user = auth.currentUser;
                 if (user) {
-                    updateUserAvatar(user); // Always update avatar on any page load.
+                    initializeUserUI(user);
                 }
 
                 // Re-initialize search functionality as it might be on the new page.
@@ -2207,20 +2284,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 return;
             }
 
-            // FIX: Add a delay on refresh to make the transition feel consistent
-            // like on login. This will hold the loading screen for 1 second.
             setTimeout(() => {
                 hideLoadingOverlay();
             }, 500);
-            // Update username
-            const userNameElement = document.getElementById('userName');
-            if (userNameElement) {
-                userNameElement.textContent = user.displayName || user.email.split('@')[0];
-            }
 
-            // Setup presence for the currently logged-in user
+            // [FIX] Call the new initialization functions
+            initializeUserUI(user);
+            initializeProfileDropdown();
+
             setupUserPresence(user);
-
             initializeData(); // Load API data
             initializeSearch(); // Initialize search functionality
 
@@ -2362,64 +2434,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // Keep regular click enabled
                 fullProgressTrack.addEventListener('click', seek);
             }
-
-            // --- END FULL SCREEN PLAYER LOGIC --- 
-
-            // Update profile picture (Avatar) - Query directly here for more accuracy
-            updateUserAvatar(user, document.getElementById('userAvatar'));
-
-            // NEW: Update profile info in the dropdown
-            const dropdownAvatar = document.getElementById('dropdownUserAvatar');
-            const dropdownName = document.getElementById('dropdownUserName');
-            const dropdownEmail = document.getElementById('dropdownUserEmail');
-
-            if (dropdownAvatar) {
-                updateUserAvatar(user, dropdownAvatar);
-            }
-            if (dropdownName) {
-                dropdownName.textContent = user.displayName || 'No Name';
-            }
-            if (dropdownEmail) {
-                dropdownEmail.textContent = user.email;
-            }
         } else {
             // If not logged in, return to the login page
             window.location.href = 'index.html';
-        }
-    });
-
-    // Profile Dropdown Logic
-    const avatarContainer = document.querySelector('.header-right .avatar-container');
-    const profileDropdown = document.getElementById('profileDropdown');
-    const logoutBtn = document.getElementById('logoutBtn');
-
-    if (avatarContainer && profileDropdown) {
-        avatarContainer.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent the document click listener from firing immediately
-            profileDropdown.classList.toggle('active');
-        });
-    }
-
-    // Logout functionality
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                // The onAuthStateChanged listener will automatically handle the redirect
-                console.log("User logged out.");
-            } catch (error) {
-                console.error("Logout Error:", error);
-                showToast("Failed to log out. Please try again.");
-            }
-        });
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (profileDropdown && profileDropdown.classList.contains('active')) {
-            if (!avatarContainer.contains(e.target) && !profileDropdown.contains(e.target)) {
-                profileDropdown.classList.remove('active');
-            }
         }
     });
 });
