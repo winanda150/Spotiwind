@@ -56,6 +56,7 @@ let searchPlaylist = []; // Buffer to store search results
 let indonesianSongsPlaylist = []; // NEW: Buffer for all local songs
 let indonesianGridPlaylist = []; // NEW: Buffer specifically for the 12 songs in the Indonesian grid
 let indonesianArtistsPlaylist = []; // NEW: Buffer for local artists
+let unshuffledPlaylist = []; // NEW: To store the original order of the playlist
 let currentSongIndex = -1;
 let isShuffle = false;
 let isRepeat = false;
@@ -778,6 +779,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 baseQueue = [...artistPageCurrentSongs]; // [FIX] Use artistPageCurrentSongs for 'artist-' context
             }
 
+            // [NEW] Store the original, unshuffled order every time a new context is set
+            unshuffledPlaylist = [...baseQueue];
+
             if (isShuffle) {
                 const selectedTrack = baseQueue.find(s => String(s.id) === String(id)) || 
                             { id, audio: audioUrl, name: title, artist, cover, duration: duration };
@@ -1010,8 +1014,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 return true; // Success, songs rendered.
             } else {
                 // No songs found, but API call was successful. Return false to keep retrying.
-                // The skeleton will remain because renderGridProgressively was not called with actual items.
-                console.warn(`No popular songs found for artist ${artistId}. Retrying...`);
+                console.log(`No popular songs found for artist ${artistId}. Retrying...`);
                 return false; // Signal to fetchWithContinuousRetry to keep trying.
             }
         } catch (songError) {
@@ -1121,7 +1124,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 return response; // If successful, return the response
             } catch (error) {
                 lastError = error;
-                console.warn(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
+                console.log(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
                 if (i < retries - 1) await new Promise(res => setTimeout(res, 2 ** i * 1000)); // Exponential backoff: 1s, 2s, 4s...
             }
         }
@@ -1433,7 +1436,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             // [FIX] Only render and return true if there is data to display.
             if (rawSongs.length === 0) {
-                console.warn("fetchNewReleases: No unique songs found after filtering, retrying...");
+                console.log("fetchNewReleases: No unique songs found after filtering, retrying...");
                 return false; // Signal the retry-wrapper to try again.
             }
 
@@ -1588,7 +1591,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         // [FIX] Only render and return true if there is data to display.
         if (rawSongs.length === 0) {
-            console.warn("fetchTrendingMusic: No unique songs found after filtering, retrying...");
+            console.log("fetchTrendingMusic: No unique songs found after filtering, retrying...");
             return false; // Signal the retry-wrapper to try again.
         }
 
@@ -1616,7 +1619,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 return true; // Success! Exit the loop and resolve the promise.
             }
             // If fetchFunction returns false (e.g., empty results), log and retry.
-            console.warn(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
+            console.log(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
         } catch (error) {
             // If fetchFunction throws an error (e.g., network failure), log and retry.
             console.error(`Error in ${fetchFunction.name}. Retrying in ${delay}ms...`, error);
@@ -1675,14 +1678,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             avatarElement.onerror = function() {
                 if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
                     originalRetry++;
-                    console.warn(`Mobile: Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
+                    console.log(`Mobile: Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
                     setTimeout(() => {
                         const sep = originalPhotoURL.includes('?') ? '&' : '?';
                         this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
                     }, 2000);
                 } 
                 else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
-                    console.warn("Mobile: Original photo failed, switching to initials...");
+                    console.log("Mobile: Original photo failed, switching to initials...");
                     this.src = defaultAvatar;
                 } else {
                     this.onerror = null;
@@ -1952,10 +1955,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         document.body.classList.add('is-transitioning');
 
         if (overlay) {
-            overlay.classList.remove('fade-out');
-            setTimeout(() => { window.location.href = url; }, 500);
+            overlay.classList.remove('fade-out'); // <--- HERE
+            setTimeout(() => { window.location.replace(url); }, 500);
         } else {
-            window.location.href = url;
+            window.location.replace(url); // <--- HERE
         }
     };
     // Simple function to immediately hide the loading overlay
@@ -2276,32 +2279,32 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             document.getElementById('fullShuffleBtn')?.addEventListener('click', (e) => {
                 isShuffle = !isShuffle;
+                const btn = e.currentTarget;
+                btn.classList.add('btn-pop');
+                setTimeout(() => btn.classList.remove('btn-pop'), 400);
+                btn.classList.toggle('active', isShuffle);
+
                 if (isShuffle) {
+                    // When turning shuffle ON: Shuffle the playlist and re-render the list.
                     isRepeat = false;
-                    // Jika shuffle diaktifkan saat lagu sedang diputar, acak sisa antrean
-                    if (currentPlaylist.length > 1 && currentSongIndex !== -1) {
-                        const currentSong = currentPlaylist[currentSongIndex];
-                        let others = currentPlaylist.filter((_, i) => i !== currentSongIndex);
+                    document.getElementById('fullRepeatBtn')?.classList.remove('active');
+
+                    if (unshuffledPlaylist.length > 1 && currentSongData) {
+                        const currentSong = unshuffledPlaylist.find(s => String(s.id) === String(currentSongData.id));
+                        let others = unshuffledPlaylist.filter(s => String(s.id) !== String(currentSongData.id));
                         
-                        // Algoritma Fisher-Yates Shuffle
                         for (let i = others.length - 1; i > 0; i--) {
                             const j = Math.floor(Math.random() * (i + 1));
                             [others[i], others[j]] = [others[j], others[i]];
                         }
                         
-                        // Gabungkan kembali: Lagu sekarang tetap di index 0, sisanya acak
-                        currentPlaylist = [currentSong, ...others];
+                        currentPlaylist = currentSong ? [currentSong, ...others] : others;
                         currentSongIndex = 0;
                     }
+                    renderUpNext();
                 }
-                const btn = e.currentTarget;
-                btn.classList.add('btn-pop');
-                setTimeout(() => btn.classList.remove('btn-pop'), 400);
-                btn.classList.toggle('active', isShuffle);
-                document.getElementById('fullRepeatBtn')?.classList.toggle('active', isRepeat);
-                
-                // Update the UP NEXT list to reflect the new order
-                renderUpNext();
+                // When turning shuffle OFF, we only toggle the button state.
+                // The playlist order remains shuffled, and we don't call renderUpNext() to prevent the "vibration".
             });
 
             document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {

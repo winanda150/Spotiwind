@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 // Detect if the device is mobile based on screen width
                 const isMobile = window.innerWidth <= 768;
-                const targetPage = isMobile ? 'mobile.html' : 'desktop.html'; // FIX: Redirect to desktop.html for desktop
-                window.location.href = targetPage;
+                const targetPage = isMobile ? 'mobile.html' : 'desktop.html';
+                window.location.replace(targetPage);
             }, 1000);
         } else {
             // Jika tidak ada user (Logged Out), langsung sembunyikan overlay

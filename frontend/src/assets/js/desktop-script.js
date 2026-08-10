@@ -623,7 +623,7 @@ const fetchWithRetry = async (url, options = {}, retries = 3) => {
             return response; // If successful, return the response
         } catch (error) {
             lastError = error;
-            console.warn(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
+            console.log(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
             if (i < retries - 1) await new Promise(res => setTimeout(res, 2 ** i * 1000)); // Exponential backoff: 1s, 2s, 4s...
         }
     }
@@ -820,7 +820,7 @@ const fetchTrendingMusic = async () => {
 
         // [FIX] Only render and return true if there is data to display.
         if (rawSongs.length === 0) {
-            console.warn("fetchTrendingMusic: No unique songs found after filtering, trying again...");
+            console.log("fetchTrendingMusic: No unique songs found after filtering, retrying...");
             return false; // Signal the retry-wrapper to try again.
         }
 
@@ -863,7 +863,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000) => {
                 return true; // Success! Exit the loop and resolve the promise.
             }
             // If fetchFunction returns false (e.g., empty results), log and try again.
-            console.warn(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
+            console.log(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
         } catch (error) {
             // If fetchFunction throws an error (e.g., network failure), log and try again.
             console.error(`Error in ${fetchFunction.name}. Retrying in ${delay}ms...`, error);
@@ -1497,10 +1497,10 @@ const isUserPremium = async (uid) => {
         if (overlay) {
             overlay.classList.remove('fade-out');
             setTimeout(() => {
-                window.location.href = url;
+                window.location.replace(url);
             }, 500);
         } else {
-            window.location.href = url;
+            window.location.replace(url);
         }
     };
 
