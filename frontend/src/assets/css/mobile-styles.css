@@ -87,6 +87,30 @@ body.player-active .app-container {
     cursor: pointer;
 }
 
+/* Notification Badge */
+.notification-btn {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -2px;
+    right: 1px;
+    background-color: #ad41bb; /* Pinkish-red from Spotiwind's primary gradient */
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 600;
+    border-radius: 50%;
+    min-width: 13px; /* Lebih kecil */
+    height: 13px; /* Lebih kecil */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    z-index: 1;
+}
+
 .notification-btn svg {
     width: 22px;
     height: 22px;
@@ -123,6 +147,11 @@ body.player-active .app-container {
 
 .online-status.offline {
     background-color: #9ca3af;
+    box-shadow: none;
+}
+
+.notification-badge.hidden {
+    display: none;
     box-shadow: none;
 }
 
@@ -2390,4 +2419,144 @@ body.full-player-open {
 .is-transitioning .mobile-player-bar, /* Menargetkan mini player */
 .is-transitioning .mobile-full-player { /* Menargetkan full screen player */
     display: none !important;
+}
+
+/* Header khusus untuk halaman notifikasi */
+.notification-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    position: sticky;
+    top: 0;
+    background: var(--bg-dark);
+    z-index: 1000;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.notification-page-header .back-btn {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.notification-page-header .back-btn:hover {
+    opacity: 0.8;
+}
+
+.notification-page-header .page-title {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.notification-page-header .more-options-btn {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.notification-page-header .more-options-btn:hover {
+    opacity: 0.8;
+}
+
+/* Kontainer utama untuk daftar notifikasi */
+.notification-list-container {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: var(--glass-bg);
+    padding: 1rem;
+    border-radius: 0.8rem;
+    border: 1px solid var(--glass-border);
+    transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.notification-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.notification-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Warna ikon berdasarkan tipe notifikasi */
+.new-release .notification-icon { color: var(--accent-color); }
+.playlist-update .notification-icon { color: #22c55e; } /* Hijau */
+.new-follower .notification-icon { color: #3b82f6; } /* Biru */
+
+.notification-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.notification-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-main);
+    margin: 0 0 0.25rem 0;
+}
+
+.notification-text strong {
+    font-weight: 600;
+}
+
+.notification-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.notification-thumbnail {
+    flex-shrink: 0;
+    width: 50px;
+    height: 50px;
+    border-radius: 0.5rem;
+    object-fit: cover;
+}
+
+.notification-thumbnail.is-avatar {
+    border-radius: 50%;
+}
+
+.notification-footer {
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.notification-footer a {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.notification-footer a:hover {
+    color: var(--text-main);
+    text-decoration: underline;
 }

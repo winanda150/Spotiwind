@@ -71,6 +71,7 @@ let lastSearchQuery = ''; // [NEW] Variable to store the last search query
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
+let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Set();
 
@@ -1809,6 +1810,30 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 }
                 // Re-initialize footer dropdown logic
                 initializeFooterDropdowns(contentContainer);
+
+                // [NEW] Setup unread notification badge listener for the home page
+                const notificationBadge = document.getElementById('notificationBadge');
+                if (notificationBadge && user) {
+                    const notificationsRef = collection(db, "users", user.uid, "notifications");
+                    const q = query(notificationsRef, where("isRead", "==", false));
+
+                    unreadNotificationsListener = onSnapshot(q, (snapshot) => {
+                        const unreadCount = snapshot.size;
+                        if (unreadCount > 0) {
+                            notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+                            notificationBadge.classList.remove('hidden');
+                        } else {
+                            notificationBadge.classList.add('hidden');
+                        }
+                    }, (error) => { console.error("Error fetching unread notification count:", error); });
+                }
+
+                // [FIX] Re-attach the notification button listener
+                // because it was lost when the content was replaced.
+                const notificationBtn = document.getElementById('notificationBtn');
+                if (notificationBtn) {
+                    notificationBtn.addEventListener('click', loadNotificationPage);
+                }
                 
                 contentContainer.style.opacity = '1';
             } else {
@@ -2016,6 +2041,61 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // [NEW] Ensure listener is removed on error too
             window.removeEventListener('scroll', parallaxHandler);
             contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load artist page.</p>`;
+            contentContainer.style.opacity = '1';
+        }
+    };
+
+    /**
+     * [NEW] Loads the notification page content dynamically.
+     */
+    const loadNotificationPage = async () => {
+        // [NEW] Dynamically import the notifications module to get its exported functions
+        const notificationsModule = await import('./notifications-mobile.js').catch(err => { console.error("Failed to load notifications module:", err); return {}; });
+        const { cleanupNotifications, initNotificationsPage } = notificationsModule;
+
+        const contentContainer = document.querySelector('.app-container');
+        if (!contentContainer) return;
+
+        // Store current scroll position before navigating
+        homeScrollPosition = document.documentElement.scrollTop;
+
+        // Transition out
+        contentContainer.style.opacity = '0';
+        await new Promise(res => setTimeout(res, 200));
+
+        try {
+            const response = await fetch('frontend/src/pages/notifications-mobile.html');
+            if (!response.ok) throw new Error('Could not load notifications page.');
+            
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const newContent = doc.querySelector('.app-container')?.innerHTML;
+
+            if (newContent) {
+                document.documentElement.scrollTop = 0;
+                contentContainer.innerHTML = newContent;
+
+                // Add back button functionality
+                contentContainer.querySelector('#backToHomeBtn')?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // [NEW] Call the cleanup function before navigating back home
+                    if (typeof cleanupNotifications === 'function') {
+                        cleanupNotifications();
+                    }
+                    loadPageContent('mobile.html'); // Use existing function to go back home
+                });
+
+                // [FIX] Call the initialization function from the imported module
+                // This ensures the logic runs with the correct context after content is loaded.
+                if (typeof initNotificationsPage === 'function') {
+                    initNotificationsPage();
+                }
+            }
+            contentContainer.style.opacity = '1'; // Transition in
+        } catch (error) {
+            console.error('Failed to load notification page:', error);
+            contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load notifications.</p>`;
             contentContainer.style.opacity = '1';
         }
     };
@@ -2292,6 +2372,23 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             initializeUserUI(user);
             initializeProfileDropdown();
 
+            // [NEW] Setup unread notification badge listener
+            const notificationBadge = document.getElementById('notificationBadge');
+            if (notificationBadge) {
+                const notificationsRef = collection(db, "users", user.uid, "notifications");
+                const q = query(notificationsRef, where("isRead", "==", false));
+
+                unreadNotificationsListener = onSnapshot(q, (snapshot) => {
+                    const unreadCount = snapshot.size;
+                    if (unreadCount > 0) {
+                        notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+                        notificationBadge.classList.remove('hidden');
+                    } else {
+                        notificationBadge.classList.add('hidden');
+                    }
+                }, (error) => { console.error("Error fetching unread notification count:", error); });
+            }
+
             setupUserPresence(user);
             initializeData(); // Load API data
             initializeSearch(); // Initialize search functionality
@@ -2437,6 +2534,19 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         } else {
             // If not logged in, return to the login page
             window.location.href = 'index.html';
+
+            // [NEW] Clean up unread notification listener on logout
+            if (unreadNotificationsListener) {
+                unreadNotificationsListener();
+                unreadNotificationsListener = null;
+            }
         }
     });
+
+        // [FIX] Move listener attachment to the end of DOMContentLoaded
+        // to ensure all functions like 'loadNotificationPage' are initialized.
+        const notificationBtn = document.getElementById('notificationBtn');
+        if (notificationBtn) {
+            notificationBtn.addEventListener('click', loadNotificationPage);
+        }
 });
