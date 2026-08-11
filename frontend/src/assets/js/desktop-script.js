@@ -1,21 +1,15 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { 
-    getAuth, 
-    onAuthStateChanged, 
-    signOut
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { // NEW: Import for Realtime Database
-    getDatabase,
+import {
+    auth, db, rtdb,
+    onAuthStateChanged, signOut,
+    // RTDB
     ref,
     onValue,
-    set as rtdbSet, // Using an alias for the RTDB set function
+    rtdbSet,
     onDisconnect,
-    serverTimestamp as rtdbServerTimestamp // Using an alias for the RTDB serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-import { 
-    getFirestore,
-    collection, 
-    query, 
+    rtdbServerTimestamp,
+    // Firestore
+    collection,
+    query,
     onSnapshot,
     orderBy,
     getDocs,
@@ -28,26 +22,7 @@ import {
     getDoc,
     deleteDoc,
     addDoc
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyDPytasOsMlHemXBbmsmcu_RJDhrZPbefg",
-    authDomain: "spotiwind-music-2686a.firebaseapp.com",
-    projectId: "spotiwind-music-2686a",
-    storageBucket: "spotiwind-music-2686a.firebasestorage.app",
-    messagingSenderId: "421626384106",
-    appId: "1:421626384106:web:28207fb4476fb327039193",
-    measurementId: "G-16NYW0QSGV",
-    databaseURL: "https://spotiwind-music-2686a-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
-
-// Prevents double initialization that can trigger a heartbeats undefined error
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const rtdb = getDatabase(app); // Initialize Realtime Database
-
-// Initialize Firestore
-const db = getFirestore(app);
+} from "./firebase-config.js";
 
 let playlistUnsubscribe = null;
 let friendActivityListeners = []; // Using an array to track multiple listeners

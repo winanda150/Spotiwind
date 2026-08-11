@@ -1,15 +1,13 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { 
-    getDatabase,
+import {
+    auth, db, rtdb,
+    onAuthStateChanged, signOut,
+    // RTDB
     ref,
     onValue,
-    set as rtdbSet,
+    rtdbSet,
     onDisconnect,
-    serverTimestamp as rtdbServerTimestamp
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-import {
-    getFirestore,
+    rtdbServerTimestamp,
+    // Firestore
     collection,
     query,
     onSnapshot,
@@ -24,23 +22,8 @@ import {
     getDoc,
     deleteDoc,
     addDoc
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+} from "./firebase-config.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDPytasOsMlHemXBbmsmcu_RJDhrZPbefg",
-    authDomain: "spotiwind-music-2686a.firebaseapp.com",
-    projectId: "spotiwind-music-2686a",
-    storageBucket: "spotiwind-music-2686a.firebasestorage.app",
-    messagingSenderId: "421626384106",
-    appId: "1:421626384106:web:28207fb4476fb327039193",
-    measurementId: "G-16NYW0QSGV",
-    databaseURL: "https://spotiwind-music-2686a-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app); // Initialize Firestore
-const rtdb = getDatabase(app); // Initialize Realtime Database
 
 // Jamendo API Configuration (Free for developers)
 const JAMENDO_CLIENT_ID = '17b8da78';

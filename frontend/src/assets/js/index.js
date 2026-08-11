@@ -1,7 +1,6 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { 
-    getAuth, 
-    createUserWithEmailAndPassword, 
+import {
+    auth,
+    createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     updateProfile,
     GoogleAuthProvider,
@@ -10,26 +9,10 @@ import {
     signInWithPopup,
     sendPasswordResetEmail,
     onAuthStateChanged,
-    setPersistence, 
+    setPersistence,
     browserLocalPersistence,
     browserSessionPersistence
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-
-// Masukkan konfigurasi Firebase Anda di sini
-const firebaseConfig = {
-    apiKey: "AIzaSyDPytasOsMlHemXBbmsmcu_RJDhrZPbefg",
-    authDomain: "spotiwind-music-2686a.firebaseapp.com",
-    projectId: "spotiwind-music-2686a",
-    storageBucket: "spotiwind-music-2686a.firebasestorage.app",
-    messagingSenderId: "421626384106",
-    appId: "1:421626384106:web:28207fb4476fb327039193",
-    measurementId: "G-16NYW0QSGV",
-    databaseURL: "https://spotiwind-music-2686a-default-rtdb.asia-southeast1.firebasedatabase.app/"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+} from "./firebase-config.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     // Element Selectors

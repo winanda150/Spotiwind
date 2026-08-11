@@ -1,6 +1,45 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+    getAuth,
+    onAuthStateChanged,
+    signOut,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    updateProfile,
+    GoogleAuthProvider,
+    FacebookAuthProvider,
+    OAuthProvider,
+    signInWithPopup,
+    sendPasswordResetEmail,
+    setPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+    getFirestore,
+    collection,
+    query,
+    onSnapshot,
+    orderBy,
+    getDocs,
+    where,
+    doc,
+    documentId,
+    setDoc,
+    limit,
+    serverTimestamp,
+    getDoc,
+    deleteDoc,
+    addDoc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+    getDatabase,
+    ref,
+    onValue,
+    set as rtdbSet,
+    onDisconnect,
+    serverTimestamp as rtdbServerTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -18,5 +57,17 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+const rtdb = getDatabase(app);
 
-export { app, auth, db };
+export {
+    app, auth, db, rtdb,
+    // Auth
+    onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    updateProfile, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup,
+    sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence,
+    // Firestore
+    collection, query, onSnapshot, orderBy, getDocs, where, doc, documentId, setDoc,
+    limit, serverTimestamp, getDoc, deleteDoc, addDoc,
+    // Realtime Database
+    ref, onValue, rtdbSet, onDisconnect, rtdbServerTimestamp
+};

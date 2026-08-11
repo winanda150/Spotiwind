@@ -1,11 +1,11 @@
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
+    auth, db,
+    onAuthStateChanged,
     collection,
     query,
     onSnapshot,
     orderBy
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { auth, db } from './firebase-config.js';
+} from './firebase-config.js';
 
 // [NEW] Variable to hold the unsubscribe function for the Firestore listener
 let unsubscribeNotifications = null;
