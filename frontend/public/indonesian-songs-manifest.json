@@ -136,6 +136,11 @@
       "id": "eńau",
       "name": "eńau",
       "photo": "Elemen/eńau/Artis/eńau.webp"
+    },
+    {
+      "id": "woles",
+      "name": "WOLES",
+      "photo": "Elemen/WOLES/Artis/WOLES.webp"
     }
   ],
   "songs": [
@@ -866,6 +871,14 @@
       "audio": "Elemen/NPD/Lupain%20Aku%20Plis.mp3",
       "cover": "Elemen/NPD/Image%20Songs/Lupain%20Aku%20Plis.webp",
       "duration": 256
+    },
+    {
+      "id": "woles-&-emoni-bali-band-denpasar-kota-dan-rumahku",
+      "name": "Denpasar Kota Dan Rumahku",
+      "artist": "WOLES & Emoni Bali band",
+      "audio": "Elemen/WOLES/Denpasar%20Kota%20Dan%20Rumahku.mp3",
+      "cover": "Elemen/WOLES/Image%20Songs/Denpasar%20Kota%20Dan%20Rumahku.webp",
+      "duration": 235
     }
   ]
 }
