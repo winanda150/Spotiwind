@@ -141,6 +141,11 @@
       "id": "woles",
       "name": "WOLES",
       "photo": "Elemen/WOLES/Artis/WOLES.webp"
+    },
+    {
+      "id": "surya-raj-kamal",
+      "name": "Surya Raj Kamal",
+      "photo": "Elemen/Surya%20Raj%20Kamal/Artis/Surya%20Raj%20Kamal.webp"
     }
   ],
   "songs": [
@@ -878,6 +883,14 @@
       "artist": "WOLES & Emoni Bali band",
       "audio": "Elemen/WOLES/Denpasar%20Kota%20Dan%20Rumahku.mp3",
       "cover": "Elemen/WOLES/Image%20Songs/Denpasar%20Kota%20Dan%20Rumahku.webp",
+      "duration": 235
+    },
+    {
+      "id": "surya-raj-kamal-&-mohit-lalwani-&-aishwarya-anand",
+      "name": "Tum Prem Ho Tum Preet Ho",
+      "artist": "Surya Raj Kamal & Mohit Lalwani & Aishwarya Anand",
+      "audio": "Elemen/Surya%20Raj%20Kamal/Tum%20Prem%20Ho%20Tum%20Preet%20Ho.mp3",
+      "cover": "Elemen/Surya%20Raj%20Kamal/Image%20Songs/Tum%20Prem%20Ho%20Tum%20Preet%20Ho.webp",
       "duration": 235
     }
   ]

@@ -24,7 +24,6 @@ import {
     addDoc
 } from "./firebase-config.js";
 
-
 // Jamendo API Configuration (Free for developers)
 const JAMENDO_CLIENT_ID = '17b8da78';
 const JAMENDO_API_URL = 'https://api.jamendo.com/v3.0/tracks/';
@@ -54,6 +53,7 @@ let lastSearchQuery = ''; // [NEW] Variable to store the last search query
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
+let previousPageUrl = 'mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
 let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Set();
@@ -641,7 +641,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Store current scroll position before navigating to artist page
             // We assume that if an artist card is clicked, we are currently on the home page.
             homeScrollPosition = document.documentElement.scrollTop;
-
 
             const { artistId, artistName, artistPhoto } = artistCard.dataset;
             loadArtistPage({ id: artistId, name: artistName, photo: artistPhoto });
@@ -1832,17 +1831,21 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
 
             // Ambil hanya bagian <div class="app-container"> dari file HTML target
-            const response = await fetch(page);
+            // [FIX] Correct the path. Partial pages are in 'public', not 'src/pages'.
+            // The path should be relative to the root where the server is running.
+            const response = await fetch(page.replace('frontend/src/pages/', 'frontend/public/'));
             if (!response.ok) throw new Error(`Could not load ${page}`);
             const text = await response.text();
             
             // Gunakan DOMParser untuk mengekstrak konten yang kita butuhkan
             const parser = new DOMParser();
             const doc = parser.parseFromString(text, 'text/html');
-            const newContent = doc.querySelector('.app-container')?.innerHTML;
+            // [FIX] Ambil konten dari body, bukan dari .app-container yang tidak ada di file parsial.
+            // Ini membuat fungsi lebih fleksibel untuk memuat halaman parsial.
+            const newContent = doc.body.innerHTML;
 
             if (newContent) {
-                // [FIX] Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
+                // Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
                 // This prevents the jarring scroll jump on the old page.
                 document.documentElement.scrollTop = 0;
                 contentContainer.innerHTML = newContent;
@@ -1856,6 +1859,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     initializeUserUI(user);
                 }
 
+                // [FIX] Re-attach the notification button listener on every page load.
+                // This ensures the button works on dynamically loaded pages like search.
+                const notificationBtn = document.getElementById('notificationBtn');
+                if (notificationBtn) {
+                    notificationBtn.addEventListener('click', loadNotificationPage);
+                }
+
                 // Re-initialize search functionality as it might be on the new page.
                 initializeSearch();
 
@@ -1863,6 +1873,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 if (!page.includes('search-mobile.html')) {
                     initializeSkeletons();
                     initializeData();
+                } else {
+                    // Khusus untuk halaman search, kita tidak perlu memuat data trending/top artist,
+                    // cukup inisialisasi fungsi search-nya saja.
+                    // Fungsi fetchIndonesianSongs tetap dipanggil agar data lagu lokal tersedia untuk pencarian.
+                    fetchWithContinuousRetry(fetchIndonesianSongs); // Diperlukan untuk data lagu lokal di fungsi pencarian
                 }
                 
                 // [FIX] Fade the new content in.
@@ -1880,6 +1895,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const loadArtistPage = async (artist) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer || !artist || !artist.id) return;
+
+        // [FIX] Determine and set previousPageUrl right before loading the artist page.
+        // This is the correct place to check the current page context.
+        const currentActiveNav = document.querySelector('.mobile-bottom-nav .nav-item.active');
+        if (currentActiveNav) {
+            previousPageUrl = currentActiveNav.dataset.target;
+        }
+
 
         let artistPageTitleVisibilityTimeout = null; // [NEW] Untuk mengelola delay fade-in nama artis di header
 
@@ -1958,13 +1981,21 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const backButton = contentContainer.querySelector('.back-btn');
             if (backButton) {
                 backButton.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    // [NEW] Clean up parallax listener before navigating
+                    e.preventDefault(); // Mencegah tindakan default
+
+                    // Bersihkan event listener parallax sebelum navigasi
                     window.removeEventListener('scroll', parallaxHandler);
 
-                    // Find the home button and set it to active before loading
-                    document.querySelector('.mobile-bottom-nav .nav-item[data-target="mobile.html"]')?.classList.add('active');
-                    await loadPageContent('mobile.html');
+                    // [FIX] Logika kembali yang dinamis
+                    // Nonaktifkan semua item navigasi terlebih dahulu
+                    document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
+
+                    // Temukan dan aktifkan item navigasi yang sesuai dengan halaman sebelumnya
+                    const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${previousPageUrl}"]`);
+                    if (targetNavItem) targetNavItem.classList.add('active');
+
+                    // Muat konten halaman sebelumnya
+                    await loadPageContent(previousPageUrl);
                 });
             }
 
@@ -2039,6 +2070,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
 
+        // [FIX] Capture the current active page's URL before navigating to the notification page.
+        // This ensures the back button on the notification page knows where to return.
+        const currentActiveNav = document.querySelector('.mobile-bottom-nav .nav-item.active');
+        if (currentActiveNav) {
+            previousPageUrl = currentActiveNav.dataset.target;
+        }
+
         // Store current scroll position before navigating
         homeScrollPosition = document.documentElement.scrollTop;
 
@@ -2060,13 +2098,22 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.innerHTML = newContent;
 
                 // Add back button functionality
-                contentContainer.querySelector('#backToHomeBtn')?.addEventListener('click', (e) => {
+                contentContainer.querySelector('#backToHomeBtn')?.addEventListener('click', async (e) => {
                     e.preventDefault();
                     // [NEW] Call the cleanup function before navigating back home
                     if (typeof cleanupNotifications === 'function') {
                         cleanupNotifications();
                     }
-                    loadPageContent('mobile.html'); // Use existing function to go back home
+
+                    // [FIX] Dynamic back navigation logic, similar to artist page
+                    // Deactivate all current active nav items
+                    document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
+
+                    // Find and activate the nav item corresponding to the previous page
+                    const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${previousPageUrl}"]`);
+                    if (targetNavItem) targetNavItem.classList.add('active');
+
+                    await loadPageContent(previousPageUrl); // Use the stored previousPageUrl
                 });
 
                 // [FIX] Call the initialization function from the imported module

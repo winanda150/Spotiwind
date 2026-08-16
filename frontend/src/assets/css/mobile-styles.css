@@ -158,7 +158,7 @@ body.player-active .app-container {
 /* Profile Dropdown Styles */
 .profile-dropdown-menu {
     position: absolute;
-    top: calc(100% + 10px); /* Position below the header */
+    top: calc(100% + 1rem); /* Position below the header */
     right: 0;
     width: 200px;
     background: #181924;
@@ -2560,3 +2560,9 @@ body.full-player-open {
     color: var(--text-main);
     text-decoration: underline;
 }
+
+/* Style khusus untuk halaman pencarian */
+.browse-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.browse-card { aspect-ratio: 2 / 1; border-radius: 0.5rem; padding: 1rem; font-weight: 600; font-size: 1.1rem; position: relative; overflow: hidden; }
+.browse-card span { position: relative; z-index: 2; }
+.browse-card img { position: absolute; right: -15px; bottom: -10px; width: 55%; height: auto; transform: rotate(25deg); z-index: 1; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-radius: 4px; }
