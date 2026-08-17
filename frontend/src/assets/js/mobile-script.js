@@ -1830,10 +1830,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             contentContainer.style.opacity = '0';
             await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
 
-            // Ambil hanya bagian <div class="app-container"> dari file HTML target
-            // [FIX] Correct the path. Partial pages are in 'public', not 'src/pages'.
-            // The path should be relative to the root where the server is running.
-            const response = await fetch(page.replace('frontend/src/pages/', 'frontend/public/'));
+            // Muat konten halaman parsial dari path yang diberikan.
+            const response = await fetch(page);
             if (!response.ok) throw new Error(`Could not load ${page}`);
             const text = await response.text();
             

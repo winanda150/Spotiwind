@@ -2566,3 +2566,257 @@ body.full-player-open {
 .browse-card { aspect-ratio: 2 / 1; border-radius: 0.5rem; padding: 1rem; font-weight: 600; font-size: 1.1rem; position: relative; overflow: hidden; }
 .browse-card span { position: relative; z-index: 2; }
 .browse-card img { position: absolute; right: -15px; bottom: -10px; width: 55%; height: auto; transform: rotate(25deg); z-index: 1; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border-radius: 4px; }
+
+/* NEW: Library Page Styles */
+.library-filters {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 1.5rem 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.library-filters::-webkit-scrollbar {
+    display: none;
+}
+
+.filter-btn {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.filter-btn.active {
+    background-color: var(--text-main);
+    color: var(--bg-dark);
+    font-weight: 600;
+}
+
+.library-content-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0 1.5rem 1.5rem;
+}
+
+.library-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.library-item:hover {
+    background-color: var(--glass-bg);
+}
+
+.library-item-cover {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 0.3rem;
+    flex-shrink: 0;
+    background-color: var(--glass-bg);
+}
+
+.library-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.library-item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.library-item-details {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.liked-songs-gradient {
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* NEW: Account Page Styles */
+.account-profile-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.account-avatar-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.account-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--glass-border);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.edit-avatar-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background-color: var(--text-main);
+    color: var(--bg-dark);
+    border: 2px solid var(--bg-dark);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.edit-avatar-btn:hover {
+    transform: scale(1.1);
+}
+
+.account-info {
+    margin-bottom: 1.25rem;
+}
+
+.account-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0 0 0.25rem 0;
+}
+
+.account-email {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.edit-profile-btn {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    padding: 0.6rem 1.25rem;
+    border-radius: 2rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.edit-profile-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-group {
+    margin-bottom: 1.5rem;
+}
+
+.settings-group-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+}
+
+.settings-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.settings-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-item:last-child {
+    margin-bottom: 0;
+}
+
+.settings-item-text {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.settings-item-chevron {
+    color: var(--text-muted);
+}
+
+.settings-item-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.logout-btn-bottom {
+    width: 100%;
+    background-color: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    color: #f87171;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.logout-btn-bottom:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.liked-songs-gradient {
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
