@@ -1,67 +1,70 @@
 <!-- Konten ini akan disuntikkan ke dalam .app-container di mobile.html -->
-<div class="artist-page-header">
-    <button class="back-btn" aria-label="Go back">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-            <path d="M0 0h24v24H0z" fill="none" />
-            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                d="M19.5 12h-15m5.625 6L4.5 12l5.625-6" />
-        </svg>
-        </button> 
-    <h2 id="artistPageName" class="artist-page-title" aria-hidden="true"></h2>
-    <div class="header-placeholder" style="width: 40px;"></div> <!-- Placeholder to balance the back button -->
-</div>
 
-<!-- Hero Section with Artist Photo -->
-<div id="artistHero" class="artist-hero-section">
-    <img id="artistHeroImage" class="artist-hero-image" src="" alt="">
-</div>
+<body>
+    <div class="artist-page-header">
+        <button class="back-btn" aria-label="Go back">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M0 0h24v24H0z" fill="none" />
+                <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                    stroke-width="1.5" d="M19.5 12h-15m5.625 6L4.5 12l5.625-6" />
+            </svg>
+        </button>
+        <h2 id="artistPageName" class="artist-page-title" aria-hidden="true"></h2>
+        <div class="header-placeholder" style="width: 40px;"></div> <!-- Placeholder to balance the back button -->
+    </div>
 
-<!-- [FIX] Wrapper for all scrollable content, positioned over the hero -->
-<div class="artist-content-scroll-wrapper">
-    <!-- [FIX] Wrapper untuk nama artis, agar bisa ikut scroll -->
-    <div id="artistNameWrapper" class="artist-name-wrapper">
-        <!-- Nama akan disuntikkan di sini oleh JS -->
+    <!-- Hero Section with Artist Photo -->
+    <div id="artistHero" class="artist-hero-section">
+        <img id="artistHeroImage" class="artist-hero-image" src="" alt="">
     </div>
-    <!-- This inner wrapper has the solid background that scrolls up -->
-    <div class="artist-songs-content">
-        <!-- Popular Songs Section -->
-        <div class="section-header" style="padding: 1.5rem 1.5rem 0 1.5rem;">
-            <h2 class="section-title">Popular Songs</h2>
+
+    <!-- [FIX] Wrapper for all scrollable content, positioned over the hero -->
+    <div class="artist-content-scroll-wrapper">
+        <!-- [FIX] Wrapper untuk nama artis, agar bisa ikut scroll -->
+        <div id="artistNameWrapper" class="artist-name-wrapper">
+            <!-- Nama akan disuntikkan di sini oleh JS -->
         </div>
-        <div id="artistSongsGrid" class="song-grid artist-songs-list">
-            <!-- Skeleton loader untuk daftar lagu artis (vertikal) -->
-            <div class="artist-song-list-item-skeleton skeleton">
-                <div class="skeleton-item-left"></div>
-                <div class="skeleton-item-info">
-                    <div class="skeleton-item-name"></div>
-                    <div class="skeleton-item-artist"></div>
-                </div>
-                <div class="skeleton-item-right"></div>
+        <!-- This inner wrapper has the solid background that scrolls up -->
+        <div class="artist-songs-content">
+            <!-- Popular Songs Section -->
+            <div class="section-header" style="padding: 1.5rem 1.5rem 0 1.5rem;">
+                <h2 class="section-title">Popular Songs</h2>
             </div>
-            <div class="artist-song-list-item-skeleton skeleton">
-                <div class="skeleton-item-left"></div>
-                <div class="skeleton-item-info">
-                    <div class="skeleton-item-name"></div>
-                    <div class="skeleton-item-artist"></div>
+            <div id="artistSongsGrid" class="song-grid artist-songs-list">
+                <!-- Skeleton loader untuk daftar lagu artis (vertikal) -->
+                <div class="artist-song-list-item-skeleton skeleton">
+                    <div class="skeleton-item-left"></div>
+                    <div class="skeleton-item-info">
+                        <div class="skeleton-item-name"></div>
+                        <div class="skeleton-item-artist"></div>
+                    </div>
+                    <div class="skeleton-item-right"></div>
                 </div>
-                <div class="skeleton-item-right"></div>
-            </div>
-            <div class="artist-song-list-item-skeleton skeleton">
-                <div class="skeleton-item-left"></div>
-                <div class="skeleton-item-info">
-                    <div class="skeleton-item-name"></div>
-                    <div class="skeleton-item-artist"></div>
+                <div class="artist-song-list-item-skeleton skeleton">
+                    <div class="skeleton-item-left"></div>
+                    <div class="skeleton-item-info">
+                        <div class="skeleton-item-name"></div>
+                        <div class="skeleton-item-artist"></div>
+                    </div>
+                    <div class="skeleton-item-right"></div>
                 </div>
-                <div class="skeleton-item-right"></div>
-            </div>
-            <div class="artist-song-list-item-skeleton skeleton">
-                <div class="skeleton-item-left"></div>
-                <div class="skeleton-item-info">
-                    <div class="skeleton-item-name"></div>
-                    <div class="skeleton-item-artist"></div>
+                <div class="artist-song-list-item-skeleton skeleton">
+                    <div class="skeleton-item-left"></div>
+                    <div class="skeleton-item-info">
+                        <div class="skeleton-item-name"></div>
+                        <div class="skeleton-item-artist"></div>
+                    </div>
+                    <div class="skeleton-item-right"></div>
                 </div>
-                <div class="skeleton-item-right"></div>
+                <div class="artist-song-list-item-skeleton skeleton">
+                    <div class="skeleton-item-left"></div>
+                    <div class="skeleton-item-info">
+                        <div class="skeleton-item-name"></div>
+                        <div class="skeleton-item-artist"></div>
+                    </div>
+                    <div class="skeleton-item-right"></div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</body>

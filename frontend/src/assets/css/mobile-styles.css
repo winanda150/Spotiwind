@@ -1432,8 +1432,8 @@ body.player-active .app-container {
 }
 
 .artist-photo {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     background-size: cover;
     background-position: center;
@@ -2421,17 +2421,18 @@ body.full-player-open {
     display: none !important;
 }
 
-/* Header khusus untuk halaman notifikasi */
+/* NEW: Notification Page Styles */
 .notification-page-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Untuk menempatkan tombol di ujung */
     align-items: center;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1rem; /* Padding yang lebih standar untuk header mobile */
     position: sticky;
     top: 0;
     background: var(--bg-dark);
     z-index: 1000;
     border-bottom: 1px solid var(--glass-border);
+    height: 65px; /* Memberi tinggi tetap agar konsisten */
 }
 
 .notification-page-header .back-btn {
@@ -2441,9 +2442,17 @@ body.full-player-open {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px;
+    width: 40px; /* Lebar tetap untuk area klik */
+    height: 40px; /* Tinggi tetap untuk area klik */
     cursor: pointer;
     transition: opacity 0.2s;
+    z-index: 2; /* Pastikan tombol di atas judul jika tumpang tindih */
+}
+
+.notification-page-header svg {
+    width: 20px; /* Ukuran ikon standar */
+    height: 20px;
+    flex-shrink: 0;
 }
 
 .notification-page-header .back-btn:hover {
@@ -2451,9 +2460,9 @@ body.full-player-open {
 }
 
 .notification-page-header .page-title {
-    font-size: 1rem;
+    font-size: 1rem; /* Ukuran judul yang lebih standar untuk header */
     font-weight: 600;
-    letter-spacing: -0.02em;
+    white-space: nowrap; /* Mencegah judul turun baris */
 }
 
 .notification-page-header .more-options-btn {
@@ -2461,6 +2470,13 @@ body.full-player-open {
     border: none;
     color: var(--text-main);
     cursor: pointer;
+    width: 40px; /* Lebar tetap agar seimbang dengan tombol kembali */
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+    z-index: 2; /* Pastikan tombol di atas judul jika tumpang tindih */
 }
 
 .notification-page-header .more-options-btn:hover {
