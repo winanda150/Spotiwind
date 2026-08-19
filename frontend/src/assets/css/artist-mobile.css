@@ -1,0 +1,367 @@
+/* NEW: Artist Page Specific Styles */
+.artist-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.3rem;
+    position: sticky;
+    /* Sticky is better than fixed within a scrollable container */
+    top: 0;
+    background: transparent;
+    z-index: 1000;
+    transition: background-color 0.3s ease;
+    /* [NEW] Tambahkan transisi untuk perubahan background yang halus */
+}
+
+.artist-page-header.scrolled {
+    background-color: var(--bg-dark);
+    /* [NEW] Warna background solid saat di-scroll */
+}
+
+.back-btn {
+    background: rgba(0, 0, 0, 0.3);
+    /* Background default untuk lingkaran */
+    border: none;
+    color: var(--text-main);
+    width: 48px;
+    /* Set fixed width */
+    height: 48px;
+    /* Set fixed height */
+    border-radius: 50%;
+    /* Make it a circle */
+    cursor: pointer;
+    transition: background 0.3s ease;
+    /* [NEW] Transisi untuk perubahan background */
+}
+
+.back-btn svg {
+    width: 35px;
+    height: 35px;
+}
+
+.back-btn.transparent-bg {
+    background: transparent;
+    /* [NEW] Background transparan saat di-scroll */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.back-btn:hover {
+    color: rgb(204, 197, 197);
+}
+
+.artist-page-title {
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    /* Tetap di tengah */
+    opacity: 0;
+    /* [NEW] Awalnya tersembunyi */
+    transition: opacity 0.3s ease;
+    /* [NEW] Transisi fade yang halus */
+    pointer-events: none;
+    /* [NEW] Mencegah interaksi saat tersembunyi */
+}
+
+.artist-page-title.visible {
+    opacity: 1;
+    /* [NEW] Muncul saat kelas visible ditambahkan */
+    pointer-events: auto;
+    /* [NEW] Memungkinkan interaksi saat terlihat */
+}
+
+.artist-hero-section {
+    /* [FIX] Hapus position: sticky dan top. Ini harus menjadi elemen blok biasa. */
+    position: relative;
+    /* Tetap relative untuk konteks positioning anak-anaknya */
+
+    width: 100%;
+    height: 45vh;
+    /* Tinggi area gambar yang sticky */
+    display: block;
+    /* Hanya sebagai container, bukan flexbox */
+    padding: 0;
+}
+
+.artist-hero-section::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45vh;
+    background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.3) 50%, rgba(15, 23, 42, 0) 100%);
+    z-index: 1;
+    /* [FIX] Set z-index to 1 to be above the image */
+}
+
+.artist-hero-image {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45vh;
+    object-fit: cover;
+    /* [FIX] This ensures the image covers the container without excessive zoom */
+    object-position: top;
+    z-index: -1;
+    /* Place image behind the name and gradient */
+}
+
+.artist-hero-name {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    color: white;
+    /* Atur warna secara eksplisit */
+}
+
+/* [NEW] Styling for the verified badge below artist name */
+.artist-verified-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    /* Jarak antara ikon dan teks */
+    color: white;
+    /* Warna teks */
+    margin-bottom: 0.5rem;
+    /* Jarak dari nama artis */
+    font-size: 0.85rem;
+    /* Ukuran font */
+    font-weight: 500;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    /* Bayangan tipis untuk keterbacaan */
+}
+
+.artist-verified-badge svg {
+    width: 1.2em;
+    height: 1.2em;
+    flex-shrink: 0;
+}
+
+/* [FIX] Wrapper for all scrollable content, positioned over the hero */
+.artist-content-scroll-wrapper {
+    position: relative;
+    z-index: 2;
+    /* This container sits on top of the sticky hero */
+    margin-top: -56vh;
+    /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) untuk menutupi gambar */
+    background: transparent;
+    /* This wrapper itself is transparent */
+}
+
+/* [NEW] Wrapper untuk memposisikan nama artis dan membuatnya bisa di-scroll */
+.artist-name-wrapper {
+    height: 45vh;
+    /* Samakan dengan tinggi hero untuk menciptakan layout awal */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0rem 1.5rem;
+    background: transparent;
+    /* Wrapper ini transparan, berada di atas gambar hero */
+}
+
+/* NEW: Dynamic background shadow for artist name wrapper */
+.artist-name-wrapper {
+    position: relative;
+    /* Needed for absolute positioning of pseudo-element */
+    /* Tambahkan background-color transparan agar pseudo-element tidak terhalang */
+    background-color: transparent;
+}
+
+.artist-name-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0));
+    /* Dark at bottom, transparent at top */
+    z-index: -1;
+    /* Behind the text */
+    opacity: 0;
+    /* Initially hidden */
+    transition: opacity 0.3s ease;
+}
+
+.artist-name-wrapper.has-dynamic-shadow::before {
+    opacity: 1;
+    /* Show shadow when scrolled */
+}
+
+/* [FIX] This inner wrapper has the solid background that scrolls up */
+.artist-songs-content {
+    background-color: var(--bg-dark);
+    /* The solid background starts here */
+    position: relative;
+    /* To ensure it's part of the flow */
+}
+
+/* [NEW] Vertical list layout for artist songs */
+.artist-songs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* Spacing between items */
+    padding: 0rem 1.5rem 1.3rem 1.5rem;
+    /* Adjust padding to match other sections, add top padding */
+    overflow-x: hidden;
+    /* No horizontal scroll */
+    scrollbar-width: none;
+    /* For Firefox */
+    -ms-overflow-style: none;
+    /* For IE and Edge */
+}
+
+.artist-songs-list::-webkit-scrollbar {
+    display: none;
+    /* For Chrome, Safari, and Opera */
+}
+
+.artist-song-list-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.8rem;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.artist-song-list-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+}
+
+.artist-song-list-item .item-left {
+    position: relative;
+    width: 50px;
+    /* Fixed size for cover */
+    height: 50px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+.artist-song-list-item .item-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.artist-song-list-item .item-info {
+    flex: 1;
+    min-width: 0;
+    /* Allow text to truncate */
+    display: flex;
+    flex-direction: column;
+}
+
+.artist-song-list-item .item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-main);
+}
+
+.artist-song-list-item .item-artist {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* NEW: Skeleton for vertical artist song list */
+.artist-song-list-item-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.8rem;
+    padding: 0.75rem 1rem;
+    position: relative;
+    /* For shimmer */
+    overflow: hidden;
+    /* For shimmer */
+}
+
+.artist-song-list-item-skeleton .skeleton-item-left {
+    width: 50px;
+    height: 50px;
+    border-radius: 0.5rem;
+    flex-shrink: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.artist-song-list-item-skeleton .skeleton-item-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.artist-song-list-item-skeleton .skeleton-item-name {
+    width: 80%;
+    height: 14px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+}
+
+.artist-song-list-item-skeleton .skeleton-item-artist {
+    width: 60%;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+}
+
+.artist-song-list-item-skeleton .skeleton-item-right {
+    width: 24px;
+    height: 24px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Active song styling for list items */
+.artist-song-list-item.is-active-song .item-name {
+    color: #22c55e;
+    /* Green color for active song */
+}
+
+/* Three dots icon for list items */
+.artist-song-list-item .item-right {
+    flex-shrink: 0;
+}
+
+.artist-song-list-item .more-options-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.artist-song-list-item .more-options-btn:hover {
+    color: var(--text-main);
+}

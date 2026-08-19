@@ -137,6 +137,7 @@ const loadNotifications = (userId) => {
 // [NEW] Export a cleanup function to be called when navigating away
 export const cleanupNotifications = () => {
     if (unsubscribeNotifications) {
+        // [FIX] Ensure the listener is unsubscribed
         console.log("Cleaning up notification listener.");
         unsubscribeNotifications();
         unsubscribeNotifications = null;

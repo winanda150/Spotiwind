@@ -51,6 +51,8 @@ let homeScrollPosition = 0; // NEW: To store scroll position of the home page
 let artistDataForPageLoad = null; // [NEW] Untuk menyimpan data artis saat navigasi
 let friendActivityListeners = []; // Store listeners so they can be cleared
 let lastSearchQuery = ''; // [NEW] Variable to store the last search query
+let notificationPageStyleLink = null; // [NEW] To store the dynamically added notification page CSS link (using notifications-mobile.css)
+let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
@@ -1790,6 +1792,33 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.innerHTML = newContent;
 
                 // [FIX] Re-initialize dropdown listeners first before other UI updates.
+                // [NEW] Dynamically load notification page CSS
+                if (page.includes('notifications-mobile.html')) {
+                    if (!notificationPageStyleLink) {
+                        notificationPageStyleLink = document.createElement('link');
+                        notificationPageStyleLink.rel = 'stylesheet';
+                        notificationPageStyleLink.href = 'frontend/src/assets/css/notifications-mobile.css';
+                        document.head.appendChild(notificationPageStyleLink);
+                    }
+                } else if (page.includes('artist-mobile.html')) {
+                    if (!artistPageStyleLink) {
+                        artistPageStyleLink = document.createElement('link');
+                        artistPageStyleLink.rel = 'stylesheet';
+                        artistPageStyleLink.href = 'frontend/src/assets/css/artist-mobile.css';
+                        document.head.appendChild(artistPageStyleLink);
+                    }
+                } else {
+                    // Remove notification page CSS if navigating away
+                    if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
+                        notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
+                        notificationPageStyleLink = null;
+                    }
+                    // [NEW] Remove artist page CSS if navigating away
+                    if (artistPageStyleLink && artistPageStyleLink.parentNode) {
+                        artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
+                        artistPageStyleLink = null;
+                    }
+                }
                 initializeProfileDropdown();
 
                 // Now, update user-specific UI elements.
@@ -1814,110 +1843,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     // cukup inisialisasi fungsi search-nya saja.
                     // Fungsi fetchIndonesianSongs tetap dipanggil agar data lagu lokal tersedia untuk pencarian.
                     fetchWithContinuousRetry(fetchIndonesianSongs); // Diperlukan untuk data lagu lokal di fungsi pencarian
-                } else if (page.includes('artist-mobile.html') && artistDataForPageLoad) {
-                    // --- LOGIKA YANG DIPINDAHKAN DARI loadArtistPage ---
-                    initializeSkeletons();
-                    const artist = artistDataForPageLoad;
-                    let artistPageTitleVisibilityTimeout = null;
+                } else if (page.includes('artist-mobile.html')) {
+                    const artistModule = await import('./artist-mobile.js').catch(err => { console.error("Failed to load artist module:", err); return {}; });
+                    const { initArtistPage } = artistModule;
 
-                    const parallaxHandler = () => {
-                        const hero = document.getElementById('artistHero');
-                        const header = document.querySelector('.artist-page-header');
-                        const backButton = document.querySelector('.artist-page-header .back-btn');
-                        const artistPageTitle = document.getElementById('artistPageName');
-                        const artistNameWrapper = document.getElementById('artistNameWrapper');
-
-                        if (!hero || !header || !artistNameWrapper || !artistPageTitle || !backButton) {
-                            window.removeEventListener('scroll', parallaxHandler);
-                            return;
-                        }
-
-                        const artistNameWrapperTop = artistNameWrapper.getBoundingClientRect().top;
-                        const headerHeight = header.offsetHeight;
-                        const artistNameWrapperBottom = artistNameWrapper.getBoundingClientRect().bottom;
-                        const shouldShowArtistNameInHeader = artistNameWrapperBottom <= headerHeight;
-
-                        if (shouldShowArtistNameInHeader) {
-                            if (!artistPageTitle.classList.contains('visible')) {
-                                clearTimeout(artistPageTitleVisibilityTimeout);
-                                artistPageTitleVisibilityTimeout = setTimeout(() => {
-                                    artistPageTitle.classList.add('visible');
-                                    artistPageTitle.setAttribute('aria-hidden', 'false');
-                                }, 50);
-                            }
-                        } else {
-                            clearTimeout(artistPageTitleVisibilityTimeout);
-                            artistPageTitle.classList.remove('visible');
-                            artistPageTitle.setAttribute('aria-hidden', 'true');
-                        }
-
-                        header.classList.toggle('scrolled', artistNameWrapperBottom <= headerHeight);
-                        backButton.classList.toggle('transparent-bg', artistNameWrapperBottom <= headerHeight);
-
-                        const hasScrolled = document.documentElement.scrollTop > 0;
-                        const shouldShowShadow = hasScrolled && (artistNameWrapperTop < 0 || artistNameWrapperBottom <= headerHeight);
-                        artistNameWrapper.classList.toggle('has-dynamic-shadow', shouldShowShadow);
-                    };
-
-                    // 1. Header
-                    document.getElementById('artistPageName').textContent = artist.name;
-                    const backButton = contentContainer.querySelector('.back-btn');
-                    if (backButton) {
-                        backButton.addEventListener('click', async (e) => {
-                            e.preventDefault();
-                            window.removeEventListener('scroll', parallaxHandler);
-                            document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
-                            const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${previousPageUrl}"]`);
-                            if (targetNavItem) targetNavItem.classList.add('active');
-                            await loadPageContent(previousPageUrl);
-                        });
+                    if (typeof initArtistPage === 'function' && artistDataForPageLoad) {
+                        initArtistPage(artistDataForPageLoad, previousPageUrl);
+                        artistDataForPageLoad = null; // Clean up after initialization
+                    } else {
+                        console.error("initArtistPage function not found or artist data missing.");
+                        contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to initialize artist page.</p>`;
                     }
-
-                    // 2. Hero Section
-                    const artistHero = document.getElementById('artistHero');
-                    if (artistHero) {
-                        const heroImage = document.getElementById('artistHeroImage');
-                        if (heroImage) {
-                            heroImage.src = artist.photo;
-                            heroImage.alt = artist.name;
-                            heroImage.onerror = () => {
-                                heroImage.src = 'https://via.placeholder.com/500?text=Image+Error';
-                            };
-                        }
-                    }
-
-                    // 3. Artist Name Wrapper
-                    const artistNameWrapper = document.getElementById('artistNameWrapper');
-                    if (artistNameWrapper) {
-                        artistNameWrapper.innerHTML = `
-                            <h1 class="artist-hero-name">${artist.name}</h1>
-                            <div class="artist-verified-badge">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256">
-                                    <path d="M0 0h256v256H0z" fill="none" />
-                                    <path fill="#0095f6"
-                                        d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57c-1.36-3.27-1.44-8.69-1.52-13.94c-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52c-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14c-3.25 1.36-8.69 1.44-13.94 1.52c-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94c-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94 3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18m-52.2 6.84l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32" />
-                                </svg>
-                                <span>Diverifikasi oleh Spotiwind</span>
-                            </div>
-                        `;
-                    }
-
-                    // 4. Fetch and Render Songs
-                    const songsGrid = document.getElementById('artistSongsGrid');
-                    if (songsGrid) {
-                        const isLocalArtist = isNaN(parseInt(artist.id));
-                        if (isLocalArtist) {
-                            fetchWithContinuousRetry(() => fetchLocalArtistSongs(artist));
-                        } else {
-                            fetchWithContinuousRetry(() => fetchArtistSongs(artist.id, artist.name));
-                        }
-                    }
-
-                    // 5. Attach parallax scroll listener
-                    window.addEventListener('scroll', parallaxHandler);
-
-                    // 6. Clean up
-                    artistDataForPageLoad = null;
                 } else if (page.includes('notifications-mobile.html')) {
                     // --- LOGIKA YANG DIPINDAHKAN DARI loadNotificationPage ---
                     const notificationsModule = await import('./notifications-mobile.js').catch(err => { console.error("Failed to load notifications module:", err); return {}; });
@@ -1930,6 +1866,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         // Call the cleanup function before navigating back
                         if (typeof cleanupNotifications === 'function') {
                             cleanupNotifications();
+                        }
+                        // [NEW] Also try to clean up artist page listeners if they exist
+                        const artistModule = await import('./artist-mobile.js').catch(() => ({}));
+                        const { cleanupArtistPage } = artistModule;
+                        if (typeof cleanupArtistPage === 'function') {
+                            cleanupArtistPage();
                         }
 
                         // Deactivate all current active nav items
@@ -2042,6 +1984,17 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         fetchWithContinuousRetry(fetchNewReleases);
         fetchWithContinuousRetry(fetchIndonesianSongs);
     };
+
+// [NEW] Expose necessary functions to the global scope for modules
+window.spotiwind = {
+    mobile: {
+        fetchWithContinuousRetry,
+        fetchLocalArtistSongs,
+        fetchArtistSongs,
+        loadPageContent,
+        initializeSkeletons
+    }
+};
 
     /**
      * [NEW] Initializes the profile dropdown menu functionality.
