@@ -35,9 +35,7 @@ let allFriendsActivityData = []; // Buffer for all data from the modal
 let modalDisplayCount = 0; // Tracking the number of items rendered in the modal
 const MODAL_PAGE_SIZE = 50;
 
-// Jamendo API Configuration (Free for developers)
-const JAMENDO_CLIENT_ID = '17b8da78';
-const JAMENDO_API_URL = 'https://api.jamendo.com/v3.0/tracks/';
+import * as jamendoService from '../../services/jamendoService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -730,13 +728,10 @@ const renderGrid = (gridSelector, items, itemRenderer, skeletonType, emptyMessag
  */
 const fetchTopArtists = async () => {
     try {
-        // We take a higher limit (50) to filter for artists who actually have original photos
-        const url = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total`;
-        const response = await fetchWithRetry(url);
-        if (!response.ok) throw new Error("Failed to contact Jamendo server");
-        const data = await response.json();
-        
-        if (data.results) {
+        const results = await jamendoService.getTopArtists(50);
+
+        if (results) {
+            const data = { results }; // Adapt to the existing structure
             // Filter: Only take artists who have an original image link from Jamendo
             const artistsWithPhotos = data.results
                 .filter(item => item.image && item.image.trim() !== "")
@@ -766,16 +761,12 @@ const fetchTopArtists = async () => {
  */
 const fetchTrendingMusic = async () => {
     try {
-        // We take a higher limit (50) to filter for unique artists in the grid
-        const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total&include=stats`;
-        const response = await fetchWithRetry(url);
-        if (!response.ok) throw new Error("Failed to contact Jamendo server");
-        const data = await response.json(); // Parse JSON here
+        const results = await jamendoService.getTrendingTracks(50);
         
         // Filter logic: Only take one song per artist to make the grid display more varied
         const seenArtists = new Set();
         const uniqueResults = [];
-        for (const item of data.results) {
+        for (const item of results) {
             if (!seenArtists.has(item.artist_id)) {
                 seenArtists.add(item.artist_id);
                 uniqueResults.push(item);

@@ -527,6 +527,11 @@ body.login-page {
     gap: 1rem;
 }
 
+.page-transition-overlay.is-loading::after {
+    content: "Checking authentication...";
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
 .page-transition-overlay.fade-out {
     opacity: 0;
     visibility: hidden;
@@ -543,6 +548,6 @@ body.login-page {
 }
 
 /* Hide form while checking auth or during transition */
-.is-transitioning .main-container {
+.login-page.is-transitioning .main-container {
     display: none !important;
 }

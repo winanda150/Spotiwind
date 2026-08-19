@@ -24,7 +24,7 @@ import {
     addDoc
 } from "./firebase-config.js";
 
-import * as jamendoApi from '../../api/jamendo.js';
+import * as jamendoService from '../../services/jamendoService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -566,22 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initialHomeContent = appContainer.innerHTML;
     }
 
-    // [FIX] Attach the "click outside to close dropdown" listener only once.
-    // The handler is smart enough to find the current elements each time it runs.
-    document.addEventListener('click', (e) => {
-        // These elements are queried every time to ensure we have the latest references,
-        // especially after page navigation.
-        const avatarContainer = document.querySelector('.header-right .avatar-container');
-        const profileDropdown = document.getElementById('profileDropdown');
-
-        if (profileDropdown && profileDropdown.classList.contains('active')) {
-            // Close if the click is outside the avatar AND outside the dropdown menu itself.
-            if (avatarContainer && !avatarContainer.contains(e.target) && !profileDropdown.contains(e.target)) {
-                profileDropdown.classList.remove('active');
-            }
-        }
-    });
-
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
     document.body.addEventListener('click', (e) => {
@@ -609,6 +593,43 @@ document.addEventListener('DOMContentLoaded', () => {
             navigateToArtistPage({ id: artistId, name: artistName, photo: artistPhoto });
             return;
         }
+
+        // [REFACTOR] Centralized event delegation for dynamic elements
+        const target = e.target;
+
+        // 1. Profile Dropdown Toggle
+        const avatarContainer = target.closest('.header-right .avatar-container');
+        if (avatarContainer) {
+            e.stopPropagation();
+            document.getElementById('profileDropdown')?.classList.toggle('active');
+            return;
+        }
+
+        // 2. Logout Button
+        if (target.closest('#logoutBtn')) {
+            signOut(auth).catch(error => {
+                console.error("Logout Error:", error);
+                showToast("Failed to log out. Please try again.");
+            });
+            return;
+        }
+
+        // 3. Footer Dropdowns
+        const footerHeader = target.closest('.footer-link-header');
+        if (footerHeader) {
+            const currentGroup = footerHeader.closest('.footer-link-group');
+            if (!currentGroup) return;
+            // Close other open dropdowns
+            document.querySelectorAll('.footer-link-group.expanded').forEach(openGroup => {
+                if (openGroup !== currentGroup) openGroup.classList.remove('expanded');
+            });
+            currentGroup.classList.toggle('expanded');
+            return;
+        }
+
+        // 4. Close dropdowns when clicking outside
+        if (!target.closest('.profile-dropdown-menu')) document.getElementById('profileDropdown')?.classList.remove('active');
+        if (!target.closest('.footer-link-group')) document.querySelectorAll('.footer-link-group.expanded').forEach(g => g.classList.remove('expanded'));
     });
 
     const debounce = (func, delay) => {
@@ -905,7 +926,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const fetchTopArtists = async () => {
         const artistsGrid = document.querySelector('.artists-grid');
         try {
-            const results = await jamendoApi.getTopArtists(50);
+            const results = await jamendoService.getTopArtists(50);
             
             if (results) {
                 const artistsWithPhotos = results
@@ -939,8 +960,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     
         try {
             const [primaryResponse, collabResponse] = await Promise.all([
-                jamendoApi.getArtistTracks(artistId, 20),
-                jamendoApi.getArtistTracksByName(artistName, 20)
+                jamendoService.getArtistTracks(artistId, 20),
+                jamendoService.getArtistTracksByName(artistName, 20)
             ]);
 
             // Combine and deduplicate results
@@ -1266,8 +1287,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
     const fetchApiResults = async (query) => {
         const [res1, res2] = await Promise.all([
-            jamendoApi.searchTracks(query, 25),
-            jamendoApi.searchTracksByName(query, 25)
+            jamendoService.searchTracks(query, 25),
+            jamendoService.searchTracksByName(query, 25)
         ]);
         return [...res1, ...res2];
     };
@@ -1348,7 +1369,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const gridSelector = '#newReleasesGrid';
 
         try {
-            const results = await jamendoApi.getNewReleases(50);
+            const results = await jamendoService.getNewReleases(50);
 
             // Filter to ensure each artist appears only once in the new releases list
             const seenArtists = new Set();
@@ -1500,7 +1521,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         try {
             if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
             
-            const results = await jamendoApi.getTrendingTracks(50);
+            const results = await jamendoService.getTrendingTracks(50);
 
             // Filter logic: Only take one song per artist for visual variety
             const seenArtists = new Set();
@@ -1676,17 +1697,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.innerHTML = initialHomeContent;
                 // Restore scroll position for the home page
                 document.documentElement.scrollTop = homeScrollPosition;
-                
+
                 // Re-inisialisasi skeleton dan fetch data lagi untuk halaman home
                 initializeSkeletons();
                 initializeData(); // Panggil fungsi yang memuat semua data API
                 initializeSearch();
-    
-                // Re-run logic for home-specific elements
-                initializeHomeContent();
-                const user = auth.currentUser;
-                // [FIX] Panggil ulang inisialisasi footer setelah konten home dimuat kembali
-                initializeFooterDropdowns(contentContainer);
+                initializeHomeContent(); // [FIX] Panggil ulang inisialisasi konten home (copyright, greeting)
+
+                const user = auth.currentUser; // [FIX] Dapatkan user saat ini dari auth
 
                 initializeProfileDropdown();
                 if (user) {
@@ -1694,24 +1712,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 }
 
                 // [NEW] Setup unread notification badge listener for the home page
-                const notificationBadge = document.getElementById('notificationBadge');
-                if (notificationBadge && user) {
-                    const notificationsRef = collection(db, "users", user.uid, "notifications");
-                    const q = query(notificationsRef, where("isRead", "==", false));
-
-                    unreadNotificationsListener = onSnapshot(q, (snapshot) => {
-                        const unreadCount = snapshot.size;
-                        if (unreadCount > 0) {
-                            notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-                            notificationBadge.classList.remove('hidden');
-                        } else {
-                            notificationBadge.classList.add('hidden');
-                        }
-                    }, (error) => { console.error("Error fetching unread notification count:", error); });
+                if (user) {
+                    setupUnreadNotificationsListener(user.uid);
                 }
 
-                // [FIX] Re-attach the notification button listener
-                // because it was lost when the content was replaced.
+                // [FIX] Re-attach the notification button listener because it was lost.
                 const notificationBtn = document.getElementById('notificationBtn');
                 if (notificationBtn) { // [REFACTOR]
                     notificationBtn.addEventListener('click', navigateToNotificationPage);
@@ -1783,7 +1788,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     }
                 }
                 initializeProfileDropdown();
-
                 // Now, update user-specific UI elements.
                 const user = auth.currentUser;
                 if (user) {
@@ -1878,6 +1882,32 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
+    /**
+     * [NEW] Sets up a listener for unread notifications to show a badge.
+     * @param {string} userId - The UID of the current user.
+     */
+    const setupUnreadNotificationsListener = (userId) => {
+        // Clean up any existing listener before creating a new one
+        if (unreadNotificationsListener) {
+            unreadNotificationsListener();
+            unreadNotificationsListener = null;
+        }
+
+        const notificationBadge = document.getElementById('notificationBadge');
+        if (!notificationBadge) return;
+
+        const notificationsRef = collection(db, "users", userId, "notifications");
+        const q = query(notificationsRef, where("isRead", "==", false));
+
+        unreadNotificationsListener = onSnapshot(q, (snapshot) => {
+            const unreadCount = snapshot.size;
+            notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
+            notificationBadge.classList.toggle('hidden', unreadCount === 0);
+        }, (error) => {
+            console.error("Error fetching unread notification count:", error);
+        });
+    };
+
     const navigateToArtistPage = (artist) => {
         homeScrollPosition = document.documentElement.scrollTop;
         artistDataForPageLoad = artist;
@@ -1964,58 +1994,12 @@ window.spotiwind = {
      * This includes opening, closing, and the logout action.
      */
     const initializeProfileDropdown = () => {
-        const avatarContainer = document.querySelector('.header-right .avatar-container');
+        // This function is now only responsible for ensuring the dropdown exists.
+        // The event handling is done via delegation on document.body.
+        // We can potentially remove this function if no other initialization is needed,
+        // but let's keep it for now in case we need to add other setup logic later.
         const profileDropdown = document.getElementById('profileDropdown');
-        const logoutBtn = document.getElementById('logoutBtn');
-
-        if (avatarContainer && profileDropdown) {
-            // Use replaceWith to clear any old listeners and prevent duplicates
-            const newAvatarContainer = avatarContainer.cloneNode(true);
-            avatarContainer.parentNode.replaceChild(newAvatarContainer, avatarContainer);
-            
-            newAvatarContainer.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.getElementById('profileDropdown').classList.toggle('active');
-            });
-        }
-
-        if (logoutBtn) {
-            const newLogoutBtn = logoutBtn.cloneNode(true);
-            logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
-
-            newLogoutBtn.addEventListener('click', async () => {
-                try {
-                    await signOut(auth);
-                    // onAuthStateChanged will handle the redirect
-                    console.log("User logged out.");
-                } catch (error) {
-                    console.error("Logout Error:", error);
-                    showToast("Failed to log out. Please try again.");
-                }
-            });
-        }
-
-    };
-
-    // [FIX] Single, definitive function for footer dropdowns in the global scope.
-    const initializeFooterDropdowns = (container) => {
-        const headers = container.querySelectorAll('.footer-link-header');
-        headers.forEach(header => {
-            // Replace the node to remove any old, lingering event listeners
-            const newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
-
-            newHeader.addEventListener('click', () => {
-                const currentGroup = newHeader.closest('.footer-link-group');
-                if (!currentGroup) return;
-
-                // Close other dropdowns
-                document.querySelectorAll('.footer-link-group.expanded').forEach(openGroup => {
-                    if (openGroup !== currentGroup) openGroup.classList.remove('expanded');
-                });
-                currentGroup.classList.toggle('expanded');
-            });
-        });
+        if (!profileDropdown) console.warn("Profile dropdown element not found on this page.");
     };
 
     // Panggil initializeSkeletons sekali saat halaman pertama kali dimuat.
@@ -2023,21 +2007,6 @@ window.spotiwind = {
     
     // Panggil initializeHomeContent sekali saat halaman pertama kali dimuat.
     initializeHomeContent();
-
-    // [FIX] Pindahkan listener ini ke luar agar tidak terpengaruh oleh navigasi
-    // Inisialisasi untuk pemuatan halaman awal
-    initializeFooterDropdowns(document.body);
-
-    // [NEW] Tambahkan logika untuk menutup dropdown saat mengklik di luar area footer
-    document.addEventListener('click', (e) => {
-        // Periksa apakah klik terjadi di luar grup link footer
-        if (!e.target.closest('.footer-link-group')) {
-            // Jika ya, cari semua dropdown yang terbuka dan tutup
-            document.querySelectorAll('.footer-link-group.expanded').forEach(openGroup => {
-                openGroup.classList.remove('expanded');
-            });
-        }
-    });
 
     updateGreeting(true); // Force update on initial load
     // Update the greeting every 1 minute to keep it accurate if the page is left open
@@ -2106,9 +2075,9 @@ window.spotiwind = {
                 }));
 
             const [songRes1, songRes2, artistRes] = await Promise.all([
-                jamendoApi.searchTracks(cleanQuery, 10),
-                jamendoApi.searchTracksByName(cleanQuery, 10),
-                jamendoApi.searchArtistsByName(cleanQuery, 3)
+                jamendoService.searchTracks(cleanQuery, 10),
+                jamendoService.searchTracksByName(cleanQuery, 10),
+                jamendoService.searchArtistsByName(cleanQuery, 3)
                 ]);
 
             // 1. Process Artists
@@ -2254,21 +2223,7 @@ window.spotiwind = {
             initializeProfileDropdown();
 
             // [NEW] Setup unread notification badge listener
-            const notificationBadge = document.getElementById('notificationBadge');
-            if (notificationBadge) {
-                const notificationsRef = collection(db, "users", user.uid, "notifications");
-                const q = query(notificationsRef, where("isRead", "==", false));
-
-                unreadNotificationsListener = onSnapshot(q, (snapshot) => {
-                    const unreadCount = snapshot.size;
-                    if (unreadCount > 0) {
-                        notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-                        notificationBadge.classList.remove('hidden');
-                    } else {
-                        notificationBadge.classList.add('hidden');
-                    }
-                }, (error) => { console.error("Error fetching unread notification count:", error); });
-            }
+            setupUnreadNotificationsListener(user.uid);
 
             setupUserPresence(user);
             initializeData(); // Load API data

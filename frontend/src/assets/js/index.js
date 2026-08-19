@@ -1,18 +1,15 @@
 import {
     auth,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    updateProfile,
-    GoogleAuthProvider,
-    FacebookAuthProvider,
-    OAuthProvider,
-    signInWithPopup,
-    sendPasswordResetEmail,
-    onAuthStateChanged,
-    setPersistence,
-    browserLocalPersistence,
-    browserSessionPersistence
+    onAuthStateChanged
 } from "./firebase-config.js";
+
+import {
+    getErrorMessage,
+    registerWithEmail,
+    loginWithEmail,
+    loginWithSocial,
+    resetPassword
+} from "../../services/authService.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     // Element Selectors
@@ -26,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const hideLoadingOverlay = () => {
         if (overlay) {
+            document.body.classList.remove('is-transitioning'); // [FIX] Explicitly remove the class
             overlay.classList.add('fade-out');
         }
     };
@@ -39,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auth Observer: Check if the user was previously logged in
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            document.body.classList.add('is-transitioning');
             console.log("User detected:", user.email);
             document.body.classList.add('is-transitioning'); // Add this class
             showLoadingOverlay();
@@ -52,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1000);
         } else {
             // Jika tidak ada user (Logged Out), langsung sembunyikan overlay
+            document.body.classList.remove('is-transitioning');
             // dan tampilkan halaman login.
             hideLoadingOverlay();
         }
@@ -71,39 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
         formSubtitle.textContent = subtitle;
     };
 
-    loginTab.addEventListener('click', () => {
-        switchTab(loginTab, registerTab, loginForm, registerForm, 'Welcome Back 👋', 'Login to continue your music journey');
-    });
-
-    registerTab.addEventListener('click', () => {
-        switchTab(registerTab, loginTab, registerForm, loginForm, 'Create Account ✨', 'Start your musical journey today');
-    });
-
-    // Helper: Firebase Error Mapping
-    const getErrorMessage = (code) => {
-        switch (code) {
-            case 'auth/email-already-in-use': return 'Email is already registered.';
-            case 'auth/invalid-email': return 'Invalid email format. Please check your email address.';
-            case 'auth/weak-password': return 'Password is too weak (min 6 characters).';
-            case 'auth/user-not-found': 
-                return 'Email not found. Please check it or sign up for a new account.';
-            case 'auth/wrong-password':
-                return 'Incorrect password. Please try again or reset your password.';
-            case 'auth/invalid-credential':
-                return 'Invalid credentials. Your email or password may be incorrect.';
-            case 'auth/too-many-requests':
-                return 'Too many failed attempts. Access has been temporarily suspended. Try again later.';
-            default: return `Error: ${code}. Please try again.`;
-        }
-    };
-
     // Generic Social Login Handler
     const handleSocialLogin = async (providerInstance, btn) => {
         btn.disabled = true;
         btn.style.opacity = '0.7';
         
         try {
-            const result = await signInWithPopup(auth, providerInstance);
+            const result = await loginWithSocial(providerInstance);
             showLoadingOverlay(); // Show overlay on successful popup
             const user = result.user;
             // Redirect is handled automatically by onAuthStateChanged
@@ -115,20 +89,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Tab Event Listeners
+    loginTab.addEventListener('click', () => {
+        switchTab(loginTab, registerTab, loginForm, registerForm, 'Welcome Back 👋', 'Login to continue your music journey');
+    });
+
+    registerTab.addEventListener('click', () => {
+        switchTab(registerTab, loginTab, registerForm, loginForm, 'Create Account ✨', 'Start your musical journey today');
+    });
+
     // Social Login Bindings
-    document.getElementById('googleBtn').addEventListener('click', (e) => {
-        handleSocialLogin(new GoogleAuthProvider(), e.currentTarget);
+    document.getElementById('googleBtn').addEventListener('click', (e) => { // [FIX] Pass the provider name as a string
+        handleSocialLogin('google', e.currentTarget); // Correct: 'google' is a string
     });
 
-    document.getElementById('facebookBtn').addEventListener('click', (e) => {
-        handleSocialLogin(new FacebookAuthProvider(), e.currentTarget);
+    document.getElementById('facebookBtn').addEventListener('click', (e) => { // [FIX] Pass the provider name as a string
+        handleSocialLogin('facebook', e.currentTarget); // Correct: 'facebook' is a string
     });
 
-    document.getElementById('appleBtn').addEventListener('click', (e) => {
-        handleSocialLogin(new OAuthProvider('apple.com'), e.currentTarget);
+    document.getElementById('appleBtn').addEventListener('click', (e) => { // [FIX] Pass the provider name as a string
+        handleSocialLogin('apple', e.currentTarget); // Correct: 'apple' is a string
     });
 
-    // Forgot Password
     const forgotLink = document.getElementById('forgotPassword');
     forgotLink.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -138,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            await sendPasswordResetEmail(auth, email); // Use await here
+            await resetPassword(email);
             alert("A password reset email has been sent. Please check your inbox.");
         } catch (error) {
             console.error("Reset Password Error:", error);
@@ -182,24 +164,17 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.textContent = 'Processing...';
 
             try {
-                // Handle Persistence (Remember Me)
-                const persistence = data['remember-me'] ? browserLocalPersistence : browserSessionPersistence;
-                await setPersistence(auth, persistence);
-
+                const rememberMe = data['remember-me'] === 'on';
                 const email = data.email.trim();
                 const password = data.password;
 
                 if (type === 'register') {
                     console.log("Attempting registration for:", email);
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    // Save full name to Firebase profile
-                    await updateProfile(userCredential.user, {
-                        displayName: data.name.trim()
-                    });
+                    await registerWithEmail(data.name.trim(), email, password, rememberMe);
                     loginTab.click(); // Switch to login tab
                 } else {
                     console.log("Attempting manual login for:", email);
-                    await signInWithEmailAndPassword(auth, email, password);
+                    await loginWithEmail(email, password, rememberMe);
                     showLoadingOverlay(); // Show loader after successful login
                     // Redirect is handled automatically by onAuthStateChanged
                 }
