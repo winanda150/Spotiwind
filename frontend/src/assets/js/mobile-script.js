@@ -24,9 +24,7 @@ import {
     addDoc
 } from "./firebase-config.js";
 
-// Jamendo API Configuration (Free for developers)
-const JAMENDO_CLIENT_ID = '17b8da78';
-const JAMENDO_API_URL = 'https://api.jamendo.com/v3.0/tracks/';
+import * as jamendoApi from '../../api/jamendo.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -907,13 +905,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const fetchTopArtists = async () => {
         const artistsGrid = document.querySelector('.artists-grid');
         try {
-            const url = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total`;
-            const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Failed to contact Jamendo server");
-            const data = await response.json();
+            const results = await jamendoApi.getTopArtists(50);
             
-            if (data.results) {
-                const artistsWithPhotos = data.results
+            if (results) {
+                const artistsWithPhotos = results
                     .filter(item => item.image && item.image.trim() !== "")
                     .slice(0, 10)
                     .map(item => ({
@@ -943,22 +938,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (!songsGrid) return false; // Indicate failure if grid not found
     
         try {
-            // [MODIFIED] Fetch songs by artist_id (primary) and artist_name (collaborations) in parallel
-            const primaryUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=20&artist_id=${artistId}&order=popularity_total&include=stats`;
-            const collabUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=20&artist_name=${encodeURIComponent(artistName)}&order=popularity_total&include=stats`;
-    
             const [primaryResponse, collabResponse] = await Promise.all([
-                fetchWithRetry(primaryUrl),
-                fetchWithRetry(collabUrl)
+                jamendoApi.getArtistTracks(artistId, 20),
+                jamendoApi.getArtistTracksByName(artistName, 20)
             ]);
-    
-            const primaryData = await primaryResponse.json();
-            const collabData = await collabResponse.json();
-    
+
             // Combine and deduplicate results
             const allSongs = [
-                ...(primaryData.results || []),
-                ...(collabData.results || [])
+                ...primaryResponse,
+                ...collabResponse
             ];
     
             const uniqueSongsMap = new Map();
@@ -1088,21 +1076,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
      * @param {number} retries - Number of retry attempts.
      * @returns {Promise<Response>}
      */
-    const fetchWithRetry = async (url, options = {}, retries = 3) => {
-        let lastError;
-        for (let i = 0; i < retries; i++) { // Attempt 'retries' times
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response; // If successful, return the response
-            } catch (error) {
-                lastError = error;
-                console.log(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
-                if (i < retries - 1) await new Promise(res => setTimeout(res, 2 ** i * 1000)); // Exponential backoff: 1s, 2s, 4s...
-            }
-        }
-        throw lastError; // Throw the last error after all attempts fail
-    };
     // Helper function to format play counts (e.g., 1.2M, 500K, 300)
     const formatPlayCount = (count) => {
         if (typeof count !== 'number' || isNaN(count)) {
@@ -1291,15 +1264,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         return score;
     };
 
-    const fetchApiResults = async (cleanQuery) => {
-        const baseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=25&include=stats&order=popularity_total`;
+    const fetchApiResults = async (query) => {
         const [res1, res2] = await Promise.all([
-            fetchWithRetry(`${baseUrl}&search=${encodeURIComponent(cleanQuery)}`),
-            fetchWithRetry(`${baseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`)
+            jamendoApi.searchTracks(query, 25),
+            jamendoApi.searchTracksByName(query, 25)
         ]);
-        const data1 = await res1.json();
-        const data2 = await res2.json();
-        return [...(data1.results || []), ...(data2.results || [])];
+        return [...res1, ...res2];
     };
 
     const getLocalResults = () => {
@@ -1378,16 +1348,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const gridSelector = '#newReleasesGrid';
 
         try {
-            // We take a higher limit (50) to filter for unique artists
-            const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=releasedate_desc&include=stats`;
-            const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Failed to contact Jamendo server");
-            const data = await response.json();
+            const results = await jamendoApi.getNewReleases(50);
 
             // Filter to ensure each artist appears only once in the new releases list
             const seenArtists = new Set();
             const uniqueResults = [];
-            for (const item of data.results) {
+            for (const item of results) {
                 if (!seenArtists.has(item.artist_id)) {
                     seenArtists.add(item.artist_id);
                     uniqueResults.push(item);
@@ -1490,7 +1456,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         try {
             // [FIX 2] Correct the path to the manifest file. Assuming it's in the public assets folder.
-            const res = await fetchWithRetry('frontend/public/indonesian-songs-manifest.json');
+            const res = await fetch('frontend/public/indonesian-songs-manifest.json');
             if (!res.ok) throw new Error(`Failed to load manifest: ${res.status}`);
             const data = await res.json();
 
@@ -1533,16 +1499,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const sectionTitle = document.getElementById('sectionTitle');
         try {
             if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
-            // We take a higher limit (50) to filter for unique artists in the grid
-            const url = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=50&order=popularity_total&include=stats`;
-            const response = await fetchWithRetry(url);
-            if (!response.ok) throw new Error("Failed to contact Jamendo server");
-            const data = await response.json();
+            
+            const results = await jamendoApi.getTrendingTracks(50);
 
             // Filter logic: Only take one song per artist for visual variety
             const seenArtists = new Set();
             const uniqueResults = [];
-            for (const item of data.results) {
+            for (const item of results) {
                 if (!seenArtists.has(item.artist_id)) {
                     seenArtists.add(item.artist_id);
                     uniqueResults.push(item);
@@ -2142,21 +2105,14 @@ window.spotiwind = {
                     type: 'artist'
                 }));
 
-            const songBaseUrl = `${JAMENDO_API_URL}?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&include=stats`;
-            const artistBaseUrl = `https://api.jamendo.com/v3.0/artists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=3`;
-
             const [songRes1, songRes2, artistRes] = await Promise.all([
-                fetchWithRetry(`${songBaseUrl}&search=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
-                fetchWithRetry(`${songBaseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal }),
-                fetchWithRetry(`${artistBaseUrl}&namesearch=${encodeURIComponent(cleanQuery)}`, { signal: searchAbortController.signal })
+                jamendoApi.searchTracks(cleanQuery, 10),
+                jamendoApi.searchTracksByName(cleanQuery, 10),
+                jamendoApi.searchArtistsByName(cleanQuery, 3)
                 ]);
 
-            const songData1 = await songRes1.json();
-            const songData2 = await songRes2.json();
-            const artistData = await artistRes.json();
-
             // 1. Process Artists
-            const artists = (artistData.results || [])
+            const artists = artistRes
                 .filter(a => a.image) // Only artists with images
                 .map(artist => ({
                     id: artist.id,
@@ -2166,7 +2122,7 @@ window.spotiwind = {
                 }));
 
             // 2. Process Songs
-            const combinedSongs = [...(songData1.results || []), ...(songData2.results || []), ...localResults];
+            const combinedSongs = [...songRes1, ...songRes2, ...localResults];
                 const qWords = cleanQuery.split(/\s+/);
             const uniqueSongMap = new Map();
             combinedSongs.forEach(item => uniqueSongMap.set(item.id, item));
