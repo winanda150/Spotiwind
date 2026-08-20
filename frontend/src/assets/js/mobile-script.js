@@ -53,6 +53,7 @@ let notificationPageStyleLink = null; // [NEW] To store the dynamically added no
 let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
 let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
 let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
+let radioPageStyleLink = null; // [NEW] To store the dynamically added radio page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
@@ -1792,6 +1793,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         accountPageStyleLink.href = 'frontend/src/assets/css/account-mobile.css';
                         document.head.appendChild(accountPageStyleLink);
                     }
+                } else if (page.includes('radio-mobile.html')) {
+                    if (!radioPageStyleLink) {
+                        radioPageStyleLink = document.createElement('link');
+                        radioPageStyleLink.rel = 'stylesheet';
+                        radioPageStyleLink.href = 'frontend/src/assets/css/radio-mobile.css';
+                        document.head.appendChild(radioPageStyleLink);
+                    }
                 } else {
                     // Remove notification page CSS if navigating away
                     if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
@@ -1811,6 +1819,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     if (accountPageStyleLink && accountPageStyleLink.parentNode) {
                         accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
                         accountPageStyleLink = null;
+                    }
+                    if (radioPageStyleLink && radioPageStyleLink.parentNode) {
+                        radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
+                        radioPageStyleLink = null;
                     }
                 }
                 initializeProfileDropdown();
@@ -1907,6 +1919,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         initAccountPage();
                     } else {
                         console.error("initAccountPage function not found in module.");
+                    }
+                } else if (page.includes('radio-mobile.html')) {
+                    const radioModule = await import('./radio-mobile.js').catch(err => { console.error("Failed to load radio module:", err); return {}; });
+                    const { initRadioPage } = radioModule;
+
+                    if (typeof initRadioPage === 'function') {
+                        initRadioPage();
+                    } else {
+                        console.error("initRadioPage function not found in module.");
                     }
                 } else {
                     // For any other page (like account, etc. in the future)
