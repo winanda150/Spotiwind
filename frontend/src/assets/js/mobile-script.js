@@ -52,6 +52,7 @@ let lastSearchQuery = ''; // [NEW] Variable to store the last search query
 let notificationPageStyleLink = null; // [NEW] To store the dynamically added notification page CSS link (using notifications-mobile.css)
 let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
 let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
+let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
@@ -1784,6 +1785,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         libraryPageStyleLink.href = 'frontend/src/assets/css/library-mobile.css';
                         document.head.appendChild(libraryPageStyleLink);
                     }
+                } else if (page.includes('account-mobile.html')) {
+                    if (!accountPageStyleLink) {
+                        accountPageStyleLink = document.createElement('link');
+                        accountPageStyleLink.rel = 'stylesheet';
+                        accountPageStyleLink.href = 'frontend/src/assets/css/account-mobile.css';
+                        document.head.appendChild(accountPageStyleLink);
+                    }
                 } else {
                     // Remove notification page CSS if navigating away
                     if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
@@ -1799,6 +1807,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
                         libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
                         libraryPageStyleLink = null;
+                    }
+                    if (accountPageStyleLink && accountPageStyleLink.parentNode) {
+                        accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
+                        accountPageStyleLink = null;
                     }
                 }
                 initializeProfileDropdown();
@@ -1886,6 +1898,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         initLibraryPage();
                     } else {
                         console.error("initLibraryPage function not found in module.");
+                    }
+                } else if (page.includes('account-mobile.html')) {
+                    const accountModule = await import('./account-mobile.js').catch(err => { console.error("Failed to load account module:", err); return {}; });
+                    const { initAccountPage } = accountModule;
+
+                    if (typeof initAccountPage === 'function') {
+                        initAccountPage();
+                    } else {
+                        console.error("initAccountPage function not found in module.");
                     }
                 } else {
                     // For any other page (like account, etc. in the future)
