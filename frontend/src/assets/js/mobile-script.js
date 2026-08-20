@@ -51,6 +51,7 @@ let friendActivityListeners = []; // Store listeners so they can be cleared
 let lastSearchQuery = ''; // [NEW] Variable to store the last search query
 let notificationPageStyleLink = null; // [NEW] To store the dynamically added notification page CSS link (using notifications-mobile.css)
 let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
+let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 
@@ -1775,6 +1776,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         artistPageStyleLink.href = 'frontend/src/assets/css/artist-mobile.css';
                         document.head.appendChild(artistPageStyleLink);
                     }
+                } else if (page.includes('library-mobile.html')) {
+                    // [NEW] Dynamically load library page CSS
+                    if (!libraryPageStyleLink) {
+                        libraryPageStyleLink = document.createElement('link');
+                        libraryPageStyleLink.rel = 'stylesheet';
+                        libraryPageStyleLink.href = 'frontend/src/assets/css/library-mobile.css';
+                        document.head.appendChild(libraryPageStyleLink);
+                    }
                 } else {
                     // Remove notification page CSS if navigating away
                     if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
@@ -1785,6 +1794,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     if (artistPageStyleLink && artistPageStyleLink.parentNode) {
                         artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
                         artistPageStyleLink = null;
+                    }
+                    // [NEW] Remove library page CSS if navigating away
+                    if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
+                        libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
+                        libraryPageStyleLink = null;
                     }
                 }
                 initializeProfileDropdown();
@@ -1863,8 +1877,18 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         console.error("initNotificationsPage function not found in module.");
                         contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to initialize notifications.</p>`;
                     }
+                } else if (page.includes('library-mobile.html')) {
+                    // [NEW] Dynamically import and initialize the library page module
+                    const libraryModule = await import('./library-mobile.js').catch(err => { console.error("Failed to load library module:", err); return {}; });
+                    const { initLibraryPage } = libraryModule;
+
+                    if (typeof initLibraryPage === 'function') {
+                        initLibraryPage();
+                    } else {
+                        console.error("initLibraryPage function not found in module.");
+                    }
                 } else {
-                    // For any other page (like library, account, etc. in the future)
+                    // For any other page (like account, etc. in the future)
                     // or pages that don't have special logic, load the default data.
                     initializeSkeletons();
                     initializeData();
