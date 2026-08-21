@@ -1470,13 +1470,27 @@ const isUserPremium = async (uid) => {
         }
     };
 
-    // Simple function to immediately hide the loading overlay
+    const waitForPageLoad = (callback) => {
+        const run = () => requestAnimationFrame(callback);
+        if (document.readyState === 'complete') {
+            run();
+            return;
+        }
+        window.addEventListener('load', run, { once: true });
+    };
+
+    // Simple function to hide the loading overlay only after the page resources are ready.
     const hideLoadingOverlay = () => {
         const overlay = document.getElementById('pageTransition');
-        document.body.classList.remove('is-transitioning');
-        if (overlay) {
-            overlay.classList.add('fade-out');
+        if (!overlay) {
+            document.body.classList.remove('is-transitioning');
+            return;
         }
+
+        waitForPageLoad(() => {
+            document.body.classList.remove('is-transitioning');
+            overlay.classList.add('fade-out');
+        });
     };
 
     // 1. Check Login Status
@@ -1497,10 +1511,8 @@ const isUserPremium = async (uid) => {
                 return;
             }
 
-            // FIX: Add a delay on refresh to make the transition feel consistent
-            setTimeout(() => {
-                hideLoadingOverlay();
-            }, 500);
+            // Wait until the page resources finish loading before hiding the dark transition layer.
+            hideLoadingOverlay();
 
             // Username display is replaced by a notification icon in HTML
             console.log("Logged in as:", user.email);

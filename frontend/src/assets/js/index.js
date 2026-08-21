@@ -21,11 +21,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const formSubtitle = document.querySelector('.subtitle');
     const overlay = document.getElementById('pageTransition');
 
-    const hideLoadingOverlay = () => {
-        if (overlay) {
-            document.body.classList.remove('is-transitioning'); // [FIX] Explicitly remove the class
-            overlay.classList.add('fade-out');
+    const waitForPageLoad = (callback) => {
+        const run = () => requestAnimationFrame(callback);
+        if (document.readyState === 'complete') {
+            run();
+            return;
         }
+        window.addEventListener('load', run, { once: true });
+    };
+
+    const hideLoadingOverlay = () => {
+        if (!overlay) return;
+
+        waitForPageLoad(() => {
+            document.body.classList.remove('is-transitioning');
+            overlay.classList.add('fade-out');
+        });
     };
 
     const showLoadingOverlay = () => {

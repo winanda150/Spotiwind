@@ -138,7 +138,6 @@ const loadNotifications = (userId) => {
 export const cleanupNotifications = () => {
     if (unsubscribeNotifications) {
         // [FIX] Ensure the listener is unsubscribed
-        console.log("Cleaning up notification listener.");
         unsubscribeNotifications();
         unsubscribeNotifications = null;
     }

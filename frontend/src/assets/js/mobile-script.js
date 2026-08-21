@@ -2004,13 +2004,28 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             window.location.replace(url); // <--- HERE
         }
     };
-    // Simple function to immediately hide the loading overlay
+
+    const waitForPageLoad = (callback) => {
+        const run = () => requestAnimationFrame(callback);
+        if (document.readyState === 'complete') {
+            run();
+            return;
+        }
+        window.addEventListener('load', run, { once: true });
+    };
+
+    // Hide the loading overlay only after the page resources have finished loading.
     const hideLoadingOverlay = () => {
         const overlay = document.getElementById('pageTransition');
-        document.body.classList.remove('is-transitioning');
-        if (overlay) {
-            overlay.classList.add('fade-out');
+        if (!overlay) {
+            document.body.classList.remove('is-transitioning');
+            return;
         }
+
+        waitForPageLoad(() => {
+            document.body.classList.remove('is-transitioning');
+            overlay.classList.add('fade-out');
+        });
     };
 
     // Listener for real-time screen size changes
@@ -2060,12 +2075,10 @@ window.spotiwind = {
      * This includes opening, closing, and the logout action.
      */
     const initializeProfileDropdown = () => {
-        // This function is now only responsible for ensuring the dropdown exists.
-        // The event handling is done via delegation on document.body.
-        // We can potentially remove this function if no other initialization is needed,
-        // but let's keep it for now in case we need to add other setup logic later.
+        // Some pages (e.g. notifications page) do not render the profile dropdown.
+        // In those cases, this should be a no-op instead of logging a warning.
         const profileDropdown = document.getElementById('profileDropdown');
-        if (!profileDropdown) console.warn("Profile dropdown element not found on this page.");
+        if (!profileDropdown) return;
     };
 
     // Panggil initializeSkeletons sekali saat halaman pertama kali dimuat.
@@ -2280,9 +2293,7 @@ window.spotiwind = {
                 return;
             }
 
-            setTimeout(() => {
-                hideLoadingOverlay();
-            }, 500);
+            hideLoadingOverlay();
 
             // [FIX] Call the new initialization functions
             initializeUserUI(user);
