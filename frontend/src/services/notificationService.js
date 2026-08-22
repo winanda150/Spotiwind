@@ -4,6 +4,7 @@ import {
     collection,
     query,
     where,
+    orderBy,
     getDocs,
     doc,
     updateDoc,
@@ -41,7 +42,7 @@ export const markNotificationAsRead = async (notificationId) => {
     }
 };
 
-export const subscribeNotifications = (uid, callback) => {
+export const subscribeNotifications = (uid, callback, onError) => {
     if (!uid || typeof callback !== "function") return () => {};
 
     try {
@@ -49,9 +50,13 @@ export const subscribeNotifications = (uid, callback) => {
         return onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
             callback(items);
+        }, (error) => {
+            console.error("Failed to subscribe notifications:", error);
+            if (typeof onError === "function") onError(error);
         });
     } catch (error) {
         console.error("Failed to subscribe notifications:", error);
+        if (typeof onError === "function") onError(error);
         return () => {};
     }
 };

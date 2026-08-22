@@ -113,10 +113,10 @@ const loadNotifications = (userId) => {
     unsubscribeNotifications = subscribeNotifications(userId, (notifications) => {
         // Re-query the container inside the snapshot to ensure it's fresh
         const currentContainer = document.querySelector('.notification-list-container');
-        if (!currentContainer) return;
+        if (!currentContainer || currentContainer !== container) return;
 
         if (notifications.length === 0) {
-            container.innerHTML = `
+            currentContainer.innerHTML = `
                 <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                     <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -130,7 +130,7 @@ const loadNotifications = (userId) => {
 
         const notificationsHTML = notifications.map((notification) => createNotificationItemHTML(notification)).join('');
         
-        container.innerHTML = `
+        currentContainer.innerHTML = `
             ${notificationsHTML}
             <div class="notification-footer">
                 <a href="#">Clear all notifications</a>
@@ -139,7 +139,10 @@ const loadNotifications = (userId) => {
 
     }, (error) => {
         console.error("Error fetching notifications: ", error);
-        container.innerHTML = `<p style="text-align: center; color: #f87171;">Failed to load notifications.</p>`;
+        const currentContainer = document.querySelector('.notification-list-container');
+        if (currentContainer === container) {
+            currentContainer.innerHTML = `<p style="text-align: center; color: #f87171;">Failed to load notifications.</p>`;
+        }
     });
 };
 
@@ -157,6 +160,7 @@ export const cleanupNotifications = () => {
 };
 
 export const initNotificationsPage = () => {
+    cleanupNotifications();
     const container = document.querySelector('.notification-list-container'); // Get fresh reference
 
     unsubscribeAuth = onAuthStateChanged(auth, (user) => {
