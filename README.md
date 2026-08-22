@@ -1,6 +1,6 @@
 ## Spotiwind - Feel The Music, Ride The Wind.
 
-![Spotiwind Banner](frontend/public/Elemen/Logo/Banner.png)
+![Spotiwind Banner](frontend/public/Elemen/Logo/Spotiwind%20Animation%20Logo.gif)
 
 Spotiwind adalah platform musik modern dengan desain futuristik dan responsif yang dirancang untuk menghadirkan pengalaman mendengarkan musik yang nyaman dan premium.
 
@@ -13,7 +13,7 @@ Website ini mengusung desain dark premium dengan kombinasi warna neon purple, pi
 Nama Spotiwind merupakan kombinasi dari dua unsur:
 
 - Spoti → terinspirasi dari kata Spot yang berarti tempat atau ruang untuk menemukan dan menikmati musik.
-- Wind → terinspirasi dari nama Winanda yang menjadi bagian dari inspirasi project ini.
+- Wind → terinspirasi dari nama Winanda dan Windari yang menjadi bagian dari inspirasi project ini.
 
 Nama Spotiwind mencerminkan sebuah platform musik modern yang menggabungkan kreativitas, teknologi, dan pengalaman pengguna dalam satu identitas yang unik.
 
