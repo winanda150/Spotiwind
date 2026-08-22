@@ -58,9 +58,9 @@ async function fetchFromJamendo(endpoint, params = {}) {
 
 export const getTopArtists = (limit = 50) => fetchFromJamendo('/artists/', { limit, order: 'popularity_total' });
 export const getArtistTracks = (artistId, limit = 20) => fetchFromJamendo('/tracks/', { limit, artist_id: artistId, order: 'popularity_total', include: 'stats' });
-export const getArtistTracksByName = (artistName, limit = 20) => fetchFromJamendo('/tracks/', { limit, artist_name: encodeURIComponent(artistName), order: 'popularity_total', include: 'stats' });
+export const getArtistTracksByName = (artistName, limit = 20) => fetchFromJamendo('/tracks/', { limit, artist_name: artistName, order: 'popularity_total', include: 'stats' });
 export const getTrendingTracks = (limit = 50) => fetchFromJamendo('/tracks/', { limit, order: 'popularity_total', include: 'stats' });
 export const getNewReleases = (limit = 50) => fetchFromJamendo('/tracks/', { limit, order: 'releasedate_desc', include: 'stats' });
-export const searchTracks = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, search: encodeURIComponent(query), include: 'stats' });
-export const searchTracksByName = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, namesearch: encodeURIComponent(query), include: 'stats' });
-export const searchArtistsByName = (query, limit = 3) => fetchFromJamendo('/artists/', { limit, namesearch: encodeURIComponent(query) });
+export const searchTracks = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, search: query, include: 'stats' });
+export const searchTracksByName = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, namesearch: query, include: 'stats' });
+export const searchArtistsByName = (query, limit = 3) => fetchFromJamendo('/artists/', { limit, namesearch: query });

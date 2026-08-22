@@ -30,7 +30,10 @@ import {
     serverTimestamp,
     getDoc,
     deleteDoc,
-    addDoc
+    addDoc,
+    updateDoc,
+    arrayUnion,
+    arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
     getDatabase,
@@ -67,7 +70,7 @@ export {
     sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence,
     // Firestore
     collection, query, onSnapshot, orderBy, getDocs, where, doc, documentId, setDoc,
-    limit, serverTimestamp, getDoc, deleteDoc, addDoc,
+    limit, serverTimestamp, getDoc, deleteDoc, addDoc, updateDoc, arrayUnion, arrayRemove,
     // Realtime Database
     ref, onValue, rtdbSet, onDisconnect, rtdbServerTimestamp
 };

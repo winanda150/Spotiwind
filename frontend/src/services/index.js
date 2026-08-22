@@ -9,3 +9,4 @@ export * from "./activityService.js";
 export * from "./notificationService.js";
 export * from "./searchService.js";
 export * from "./presenceService.js";
+export * from "./catalogService.js";

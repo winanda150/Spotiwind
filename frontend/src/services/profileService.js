@@ -65,6 +65,11 @@ export const getCurrentProfile = async () => {
     return getProfileByUid(uid);
 };
 
+export const isUserPremium = async (uid) => {
+    const profile = await getProfileByUid(uid);
+    return profile?.isPremium === true;
+};
+
 export const updateProfileInfo = async (uid, payload = {}) => {
     if (!uid) return null;
 

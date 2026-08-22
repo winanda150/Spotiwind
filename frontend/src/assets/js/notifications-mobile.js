@@ -1,14 +1,25 @@
-import {
-    auth, db,
-    onAuthStateChanged,
-    collection,
-    query,
-    onSnapshot,
-    orderBy
-} from './firebase-config.js';
+import { auth, onAuthStateChanged } from './firebase-config.js';
+import { subscribeNotifications } from '../../services/notificationService.js';
 
 // [NEW] Variable to hold the unsubscribe function for the Firestore listener
 let unsubscribeNotifications = null;
+let unsubscribeAuth = null;
+
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const getSafeImageUrl = (value) => {
+    try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch {
+        return '';
+    }
+};
 
 /**
  * Helper to format Firestore timestamp to relative time (e.g., 2m, 1h)
@@ -37,9 +48,11 @@ const formatRelativeTime = (timestamp) => {
  */
 const createNotificationItemHTML = (notifData) => {
     const { type, text, timestamp, imageUrl, imageAlt, isRead } = notifData;
+    const safeType = escapeHtml(type);
+    const safeImageUrl = getSafeImageUrl(imageUrl);
 
     let iconSvg = '';
-    let itemClass = `notification-item ${type || ''} ${isRead ? 'is-read' : ''}`;
+    let itemClass = `notification-item ${safeType} ${isRead ? 'is-read' : ''}`;
 
     switch (type) {
         case 'new-release':
@@ -73,15 +86,15 @@ const createNotificationItemHTML = (notifData) => {
                 </svg>`;
     }
 
-    const thumbnailHTML = imageUrl ?
-        `<img src="${imageUrl}" alt="${imageAlt || 'Notification image'}" class="notification-thumbnail ${type === 'new-follower' ? 'is-avatar' : ''}">` :
+    const thumbnailHTML = safeImageUrl ?
+        `<img src="${escapeHtml(safeImageUrl)}" alt="${escapeHtml(imageAlt || 'Notification image')}" class="notification-thumbnail ${type === 'new-follower' ? 'is-avatar' : ''}">` :
         '';
 
     return `
         <div class="${itemClass}">
             <div class="notification-icon">${iconSvg}</div>
             <div class="notification-content">
-                <p class="notification-text">${text}</p>
+                <p class="notification-text">${escapeHtml(text)}</p>
                 <span class="notification-time">${formatRelativeTime(timestamp)}</span>
             </div>
             ${thumbnailHTML}
@@ -97,16 +110,12 @@ const loadNotifications = (userId) => {
     const container = document.querySelector('.notification-list-container');
     if (!container) return;
 
-    const notificationsRef = collection(db, "users", userId, "notifications");
-    const q = query(notificationsRef, orderBy("timestamp", "desc"));
-
-    // [FIX] Store the returned unsubscribe function
-    unsubscribeNotifications = onSnapshot(q, (snapshot) => {
+    unsubscribeNotifications = subscribeNotifications(userId, (notifications) => {
         // Re-query the container inside the snapshot to ensure it's fresh
         const currentContainer = document.querySelector('.notification-list-container');
         if (!currentContainer) return;
 
-        if (snapshot.empty) {
+        if (notifications.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
                     <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;">
@@ -119,7 +128,7 @@ const loadNotifications = (userId) => {
             return;
         }
 
-        const notificationsHTML = snapshot.docs.map(doc => createNotificationItemHTML(doc.data())).join('');
+        const notificationsHTML = notifications.map((notification) => createNotificationItemHTML(notification)).join('');
         
         container.innerHTML = `
             ${notificationsHTML}
@@ -141,17 +150,21 @@ export const cleanupNotifications = () => {
         unsubscribeNotifications();
         unsubscribeNotifications = null;
     }
+    if (unsubscribeAuth) {
+        unsubscribeAuth();
+        unsubscribeAuth = null;
+    }
 };
 
 export const initNotificationsPage = () => {
     const container = document.querySelector('.notification-list-container'); // Get fresh reference
 
-    onAuthStateChanged(auth, (user) => {
+    unsubscribeAuth = onAuthStateChanged(auth, (user) => {
         if (user) {
             loadNotifications(user.uid);
         } else {
             if (container) {
-                container.innerHTML = `<p style="text-align: center; padding: 2rem;">Please <a href="../../index.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
+                container.innerHTML = `<p style="text-align: center; padding: 2rem;">Please <a href="index.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
             }
         }
     });

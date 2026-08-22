@@ -2,21 +2,23 @@ import {
     auth,
     db,
     doc,
+    collection,
+    getDocs,
     getDoc,
-    setDoc
+    setDoc,
+    deleteDoc,
+    serverTimestamp
 } from "../assets/js/firebase-config.js";
 
-const getUserRef = (uid) => doc(db, "users", uid);
+const getLikedSongsRef = (uid) => collection(db, "users", uid, "liked_songs");
+const getLikedSongRef = (uid, songId) => doc(db, "users", uid, "liked_songs", String(songId));
 
 export const getFavoriteSongs = async (uid) => {
     if (!uid) return [];
 
     try {
-        const snapshot = await getDoc(getUserRef(uid));
-        if (!snapshot.exists()) return [];
-
-        const data = snapshot.data();
-        return Array.isArray(data.favorites) ? data.favorites : [];
+        const snapshot = await getDocs(getLikedSongsRef(uid));
+        return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
     } catch (error) {
         console.error("Failed to get favorite songs:", error);
         return [];
@@ -28,20 +30,17 @@ export const toggleFavorite = async (song) => {
     if (!uid || !song?.id) return null;
 
     try {
-        const ref = getUserRef(uid);
+        const songId = String(song.id).trim();
+        const ref = getLikedSongRef(uid, songId);
         const snapshot = await getDoc(ref);
-        const favorites = snapshot.exists() ? (snapshot.data().favorites || []) : [];
 
-        const isFavorited = favorites.some((item) => String(item.id ?? item.songId) === String(song.id));
-        const nextFavorites = isFavorited
-            ? favorites.filter((item) => String(item.id ?? item.songId) !== String(song.id))
-            : [...favorites, song];
+        if (snapshot.exists()) {
+            await deleteDoc(ref);
+        } else {
+            await setDoc(ref, { ...song, id: songId, likedAt: serverTimestamp() });
+        }
 
-        await setDoc(ref, {
-            favorites: nextFavorites
-        }, { merge: true });
-
-        return nextFavorites;
+        return getFavoriteSongs(uid);
     } catch (error) {
         console.error("Failed to toggle favorite song:", error);
         return null;

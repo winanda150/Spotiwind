@@ -9,8 +9,10 @@ import {
     orderBy,
     limit,
     getDocs,
+    getDoc,
     onSnapshot,
-    documentId
+    documentId,
+    serverTimestamp
 } from "../assets/js/firebase-config.js";
 
 export const updateMyActivity = async (songName) => {
@@ -18,12 +20,12 @@ export const updateMyActivity = async (songName) => {
     if (!user || !songName) return null;
 
     try {
-        const activityRef = doc(db, "userActivity", user.uid);
+        const activityRef = doc(db, "friends_activity", user.uid);
         const payload = {
-            uid: user.uid,
-            displayName: user.displayName || user.email || "Spotiwind User",
-            songName,
-            updatedAt: Date.now()
+            song: songName,
+            name: user.displayName || user.email || "Spotiwind User",
+            timestamp: serverTimestamp(),
+            avatar: user.photoURL || ""
         };
 
         await setDoc(activityRef, payload, { merge: true });
@@ -38,15 +40,8 @@ export const getRecentActivityByUser = async (uid) => {
     if (!uid) return [];
 
     try {
-        const q = query(
-            collection(db, "userActivity"),
-            where("uid", "==", uid),
-            orderBy("updatedAt", "desc"),
-            limit(10)
-        );
-
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        const snapshot = await getDoc(doc(db, "friends_activity", uid));
+        return snapshot.exists() ? [{ id: snapshot.id, ...snapshot.data() }] : [];
     } catch (error) {
         console.error("Failed to fetch recent activity:", error);
         return [];
@@ -58,10 +53,9 @@ export const subscribeFriendActivity = (uid, callback) => {
 
     try {
         const q = query(
-            collection(db, "userActivity"),
-            where("uid", "==", uid),
-            orderBy("updatedAt", "desc"),
-            limit(10)
+            collection(db, "friends_activity"),
+            where(documentId(), "==", uid),
+            limit(1)
         );
 
         return onSnapshot(q, (snapshot) => {
@@ -89,7 +83,7 @@ export const getFollowingIds = async (uid) => {
 export const getFriendsActivityByIds = async (friendIds, maxItems = 10) => {
     if (!Array.isArray(friendIds) || friendIds.length === 0) return [];
 
-    const uniqueIds = [...new Set(friendIds.filter(Boolean))].slice(0, 30);
+    const uniqueIds = [...new Set(friendIds.filter(Boolean))];
     if (!uniqueIds.length) return [];
 
     try {

@@ -1,27 +1,7 @@
 import {
-    auth, db, rtdb,
-    onAuthStateChanged, signOut,
-    // RTDB
-    ref,
-    onValue,
-    rtdbSet,
-    onDisconnect,
-    rtdbServerTimestamp,
-    // Firestore
-    collection,
-    query,
-    onSnapshot,
-    orderBy,
-    getDocs,
-    where,
-    doc,
-    documentId,
-    setDoc,
-    limit,
-    serverTimestamp,
-    getDoc,
-    deleteDoc,
-    addDoc
+    auth,
+    onAuthStateChanged,
+    signOut
 } from "./firebase-config.js";
 
 let playlistUnsubscribe = null;
@@ -35,7 +15,15 @@ let allFriendsActivityData = []; // Buffer for all data from the modal
 let modalDisplayCount = 0; // Tracking the number of items rendered in the modal
 const MODAL_PAGE_SIZE = 50;
 
-import * as jamendoService from '../../services/jamendoService.js';
+import { toggleFavorite } from '../../services/favoriteService.js';
+import { isFavoriteSong } from '../../services/favoriteService.js';
+import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
+import { getFollowingIds, getFriendsActivityByIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
+import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
+import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
+import { isUserPremium } from '../../services/profileService.js';
+import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest } from '../../services/catalogService.js';
+import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -51,7 +39,8 @@ let currentSongData = null; // Stores the currently active song data
 // NEW: Cache for friend online status from Realtime Database
 const friendOnlineStatus = {};
 // NEW: Track RTDB listeners to avoid duplicates
-const activePresenceListeners = new Set();
+const activePresenceListeners = new Map();
+let userPresenceCleanup = null;
 
 const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
 const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
@@ -171,27 +160,13 @@ activeAudio.addEventListener('error', () => {
  * Song navigation function (Next / Previous)
  */
 window.playNext = () => {
-    if (currentPlaylist.length === 0) return;
-    
-    let nextIndex;
-    if (isShuffle && currentPlaylist.length > 1) {
-        // Choose a random index that is not the currently playing song
-        do {
-            nextIndex = Math.floor(Math.random() * currentPlaylist.length);
-        } while (String(currentPlaylist[nextIndex].id) === String(currentSongData?.id));
-    } else {
-        nextIndex = currentSongIndex + 1;
-        if (nextIndex >= currentPlaylist.length) nextIndex = 0; // Loop back to the start
-    }
-
-    triggerSongByIndex(nextIndex);
+    const next = getNextSong();
+    if (next) triggerSongByIndex(currentPlaylist.findIndex((song) => song.id === next.id));
 };
 
 window.playPrevious = () => {
-    if (currentPlaylist.length === 0) return;
-    let prevIndex = currentSongIndex - 1;
-    if (prevIndex < 0) prevIndex = currentPlaylist.length - 1; // Go to the end if at the beginning
-    triggerSongByIndex(prevIndex);
+    const previous = getPreviousSong();
+    if (previous) triggerSongByIndex(currentPlaylist.findIndex((song) => song.id === previous.id));
 };
 
 const triggerSongByIndex = (index, context = null) => {
@@ -215,12 +190,7 @@ const updateMyActivity = async (songName) => {
     // Only update if the song has been playing for more than 5 seconds to avoid spam when skipping songs
     activityUpdateTimeout = setTimeout(async () => {
         try {
-            await setDoc(doc(db, "friends_activity", user.uid), {
-                name: user.displayName || user.email.split('@')[0],
-                song: songName,
-                avatar: user.photoURL || "",
-                timestamp: serverTimestamp()
-            }, { merge: true });
+            await updateActivityRecord(songName);
             console.log("Activity updated:", songName);
         } catch (error) {
             console.error("Failed to update activity to Firestore:", error);
@@ -244,7 +214,7 @@ const syncPlayerLikeButtons = (isLiked) => {
  */
 const checkLikedStatus = async (songId) => {
     const user = auth.currentUser;
-    if (!user || !songId || !db) {
+    if (!user || !songId) {
         syncPlayerLikeButtons(false);
         return false;
     }
@@ -253,9 +223,7 @@ const checkLikedStatus = async (songId) => {
     const cleanId = String(songId).trim();
 
     try {
-        const likeRef = doc(db, "users", user.uid, "liked_songs", cleanId);
-        const docSnap = await getDoc(likeRef);
-        const isLiked = docSnap.exists();
+        const isLiked = await isFavoriteSong(cleanId);
         
         // Update UI based on the actual data from the database, not the current CSS class
         if (currentSongData && String(currentSongData.id) === cleanId) {
@@ -322,7 +290,7 @@ const toggleLike = async (e) => {
     const user = auth.currentUser;
     const btn = e.currentTarget; // The clicked button (can be from the sidebar or bottom bar)
     
-    if (!user || !currentSongData || !btn || !db) {
+    if (!user || !currentSongData || !btn) {
         return;
     }
 
@@ -340,24 +308,8 @@ const toggleLike = async (e) => {
     }
 
     // 3. RUN FIREBASE PROCESS IN THE BACKGROUND
-    const likeRef = doc(db, "users", user.uid, "liked_songs", songId);
     try {
-        // Use setDoc/deleteDoc without 'await' here if you want an instant UI feel,
-        // or keep using 'await' to ensure the data actually arrives.
-        if (wasLiked) {
-            await deleteDoc(likeRef);
-        } else {
-            // Like process
-            const cleanData = {
-                id: songId,
-                name: String(currentSongData.name || "Unknown Title"),
-                artist: String(currentSongData.artist || "Unknown Artist"),
-                cover: currentSongData.cover || "",
-                audio: currentSongData.audio || "",
-                likedAt: serverTimestamp()
-            };
-            await setDoc(likeRef, cleanData);
-        }
+        await toggleFavorite(currentSongData);
     } catch (error) {
         // 4. ROLLBACK IF FAILED
         // If the internet is down or permission is denied, revert the button status
@@ -377,25 +329,19 @@ const toggleLike = async (e) => {
  */
 window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
     const songId = String(id);
+    const wasSameSong = currentSongData && String(currentSongData.id) === songId;
 
     // Context-aware playlist management
     if (context && currentPlaylist.length > 0) {
-        if (isShuffle) {
-            const selectedTrack = currentPlaylist.find(s => String(s.id) === songId) ||
-                                { id, audio: audioUrl, name: title, artist, cover, duration };
-            const remainingTracks = currentPlaylist.filter(s => String(s.id) !== songId);
-            
-            for (let i = remainingTracks.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [remainingTracks[i], remainingTracks[j]] = [remainingTracks[j], remainingTracks[i]];
-            }
-            currentPlaylist = [selectedTrack, ...remainingTracks];
-        }
+        const queueState = setContextPlaylist(currentPlaylist, songId);
+        currentPlaylist = queueState.playlist;
+        currentSongIndex = queueState.currentIndex;
+        currentSongData = queueState.currentSong;
     }
 
     if (!audioUrl) return;
 
-    const isSameSong = currentSongData && String(currentSongData.id) === songId;
+    const isSameSong = wasSameSong && activeAudio.src;
 
     if (isSameSong) {
         if (!activeAudio.paused) {
@@ -413,8 +359,9 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     }
 
     activeAudio.pause();
-    currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover };
+    currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration };
     currentSongIndex = currentPlaylist.findIndex(s => s.audio === audioUrl);
+    syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
 
     // Reset ALL song UI states (to prevent visual duplicates during fast skipping)
     document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
@@ -473,8 +420,8 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         // RESET Like UI before checking the new song's status
         syncPlayerLikeButtons(false);
 
-        // Check the Like status of this song in Firestore
-        await checkLikedStatus(id);
+        const playbackPromise = activeAudio.src ? activeAudio.play() : Promise.resolve();
+        checkLikedStatus(id);
 
         // Update UI Sidebars & Bottom Bar
         document.querySelector('.now-playing-card')?.classList.add('active');
@@ -502,7 +449,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
             document.querySelectorAll('.btn-loading').forEach(el => el.classList.remove('btn-loading'));
         };
 
-        if (activeAudio.src) await activeAudio.play();
+        await playbackPromise;
         updateMyActivity(title);
 
         if (btn) btn.classList.remove('btn-loading');
@@ -578,42 +525,6 @@ const showSkeletonLoader = (gridSelector, type, count = 6) => {
     }
 
     grid.innerHTML = Array(count).fill(skeletonHTML).join('');
-};
-
-/**
- * Fetch function with a retry mechanism and exponential backoff.
- * @param {string} url - The API URL to fetch.
- * @param {object} options - Options for fetch.
- * @param {number} retries - Number of retry attempts.
- * @returns {Promise<Response>}
- */
-const fetchWithRetry = async (url, options = {}, retries = 3) => {
-    let lastError;
-    for (let i = 0; i < retries; i++) { // Attempt 'retries' times
-        try {
-            const response = await fetch(url, options);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response; // If successful, return the response
-        } catch (error) {
-            lastError = error;
-            console.log(`Fetch attempt ${i + 1} failed for ${url}. Retrying in ${2 ** i * 1000}ms...`);
-            if (i < retries - 1) await new Promise(res => setTimeout(res, 2 ** i * 1000)); // Exponential backoff: 1s, 2s, 4s...
-        }
-    }
-    throw lastError; // Throw the last error after all attempts fail
-};
-// Helper function to format play counts (e.g., 1.2M, 500K, 300)
-const formatPlayCount = (count) => {
-    if (typeof count !== 'number' || isNaN(count)) {
-        return '0'; // Default if data is invalid
-    }
-    if (count >= 1000000) { // Handle jutaan (M)
-        return (count / 1000000).toFixed(1) + 'M';
-    }
-    if (count >= 1000) { // Handle ribuan (K)
-        return (count / 1000).toFixed(1) + 'K';
-    }
-    return count.toString();
 };
 
 /**
@@ -728,28 +639,10 @@ const renderGrid = (gridSelector, items, itemRenderer, skeletonType, emptyMessag
  */
 const fetchTopArtists = async () => {
     try {
-        const results = await jamendoService.getTopArtists(50);
-
-        if (results) {
-            const data = { results }; // Adapt to the existing structure
-            // Filter: Only take artists who have an original image link from Jamendo
-            const artistsWithPhotos = data.results
-                .filter(item => item.image && item.image.trim() !== "")
-                .slice(0, 10) // Take the top 10 from the filtered list
-                .map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    photo: item.image
-                }));
-            
-            // [FIX] Only render and return true if there is data to display.
-            if (artistsWithPhotos.length === 0) {
-                return false; // Signal the retry-wrapper to try again.
-            }
-            
-            renderGridProgressively('.artists-grid', artistsWithPhotos, createArtistCardHTML, '.artist-card-skeleton');
-            return true; // Success
-        }
+        const artistsWithPhotos = await getCatalogTopArtists(10);
+        if (artistsWithPhotos.length === 0) return false;
+        renderGridProgressively('.artists-grid', artistsWithPhotos, createArtistCardHTML, '.artist-card-skeleton');
+        return true;
     } catch (error) {
         console.error("Failed to fetch artist data:", error);
         throw error; // Throw error to be caught by fetchWithContinuousRetry
@@ -761,28 +654,7 @@ const fetchTopArtists = async () => {
  */
 const fetchTrendingMusic = async () => {
     try {
-        const results = await jamendoService.getTrendingTracks(50);
-        
-        // Filter logic: Only take one song per artist to make the grid display more varied
-        const seenArtists = new Set();
-        const uniqueResults = [];
-        for (const item of results) {
-            if (!seenArtists.has(item.artist_id)) {
-                seenArtists.add(item.artist_id);
-                uniqueResults.push(item);
-            }
-            if (uniqueResults.length >= 12) break;
-        }
-
-        const rawSongs = uniqueResults.map((item) => ({
-                id: item.id,
-                name: item.name,
-                artist: item.artist_name,
-                cover: item.image,
-                audio: item.audio,
-                // New range: 300k to 5 million to feel more popular and varied
-                plays: formatPlayCount(Math.floor(Math.random() * 4700000) + 300000)
-        }));
+        const rawSongs = await getTrendingCatalog(12);
 
         // [FIX] Only render and return true if there is data to display.
         if (rawSongs.length === 0) {
@@ -791,6 +663,7 @@ const fetchTrendingMusic = async () => {
         }
 
         currentPlaylist = rawSongs; // Save playlist for navigation
+        syncQueueState(currentPlaylist, null, -1);
         renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton');
         return true; // Success
     } catch (error) {
@@ -819,37 +692,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {() => Promise<boolean>} fetchFunction - The async function to execute.
  * @param {number} delay - The delay (ms) before retrying.
  */
-const fetchWithContinuousRetry = async (fetchFunction, delay = 5000) => {
-    // [FIX] Use a correct Promise-based retry loop implementation (sync with mobile)
-    // This will hold Promise.all until the fetch is truly successful
-    while (true) {
-        try {
-            const success = await fetchFunction();
-            if (success) {
-                return true; // Success! Exit the loop and resolve the promise.
-            }
-            // If fetchFunction returns false (e.g., empty results), log and try again.
-            console.log(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
-        } catch (error) {
-            // If fetchFunction throws an error (e.g., network failure), log and try again.
-            console.error(`Error in ${fetchFunction.name}. Retrying in ${delay}ms...`, error);
-        }
-        // Wait for the specified delay before the next iteration of the loop.
-        await new Promise(resolve => setTimeout(resolve, delay));
-    }
-};
-
-// In a real application, this would fetch data from a database (e.g., Firestore)
-// to check the user's subscription status based on their UID.
-// For demonstration purposes, we'll use simple logic.
-const isUserPremium = async (uid) => {
-    if (!uid) return false;
-    try {
-        const userDoc = await getDoc(doc(db, "users", uid));
-        return userDoc.exists() && userDoc.data().isPremium === true;
-    } catch (e) {
-        return false;
-    }
+const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries = 5) => {
+    return retryCatalogRequest(fetchFunction, maxRetries, delay);
 };
 
     const logoutBtn = document.getElementById('logoutBtn');
@@ -906,6 +750,7 @@ const isUserPremium = async (uid) => {
         btn.addEventListener('click', (e) => {
             isRepeat = !isRepeat;
             if (isRepeat) isShuffle = false; // Sync with Mobile: Turn off shuffle if repeat is active
+            setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
 
             // Animate only the clicked button
             e.currentTarget.classList.add('btn-pop');
@@ -922,6 +767,7 @@ const isUserPremium = async (uid) => {
         btn.addEventListener('click', (e) => {
             isShuffle = !isShuffle;
             if (isShuffle) isRepeat = false; // Sync with Mobile: Turn off repeat if shuffle is active
+            setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
 
             // Animate only the clicked button
             e.currentTarget.classList.add('btn-pop');
@@ -971,12 +817,9 @@ const isUserPremium = async (uid) => {
         // Clear old listener if it exists to prevent ERR_INSUFFICIENT_RESOURCES
         if (playlistUnsubscribe) playlistUnsubscribe();
 
-        const q = query(collection(db, "users", uid, "playlists"), orderBy("createdAt", "desc"));
-
-        playlistUnsubscribe = onSnapshot(q, (snapshot) => {
+        playlistUnsubscribe = subscribeUserPlaylists(uid, (playlists) => {
             playlistContainer.innerHTML = '';
-            snapshot.forEach((doc) => {
-                const playlist = doc.data();
+            playlists.forEach((playlist) => {
                 const item = document.createElement('a');
                 item.href = "#";
                 item.className = "nav-item";
@@ -1008,10 +851,7 @@ const isUserPremium = async (uid) => {
         const playlistName = prompt("Enter a new playlist name:");
         if (playlistName && playlistName.trim() !== "") {
             try {
-                await addDoc(collection(db, "users", user.uid, "playlists"), {
-                    name: playlistName,
-                    createdAt: serverTimestamp()
-                });
+                await createUserPlaylist(user.uid, playlistName);
             } catch (error) {
                 console.error("Error creating playlist:", error);
             }
@@ -1173,38 +1013,14 @@ const isUserPremium = async (uid) => {
     const setupUserPresence = (user) => {
         if (!user) return;
 
-        const userStatusRef = ref(rtdb, `presence/${user.uid}`);
-        const isConnectedRef = ref(rtdb, '.info/connected');
-
-        onValue(isConnectedRef, (snapshot) => {
-            if (snapshot.val() === true) {
-                // Set online status when connected
-                rtdbSet(userStatusRef, { // Using rtdbSet
-                    state: 'online',
-                    last_changed: rtdbServerTimestamp() // Using rtdbServerTimestamp
-                });
-
-                // Set onDisconnect to change status to offline when disconnected
-                onDisconnect(userStatusRef).set({
-                    state: 'offline',
-                    last_changed: rtdbServerTimestamp() // Using rtdbServerTimestamp
-                });
-            } else {
-                // Client is disconnected from RTDB, onDisconnect will be triggered automatically
-                // Nothing needs to be done here, onDisconnect already handles it.
-            }
-        });
+        if (typeof userPresenceCleanup === 'function') userPresenceCleanup();
+        userPresenceCleanup = watchUserConnection(user.uid);
     };
 
     // NEW: Function to listen for friend's online status from Realtime Database
     const listenToFriendPresence = (friendUid) => {
         if (activePresenceListeners.has(friendUid)) return;
-        activePresenceListeners.add(friendUid);
-
-        const friendStatusRef = ref(rtdb, `presence/${friendUid}`);
-        onValue(friendStatusRef, (snapshot) => {
-            const data = snapshot.val();
-            const isOnline = data?.state === 'online';
+        const unsubscribe = watchFriendPresence(friendUid, ({ isOnline }) => {
 
             friendOnlineStatus[friendUid] = isOnline;
             
@@ -1215,6 +1031,7 @@ const isUserPremium = async (uid) => {
                 else el.classList.add('offline');
             });
         });
+        activePresenceListeners.set(friendUid, unsubscribe);
     }
 
     /**
@@ -1232,6 +1049,8 @@ const isUserPremium = async (uid) => {
             friendActivityListeners.forEach(unsub => unsub());
             friendActivityListeners = [];
         }
+        activePresenceListeners.forEach(unsub => unsub());
+        activePresenceListeners.clear();
 
         // Provide a smooth loading indicator in the container
         if (container.innerHTML === "") {
@@ -1243,10 +1062,7 @@ const isUserPremium = async (uid) => {
 
         // 1. Get the list of followed user UIDs
         // Assumed data structure: users/{myUid}/following/{friendUid}
-        const followingRef = collection(db, "users", currentUser.uid, "following");
-        const followingSnap = await getDocs(followingRef);
-        // Filter: Only get friend IDs, ensure our own ID is not included if accidentally followed
-        const followingIds = followingSnap.docs.map(doc => doc.id).filter(id => id !== currentUser.uid);
+        const followingIds = await getFollowingIds(currentUser.uid);
 
         // If not following anyone, display an empty message or instructions
         if (followingIds.length === 0) {
@@ -1258,47 +1074,12 @@ const isUserPremium = async (uid) => {
         // Show "See all" link because the user has friends (following > 0)
         if (seeAllLink) seeAllLink.classList.remove('hidden');
 
-        // 2. CHUNKING: Divide IDs into groups of max 30 (Firestore 'in' query limit)
-        const chunks = [];
-        for (let i = 0; i < followingIds.length; i += 30) {
-            chunks.push(followingIds.slice(i, i + 30));
-        }
-
-        // Map to store results from each chunk
-        const chunkResultsMap = new Map();
-
-        // 3. Jalankan Snapshot untuk setiap chunk
-        chunks.forEach((chunkIds, index) => {
-            const q = query(
-                collection(db, "friends_activity"),
-                where(documentId(), "in", chunkIds),
-                orderBy("timestamp", "desc"),
-                limit(displayLimit) // Optimization: don't fetch too many per chunk
-            );
-
-            const unsub = onSnapshot(q, (snapshot) => {
+        const unsub = subscribeFriendsActivityByIds(followingIds, (activities) => {
                 isLoadingMoreActivity = false;
-                // Save/Update data from this chunk into the Map
-                chunkResultsMap.set(index, snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-
-                // Combine all data from all chunks
-                let combinedData = [];
-                chunkResultsMap.forEach(results => {
-                    combinedData = [...combinedData, ...results];
-                });
-
-                // Re-sort globally by the latest timestamp
-                combinedData.sort((a, b) => {
-                    const timeA = a.timestamp?.seconds || 0;
-                    const timeB = b.timestamp?.seconds || 0;
-                    return timeB - timeA;
-                });
-
-                // Take only the top `displayLimit` items
-                const finalDisplay = combinedData.slice(0, displayLimit);
+                const finalDisplay = activities.slice(0, displayLimit);
 
                 // Check if we've reached the end of the data (simple check)
-                hasReachedActivityEnd = combinedData.length < displayLimit;
+                hasReachedActivityEnd = activities.length < displayLimit;
 
                 if (finalDisplay.length === 0) {
                     container.innerHTML = `<p style="font-size: 0.75rem; color: var(--text-muted); padding: 1rem;">No active friends right now.</p>`;
@@ -1330,13 +1111,8 @@ const isUserPremium = async (uid) => {
                     </div>
                 `;
             }).join('');
-            }, (error) => {
-                isLoadingMoreActivity = false;
-                console.error("Friend Activity Chunk Error:", error);
-            });
-
-            friendActivityListeners.push(unsub);
-        });
+            }, { limitCount: displayLimit });
+        friendActivityListeners.push(unsub);
     };
 
     // Add Infinite Scroll Listener to the friend activity container
@@ -1369,24 +1145,8 @@ const isUserPremium = async (uid) => {
         if (!currentUser) return;
 
         // 1. Get all following
-        const followingRef = collection(db, "users", currentUser.uid, "following");
-        const followingSnap = await getDocs(followingRef);
-        // Filter: Ensure not to show oneself in the modal
-        const followingIds = followingSnap.docs.map(doc => doc.id).filter(id => id !== currentUser.uid);
-
-        // 2. Fetch semua data activity dalam chunks
-        const chunks = [];
-        for (let i = 0; i < followingIds.length; i += 30) {
-            chunks.push(followingIds.slice(i, i + 30));
-        }
-
-        const fetchPromises = chunks.map(chunk => {
-            const q = query(collection(db, "friends_activity"), where(documentId(), "in", chunk));
-            return getDocs(q);
-        });
-
-        const results = await Promise.all(fetchPromises);
-        allFriendsActivityData = results.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const followingIds = await getFollowingIds(currentUser.uid);
+        allFriendsActivityData = await getFriendsActivityByIds(followingIds, 100);
 
         // 3. Sort by Latest Time
         allFriendsActivityData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
@@ -1595,6 +1355,13 @@ const isUserPremium = async (uid) => {
         } else {
             // If there is no user, redirect back to index.html
             window.location.href = 'index.html';
+            if (typeof userPresenceCleanup === 'function') userPresenceCleanup();
+            activePresenceListeners.forEach(unsub => unsub());
+            activePresenceListeners.clear();
+            if (playlistUnsubscribe) {
+                playlistUnsubscribe();
+                playlistUnsubscribe = null;
+            }
             // Bersihkan info pengguna jika logout
             if (document.getElementById('userName')) document.getElementById('userName').textContent = ''; // Clear user info on logout
             if (document.getElementById('premiumBadge')) document.getElementById('premiumBadge').classList.add('hidden');

@@ -14,7 +14,7 @@ export const getNotificationsByUser = async (uid) => {
     if (!uid) return [];
 
     try {
-        const q = query(collection(db, "notifications"), where("uid", "==", uid));
+            const q = query(collection(db, "users", uid, "notifications"), orderBy("timestamp", "desc"));
         const snapshot = await getDocs(q);
         return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
     } catch (error) {
@@ -28,9 +28,9 @@ export const markNotificationAsRead = async (notificationId) => {
     if (!uid || !notificationId) return null;
 
     try {
-        const ref = doc(db, "notifications", notificationId);
+        const ref = doc(db, "users", uid, "notifications", notificationId);
         await updateDoc(ref, {
-            read: true,
+            isRead: true,
             readAt: Date.now()
         });
 
@@ -45,7 +45,7 @@ export const subscribeNotifications = (uid, callback) => {
     if (!uid || typeof callback !== "function") return () => {};
 
     try {
-        const q = query(collection(db, "notifications"), where("uid", "==", uid));
+        const q = query(collection(db, "users", uid, "notifications"), orderBy("timestamp", "desc"));
         return onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
             callback(items);
@@ -54,4 +54,17 @@ export const subscribeNotifications = (uid, callback) => {
         console.error("Failed to subscribe notifications:", error);
         return () => {};
     }
+};
+
+export const subscribeUnreadNotifications = (uid, callback) => {
+    if (!uid || typeof callback !== "function") return () => {};
+
+    const q = query(
+        collection(db, "users", uid, "notifications"),
+        where("isRead", "==", false)
+    );
+
+    return onSnapshot(q, (snapshot) => callback(snapshot.size), (error) => {
+        console.error("Failed to subscribe unread notifications:", error);
+    });
 };

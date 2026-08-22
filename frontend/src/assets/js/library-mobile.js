@@ -1,3 +1,7 @@
+import { auth } from './firebase-config.js';
+import { getFavoriteSongs } from '../../services/favoriteService.js';
+import { getUserPlaylists } from '../../services/libraryService.js';
+
 const libraryCollections = {
     playlists: [
         {
@@ -97,10 +101,26 @@ const libraryPageState = {
     listeners: [],
 };
 
+const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const getSafeImageUrl = (value) => {
+    try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch {
+        return '';
+    }
+};
+
 function createCoverMarkup(item) {
     if (item.coverType === 'gradient') {
         return `
-            <div class="library-item__cover library-item__cover--gradient" style="background: ${item.gradient || 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)'};">
+            <div class="library-item__cover library-item__cover--gradient" style="background: ${escapeHtml(item.gradient || 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)')};">
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" aria-hidden="true">
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
                 </svg>
@@ -110,8 +130,8 @@ function createCoverMarkup(item) {
 
     return `
         <img
-            src="${item.image || ''}"
-            alt="${item.name}"
+            src="${escapeHtml(getSafeImageUrl(item.image))}"
+            alt="${escapeHtml(item.name)}"
             class="library-item__cover"
             loading="lazy"
         >
@@ -119,18 +139,18 @@ function createCoverMarkup(item) {
 }
 
 function createLibraryCard(item) {
-    const badge = item.type ? `<span class="library-item__badge">${item.type}</span>` : '';
+    const badge = item.type ? `<span class="library-item__badge">${escapeHtml(item.type)}</span>` : '';
     const featuredClass = item.featured ? 'library-item--featured' : '';
 
     return `
-        <article class="library-item ${featuredClass}" tabindex="0" aria-label="${item.name}">
+        <article class="library-item ${featuredClass}" tabindex="0" aria-label="${escapeHtml(item.name)}">
             ${createCoverMarkup(item)}
             <div class="library-item__info">
                 <div class="library-item__header">
-                    <span class="library-item__name">${item.name}</span>
+                    <span class="library-item__name">${escapeHtml(item.name)}</span>
                     ${badge}
                 </div>
-                <span class="library-item__details">${item.details}</span>
+                <span class="library-item__details">${escapeHtml(item.details)}</span>
             </div>
         </article>
     `;
@@ -178,7 +198,35 @@ function initializeFilterButtons() {
     renderLibraryContent('playlists');
 }
 
-export function initLibraryPage() {
+export async function initLibraryPage() {
+    const user = auth.currentUser;
+    if (user) {
+        const [favoriteSongs, userPlaylists] = await Promise.all([
+            getFavoriteSongs(user.uid),
+            getUserPlaylists(user.uid)
+        ]);
+
+        if (favoriteSongs.length > 0) {
+            libraryCollections.playlists = favoriteSongs.map((song) => ({
+                name: song.name || 'Untitled song',
+                details: `Liked Songs • ${song.artist || 'Unknown artist'}`,
+                type: 'Liked song',
+                coverType: 'image',
+                image: song.cover || ''
+            }));
+        }
+
+        if (userPlaylists.length > 0) {
+            libraryCollections.playlists = userPlaylists.map((playlist) => ({
+                name: playlist.name,
+                details: 'Playlist • You',
+                type: 'Playlist',
+                coverType: 'gradient',
+                gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)'
+            }));
+        }
+    }
+
     initializeFilterButtons();
 }
 

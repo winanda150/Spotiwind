@@ -8,23 +8,22 @@ import {
     onSnapshot,
     getDocs,
     getDoc,
-    updateDoc,
+    setDoc,
+    deleteDoc,
     addDoc,
     serverTimestamp
 } from "../assets/js/firebase-config.js";
 
-const getLibraryRef = (uid) => doc(db, "users", uid);
+const getLikedSongsRef = (uid) => collection(db, "users", uid, "liked_songs");
+const getLikedSongRef = (uid, songId) => doc(db, "users", uid, "liked_songs", String(songId));
 const getUserPlaylistsRef = (uid) => collection(db, "users", uid, "playlists");
 
 export const getLibrarySongs = async (uid) => {
     if (!uid) return [];
 
     try {
-        const snapshot = await getDoc(getLibraryRef(uid));
-        if (!snapshot.exists()) return [];
-
-        const data = snapshot.data();
-        return Array.isArray(data.library) ? data.library : [];
+        const snapshot = await getDocs(getLikedSongsRef(uid));
+        return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
     } catch (error) {
         console.error("Failed to get library songs:", error);
         return [];
@@ -36,18 +35,13 @@ export const addSongToLibrary = async (song) => {
     if (!uid || !song?.id) return null;
 
     try {
-        const ref = getLibraryRef(uid);
-        const snapshot = await getDoc(ref);
-        const existing = snapshot.exists() ? (snapshot.data().library || []) : [];
-
-        const alreadyExists = existing.some((item) => String(item.id ?? item.songId) === String(song.id));
-        const nextLibrary = alreadyExists ? existing : [...existing, song];
-
-        await updateDoc(ref, {
-            library: nextLibrary
+        const songId = String(song.id).trim();
+        await setDoc(getLikedSongRef(uid, songId), {
+            ...song,
+            id: songId,
+            likedAt: serverTimestamp()
         });
-
-        return nextLibrary;
+        return getLibrarySongs(uid);
     } catch (error) {
         console.error("Failed to add song to library:", error);
         return null;
@@ -59,16 +53,8 @@ export const removeSongFromLibrary = async (songId) => {
     if (!uid || !songId) return null;
 
     try {
-        const ref = getLibraryRef(uid);
-        const snapshot = await getDoc(ref);
-        const existing = snapshot.exists() ? (snapshot.data().library || []) : [];
-        const nextLibrary = existing.filter((item) => String(item.id ?? item.songId) !== String(songId));
-
-        await updateDoc(ref, {
-            library: nextLibrary
-        });
-
-        return nextLibrary;
+        await deleteDoc(getLikedSongRef(uid, songId));
+        return getLibrarySongs(uid);
     } catch (error) {
         console.error("Failed to remove song from library:", error);
         return null;

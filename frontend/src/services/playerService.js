@@ -4,6 +4,15 @@ let currentSongData = null;
 let isShuffle = false;
 let isRepeat = false;
 
+const shuffleRemaining = (items) => {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+    }
+    return shuffled;
+};
+
 export const setPlaylist = (playlist = [], startIndex = 0) => {
     currentPlaylist = Array.isArray(playlist) ? playlist : [];
     currentSongIndex = currentPlaylist.length > 0 ? Math.max(0, Math.min(startIndex, currentPlaylist.length - 1)) : -1;
@@ -12,6 +21,23 @@ export const setPlaylist = (playlist = [], startIndex = 0) => {
 };
 
 export const getPlaylist = () => [...currentPlaylist];
+
+export const setContextPlaylist = (playlist = [], selectedSongId = null) => {
+    const source = Array.isArray(playlist) ? playlist : [];
+    const selected = source.find((song) => String(song.id) === String(selectedSongId));
+    const remaining = source.filter((song) => String(song.id) !== String(selectedSongId));
+    currentPlaylist = isShuffle && selected ? [selected, ...shuffleRemaining(remaining)] : source;
+    currentSongIndex = selected ? 0 : -1;
+    currentSongData = selected || null;
+    return getPlaybackState();
+};
+
+export const syncQueueState = (playlist, song, index) => {
+    currentPlaylist = Array.isArray(playlist) ? [...playlist] : [];
+    currentSongData = song || null;
+    currentSongIndex = Number.isInteger(index) ? index : -1;
+    return getPlaybackState();
+};
 
 export const setCurrentSong = (song, index = -1) => {
     currentSongData = song;
@@ -61,6 +87,12 @@ export const toggleShuffle = () => {
 export const toggleRepeat = () => {
     isRepeat = !isRepeat;
     return isRepeat;
+};
+
+export const setPlaybackModes = ({ shuffle = isShuffle, repeat = isRepeat } = {}) => {
+    isShuffle = Boolean(shuffle);
+    isRepeat = Boolean(repeat);
+    return { isShuffle, isRepeat };
 };
 
 export const getPlaybackState = () => ({

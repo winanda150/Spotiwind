@@ -1,30 +1,18 @@
 import {
-    auth, db, rtdb,
-    onAuthStateChanged, signOut,
-    // RTDB
-    ref,
-    onValue,
-    rtdbSet,
-    onDisconnect,
-    rtdbServerTimestamp,
-    // Firestore
-    collection,
-    query,
-    onSnapshot,
-    orderBy,
-    getDocs,
-    where,
-    doc,
-    documentId,
-    setDoc,
-    limit,
-    serverTimestamp,
-    getDoc,
-    deleteDoc,
-    addDoc
+    auth,
+    onAuthStateChanged,
+    signOut
 } from "./firebase-config.js";
 
-import * as jamendoService from '../../services/jamendoService.js';
+import { toggleFavorite } from '../../services/favoriteService.js';
+import { isFavoriteSong } from '../../services/favoriteService.js';
+import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
+import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
+import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
+import { subscribeUnreadNotifications } from '../../services/notificationService.js';
+import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
+import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
+import { searchCatalog } from '../../services/searchService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -41,7 +29,6 @@ let currentSongIndex = -1;
 let isShuffle = false;
 let isRepeat = false;
 let isDragging = false;
-let currentContext = null; // Store the active context globally
 let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
 let artistPageCurrentSongs = []; // [NEW] Buffer to store songs from the current artist page
@@ -56,11 +43,14 @@ let accountPageStyleLink = null; // [NEW] To store the dynamically added account
 let radioPageStyleLink = null; // [NEW] To store the dynamically added radio page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
+let activePageCleanup = null;
+let pageLoadSequence = 0;
 
 let previousPageUrl = 'mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
 let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
-const activePresenceListeners = new Set();
+const activePresenceListeners = new Map();
+let userPresenceCleanup = null;
 
 // Cache friend online status (same as desktop)
 const friendOnlineStatus = {};
@@ -165,21 +155,13 @@ activeAudio.addEventListener('pause', () => {
  * Song navigation function (Next / Previous)
  */
 window.playNext = () => {
-    if (currentPlaylist.length === 0) return;
-
-    // Since currentPlaylist is already shuffled in its array when Shuffle is active,
-    // we just need to take the next in order.
-    let nextIndex = currentSongIndex + 1;
-    if (nextIndex >= currentPlaylist.length) nextIndex = 0; 
-
-    triggerSongByIndex(nextIndex);
+    const nextSong = getNextSong();
+    if (nextSong) triggerSongByIndex(currentPlaylist.findIndex((song) => song.id === nextSong.id));
 };
 
 window.playPrevious = () => {
-    if (currentPlaylist.length === 0) return;
-    let prevIndex = currentSongIndex - 1;
-    if (prevIndex < 0) prevIndex = currentPlaylist.length - 1; // Go to the end if at the beginning
-    triggerSongByIndex(prevIndex);
+    const previousSong = getPreviousSong();
+    if (previousSong) triggerSongByIndex(currentPlaylist.findIndex((song) => song.id === previousSong.id));
 };
 
 /**
@@ -283,12 +265,7 @@ const updateMyActivity = async (songName) => {
     // Only update if the song has been playing for more than 5 seconds
     activityUpdateTimeout = setTimeout(async () => {
         try {
-            await setDoc(doc(db, "friends_activity", user.uid), {
-                name: user.displayName || user.email.split('@')[0],
-                song: songName,
-                avatar: user.photoURL || "",
-                timestamp: serverTimestamp()
-            }, { merge: true });
+            await updateActivityRecord(songName);
             console.log("Activity updated:", songName);
         } catch (error) {
             console.error("Failed to update activity to Firestore:", error);
@@ -312,7 +289,7 @@ const syncPlayerLikeButtons = (isLiked) => {
  */
 const checkLikedStatus = async (songId) => {
     const user = auth.currentUser;
-    if (!user || !songId || !db) {
+    if (!user || !songId) {
         syncPlayerLikeButtons(false);
         return false;
     }
@@ -320,9 +297,7 @@ const checkLikedStatus = async (songId) => {
     const cleanId = String(songId).trim();
 
     try {
-        const likeRef = doc(db, "users", user.uid, "liked_songs", cleanId);
-        const docSnap = await getDoc(likeRef);
-        const isLiked = docSnap.exists();
+        const isLiked = await isFavoriteSong(cleanId);
 
         if (currentSongData && String(currentSongData.id) === cleanId) {
             syncPlayerLikeButtons(isLiked);
@@ -390,45 +365,12 @@ const showToast = (message) => {
 const setupUserPresence = (user) => {
     if (!user) return;
 
-    const userStatusRef = ref(rtdb, `presence/${user.uid}`);
-    const isConnectedRef = ref(rtdb, '.info/connected');
+    if (typeof userPresenceCleanup === 'function') userPresenceCleanup();
+
     const myStatusIndicator = document.querySelector('.header-right .online-status');
-
-    const setOnline = () => {
-        if (myStatusIndicator) myStatusIndicator.classList.remove('offline');
-        rtdbSet(userStatusRef, {
-            state: 'online',
-            last_changed: rtdbServerTimestamp()
-        });
-    };
-
-    const setOffline = () => {
-        if (myStatusIndicator) myStatusIndicator.classList.add('offline');
-        rtdbSet(userStatusRef, {
-            state: 'offline',
-            last_changed: rtdbServerTimestamp()
-        });
-    };
-
-    onValue(isConnectedRef, (snapshot) => {
-        if (snapshot.val() === true) {
-            setOnline();
-            
-            // Set onDisconnect to change status to offline when disconnected
-            onDisconnect(userStatusRef).set({
-                state: 'offline',
-                last_changed: rtdbServerTimestamp()
-            });
-        }
-        else {
-            // setOffline(); // This is handled by onDisconnect
-        }
-    });
-
-    // Fix: Only set online on return, don't force offline on hide
-    // so that 'Listening to...' status remains accurate during background play.
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') setOnline();
+    userPresenceCleanup = watchUserConnection(user.uid, {
+        onOnline: () => myStatusIndicator?.classList.remove('offline'),
+        onOffline: () => myStatusIndicator?.classList.add('offline')
     });
 };
 
@@ -437,12 +379,8 @@ const setupUserPresence = (user) => {
  */
 const listenToFriendPresence = (friendUid) => {
     if (activePresenceListeners.has(friendUid)) return;
-    activePresenceListeners.add(friendUid);
 
-    const friendStatusRef = ref(rtdb, `presence/${friendUid}`);
-    onValue(friendStatusRef, (snapshot) => {
-        const data = snapshot.val();
-        const isOnline = data?.state === 'online';
+    const unsubscribe = watchFriendPresence(friendUid, ({ isOnline }) => {
         friendOnlineStatus[friendUid] = isOnline;
         
         // Update UI if the friend's element is on the page (e.g., in the activity list)
@@ -452,6 +390,12 @@ const listenToFriendPresence = (friendUid) => {
             else el.classList.add('offline');
         });
     });
+    activePresenceListeners.set(friendUid, unsubscribe);
+};
+
+const clearFriendPresenceListeners = () => {
+    activePresenceListeners.forEach((unsubscribe) => unsubscribe());
+    activePresenceListeners.clear();
 };
 
 /**
@@ -466,12 +410,11 @@ const renderMobileFriendActivity = async () => {
         friendActivityListeners.forEach(unsub => unsub());
         friendActivityListeners = [];
     }
+    clearFriendPresenceListeners();
 
     try {
         // 1. Get the list of UIDs of people being followed (Following)
-        const followingRef = collection(db, "users", user.uid, "following");
-        const followingSnap = await getDocs(followingRef);
-        const followingIds = followingSnap.docs.map(doc => doc.id).filter(id => id !== user.uid);
+        const followingIds = await getFollowingIds(user.uid);
 
         // If not following anyone, no need to proceed
         if (followingIds.length === 0) return;
@@ -479,10 +422,7 @@ const renderMobileFriendActivity = async () => {
         // 2. Render container (assuming it's in the HTML or add it dynamically)
         const container = document.getElementById('mobileFriendActivity');
 
-        const q = query(collection(db, "friends_activity"), where(documentId(), "in", followingIds.slice(0, 30)), limit(5));
-
-        const unsub = onSnapshot(q, (snapshot) => {
-            const activities = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const unsub = subscribeFriendsActivityByIds(followingIds, (activities) => {
             activities.forEach(friend => listenToFriendPresence(friend.id));
 
             if (container) {
@@ -651,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const user = auth.currentUser;
         const btn = e.currentTarget;
 
-        if (!user || !currentSongData || !btn || !db) {
+        if (!user || !currentSongData || !btn) {
             return;
         }
 
@@ -668,21 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => btn.classList.remove('dislike-anim'), 400);
         }
 
-        const likeRef = doc(db, "users", user.uid, "liked_songs", songId);
         try {
-            if (wasLiked) {
-                await deleteDoc(likeRef);
-            } else {
-                const cleanData = {
-                    id: songId,
-                    name: String(currentSongData.name || "Unknown Title"),
-                    artist: String(currentSongData.artist || "Unknown Artist"),
-                    cover: currentSongData.cover || "",
-                    audio: currentSongData.audio || "",
-                    likedAt: serverTimestamp()
-                };
-                await setDoc(likeRef, cleanData);
-            }
+            await toggleFavorite(currentSongData);
         } catch (error) {
             syncPlayerLikeButtons(wasLiked);
             console.error("Firebase Save Error:", error);
@@ -728,8 +655,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             return;
         }
 
-        currentContext = context; // Update global context
-
+        const wasSameSong = currentSongData && String(currentSongData.id) === String(id);
         // If btn is null (called from Up Next/Next/Prev), try to find the button in the DOM to sync the UI
         if (!btn) {
             const activeEl = document.querySelector(`.is-active-song[data-id="${id}"]`) || 
@@ -758,23 +684,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             // [NEW] Store the original, unshuffled order every time a new context is set
             unshuffledPlaylist = [...baseQueue];
 
-            if (isShuffle) {
-                const selectedTrack = baseQueue.find(s => String(s.id) === String(id)) || 
-                            { id, audio: audioUrl, name: title, artist, cover, duration: duration };
-                const remainingTracks = baseQueue.filter(s => String(s.id) !== String(id));
-                
-                for (let i = remainingTracks.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [remainingTracks[i], remainingTracks[j]] = [remainingTracks[j], remainingTracks[i]];
-                }
-                currentPlaylist = [selectedTrack, ...remainingTracks];
-            } else {
-                currentPlaylist = baseQueue;
-            }
+            const queueState = setContextPlaylist(baseQueue, id);
+            currentPlaylist = queueState.playlist;
+            currentSongIndex = queueState.currentIndex;
+            currentSongData = queueState.currentSong;
         }
 
         const songId = String(id);
-        const isSameSong = currentSongData && String(currentSongData.id) === songId;
+        const isSameSong = wasSameSong && activeAudio.src;
 
         // Toggle Play/Pause logic for the same song
         if (isSameSong) {
@@ -798,6 +715,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         // Set the song index in the newly created/shuffled playlist
         // This is very important so that the Next/Prev buttons know their relative position
         currentSongIndex = currentPlaylist.findIndex(s => isSameAudio(s.audio, audioUrl));
+        syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
 
         // Render the list of next songs instantly (don't wait for the song to load)
         renderUpNext();
@@ -929,24 +847,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const fetchTopArtists = async () => {
         const artistsGrid = document.querySelector('.artists-grid');
         try {
-            const results = await jamendoService.getTopArtists(50);
-            
-            if (results) {
-                const artistsWithPhotos = results
-                    .filter(item => item.image && item.image.trim() !== "")
-                    .slice(0, 10)
-                    .map(item => ({
-                        id: item.id,
-                        name: item.name,
-                        photo: item.image
-                    }));
-                
-                if (artistsWithPhotos.length === 0) {
-                    return false; // Signal to retry if no artists with photos are found.
-                }
-                renderTopArtists(artistsWithPhotos);
-                return true; // Success
-            }
+            const artistsWithPhotos = await getCatalogTopArtists(10);
+            if (artistsWithPhotos.length === 0) return false;
+            renderTopArtists(artistsWithPhotos);
+            return true;
         } catch (error) {
             console.error("Failed to fetch artist data:", error);
             throw error; // Throw error to be caught by fetchWithContinuousRetry
@@ -962,37 +866,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (!songsGrid) return false; // Indicate failure if grid not found
     
         try {
-            const [primaryResponse, collabResponse] = await Promise.all([
-                jamendoService.getArtistTracks(artistId, 20),
-                jamendoService.getArtistTracksByName(artistName, 20)
-            ]);
-
-            // Combine and deduplicate results
-            const allSongs = [
-                ...primaryResponse,
-                ...collabResponse
-            ];
-    
-            const uniqueSongsMap = new Map();
-            allSongs.forEach(item => {
-                // Only add if it's not already in the map, preserving the order (primary first)
-                if (!uniqueSongsMap.has(item.id)) {
-                    uniqueSongsMap.set(item.id, item);
-                }
-            });
-    
-            const finalUniqueSongs = Array.from(uniqueSongsMap.values());
-    
-            if (finalUniqueSongs.length > 0) {
-                const artistSongs = finalUniqueSongs.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    artist: item.artist_name,
-                    cover: item.image,
-                    audio: item.audio,
-                    duration: item.duration,
-                    plays: formatPlayCount((item.stats?.rate_downloads_total || 0) * 5) // Boost plays for API songs
-                }));
+            const artistSongs = await getArtistCatalog(artistId, artistName);
+            if (artistSongs.length > 0) {
     
                 artistPageCurrentSongs = artistSongs; // Store for playPreview
                 await renderGridProgressively('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artistId}`), '.artist-song-list-item-skeleton', `artist-${artistId}`);
@@ -1023,16 +898,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         // Filter songs by checking if their audio path is within the artist's specific folder.
         // This is the key to solving the duplicate song issue for collaborations.
-        const artistSongs = indonesianSongsPlaylist.filter(song => {
-            try {
-                // song.audio path is URL-encoded (e.g., "Raim%20Laode"). We decode it to match the plain folder name.
-                const decodedAudioPath = decodeURIComponent(song.audio);
-                return decodedAudioPath.includes(`/Elemen/${artistFolderName}/`);
-            } catch (e) {
-                console.warn(`Could not decode URI for song audio path: ${song.audio}`, e);
-                return false;
-            }
-        });
+        const artistSongs = getLocalArtistCatalog(indonesianSongsPlaylist, artist);
 
         artistPageCurrentSongs = artistSongs; // Update context for playback
 
@@ -1091,27 +957,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
 
         grid.innerHTML = Array(count).fill(skeletonHTML).join('');
-    };
-
-    /**
-     * Fetch function with a retry mechanism and exponential backoff.
-     * @param {string} url - The API URL to fetch.
-     * @param {object} options - Options for fetch.
-     * @param {number} retries - Number of retry attempts.
-     * @returns {Promise<Response>}
-     */
-    // Helper function to format play counts (e.g., 1.2M, 500K, 300)
-    const formatPlayCount = (count) => {
-        if (typeof count !== 'number' || isNaN(count)) {
-            return '0';
-        }
-        if (count >= 1000000) { // Handle jutaan (M)
-            return (count / 1000000).toFixed(1) + 'M';
-        }
-        if (count >= 1000) { // Handle ribuan (K)
-            return (count / 1000).toFixed(1) + 'K';
-        }
-        return count.toString();
     };
 
     /**
@@ -1248,123 +1093,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
     };
 
-    const calculateRelevance = (item, cleanQuery, qWords) => {
-        let score = 0;
-        const title = (item.name || "").toLowerCase();
-        const artist = (item.artist_name || item.artist || "").toLowerCase();
-        const album = (item.album_name || "").toLowerCase();
-
-        // 1. Exact Match Priority
-        if (title === cleanQuery) score += 500;
-        if (artist === cleanQuery) score += 200;
-
-        // 2. Cross-Field Match
-        const matchInTitle = qWords.some(word => title.includes(word));
-        const matchInArtist = qWords.some(word => artist.includes(word));
-        if (matchInTitle && matchInArtist) score += 400;
-
-        // 3. Combined String Match
-        const combinedString = `${artist} ${title}`;
-        const reversedString = `${title} ${artist}`;
-        if (combinedString.includes(cleanQuery) || reversedString.includes(cleanQuery)) score += 250;
-
-        // 4. Word-by-word Match
-        const fullText = `${title} ${artist} ${album}`;
-        const matchesAll = qWords.every(word => fullText.includes(word));
-        if (matchesAll) score += 100;
-
-        // 5. Phrase Matching
-        if (title.includes(cleanQuery)) score += 100;
-
-        // 6. Start-with Bonus
-        if (title.startsWith(qWords[0])) score += 80;
-
-        // 7. Popularity & Local Boost
-        if (item.isLocal) {
-            if (matchesAll) score += 150;
-        } else {
-            score += ((item.stats?.rate_downloads_total || 0) / 1000);
-        }
-        return score;
-    };
-
-    const fetchApiResults = async (query) => {
-        const [res1, res2] = await Promise.all([
-            jamendoService.searchTracks(query, 25),
-            jamendoService.searchTracksByName(query, 25)
-        ]);
-        return [...res1, ...res2];
-    };
-
-    const getLocalResults = () => {
-        return indonesianSongsPlaylist.map(song => ({
-            ...song, artist_name: song.artist, image: song.cover, isLocal: true
-        }));
-    };
-
-     const searchMusic = async (query) => {
-         const songGrid = document.querySelector('.popular-section .song-grid');
-         const sectionTitle = document.getElementById('sectionTitle');
-         if (!songGrid) return;
-
-         const cleanQuery = query.trim().replace(/\s+/g, ' ');
-         if (!cleanQuery) {
-             fetchTrendingMusic();
-             return;
-         }
-
-         showSkeletonLoader('.song-grid', 'song', 6);
-         if (sectionTitle) sectionTitle.textContent = "Search Results";
-
-         try {
-             const qWords = cleanQuery.toLowerCase().split(' ');
-
-             // 1. Fetch data from all sources in parallel
-             const [apiResults, localResults] = await Promise.all([
-                 fetchApiResults(cleanQuery),
-                 getLocalResults()
-             ]);
-
-             const combined = [...apiResults, ...localResults];
-
-             // 2. Deduplicate and calculate relevance score
-             const uniqueMap = new Map();
-             combined.forEach(item => {
-                 if (!uniqueMap.has(item.id)) {
-                     item.relevanceScore = calculateRelevance(item, cleanQuery.toLowerCase(), qWords);
-                     uniqueMap.set(item.id, item);
-                 }
-             });
-
-             // 3. Sort by score and slice
-             const finalResults = Array.from(uniqueMap.values())
-                 .sort((a, b) => b.relevanceScore - a.relevanceScore)
-                 .slice(0, 15);
-
-             // 4. Render results
-             if (finalResults.length > 0) {
-                 const rawSongs = finalResults.map(item => ({
-                     id: item.id,
-                     name: item.name,
-                     artist: item.artist_name || item.artist,
-                     album: item.album_name,
-                     cover: item.image || 'https://via.placeholder.com/400',
-                     audio: item.audio || '',
-                     duration: item.duration,
-                     plays: item.isLocal ? item.plays : formatPlayCount((item.stats?.rate_downloads_total || 0) * 5)
-                 }));
-
-                 searchPlaylist = rawSongs;
-                 renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton', 'search');
-             } else {
-                 songGrid.innerHTML = '<p style="width: 100%; text-align: center; color: var(--text-muted);">No results found.</p>';
-             }
-         } catch (error) {
-             console.error("Search Music Error:", error);
-             songGrid.innerHTML = `<p style="width: 100%; text-align: center; color: var(--text-muted);">Failed to search for songs. Try again later.</p>`;
-         }
-     };
-
     /**
      * Function to fetch the latest release data from Jamendo
      */
@@ -1372,30 +1100,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const gridSelector = '#newReleasesGrid';
 
         try {
-            const results = await jamendoService.getNewReleases(50);
-
-            // Filter to ensure each artist appears only once in the new releases list
-            const seenArtists = new Set();
-            const uniqueResults = [];
-            for (const item of results) {
-                if (!seenArtists.has(item.artist_id)) {
-                    seenArtists.add(item.artist_id);
-                    uniqueResults.push(item);
-                }
-                if (uniqueResults.length >= 12) break;
-            }
-
-            const rawSongs = uniqueResults.map((item) => ({
-                id: item.id,
-                name: item.name,
-                artist: item.artist_name,
-                album: item.album_name,
-                cover: item.image,
-                audio: item.audio,
-                duration: item.duration,
-                // New releases usually have a lower play count
-                plays: formatPlayCount(Math.floor(Math.random() * 50000) + 1000)
-            }));
+            const rawSongs = await getNewReleaseCatalog(12);
 
             // [FIX] Only render and return true if there is data to display.
             if (rawSongs.length === 0) {
@@ -1421,91 +1126,16 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const fetchIndonesianSongs = async () => {
         const gridSelector = '#indonesianSongsGrid';
 
-        // [FIX] Revert to a manual, hardcoded list for the grid songs to ensure correct paths,
-        // especially for collaboration tracks where the folder name doesn't match the full artist string.
-        const IndonesianGridSongs = [
-            {
-                "id": "backstreet-boys-shape-of-my-heart", "name": "Shape Of My Heart", "artist": "Backstreet Boys", "plays": "98.1M", "duration": 228,
-                "audio": "frontend/public/Elemen/Backstreet%20Boys/Shape%20Of%20My%20Heart.mp3", "cover": "frontend/public/Elemen/Backstreet%20Boys/Image%20Songs/Shape%20Of%20My%20Heart.webp" 
-            },
-            {
-                "id": "riam-laode-dunia-yang-nanti", "name": "Dunia Yang Nanti", "artist": "Raim Laode", "plays": "75.3M", "duration": 200,
-                "audio": "frontend/public/Elemen/Raim%20Laode/Dunia%20Yang%20Nanti.mp3", "cover": "frontend/public/Elemen/Raim%20Laode/Image%20Songs/Dunia%20Yang%20Nanti.webp"
-            },
-            {
-                "id": "hindia-evaluasi", "name": "Evaluasi", "artist": "Hindia", "plays": "68.9M", "duration": 202,
-                "audio": "frontend/public/Elemen/Hindia/Evaluasi.mp3", "cover": "frontend/public/Elemen/Hindia/Image%20Songs/Evaluasi.webp"
-            },
-            {
-                "id": "rizky-febian-&-adrian-khalif-alamak", "name": "Alamak", "artist": "Rizky Febian & Adrian Khalif", "plays": "55.2M", "duration": 221,
-                "audio": "frontend/public/Elemen/Rizky%20Febian/Alamak.mp3", "cover": "frontend/public/Elemen/Rizky%20Febian/Image%20Songs/Alamak.webp"
-            },
-            {
-                "id": "feast-nina", "name": "Nina", "artist": ".Feast", "plays": "43.1M", "duration": 283,
-                "audio": "frontend/public/Elemen/Feast/Nina.mp3", "cover": "frontend/public/Elemen/Feast/Image%20Songs/Nina.webp"
-            },
-            {
-                "id": "idgitaf-sedia-aku-sebelum-hujan", "name": "Sedia Aku Sebelum Hujan", "artist": "Idgitaf", "plays": "39.8M", "duration": 233,
-                "audio": "frontend/public/Elemen/Idgitaf/Sedia%20Aku%20Sebelum%20Hujan.mp3", "cover": "frontend/public/Elemen/Idgitaf/Image%20Songs/Sedia%20Aku%20Sebelum%20Hujan.webp"
-            },
-            {
-                "id": "juicy-luicy-lantas", "name": "Lantas", "artist": "Juicy Luicy", "plays": "35.5M", "duration": 234,
-                "audio": "frontend/public/Elemen/Juicy%20Luicy/Lantas.mp3", "cover": "frontend/public/Elemen/Juicy%20Luicy/Image%20Songs/Lantas.webp"
-            },
-            {
-                "id": "vierra-seandainya", "name": "Seandainya", "artist": "Vierra", "plays": "31.2M", "duration": 263,
-                "audio": "frontend/public/Elemen/Vierra/Seandainya.mp3", "cover": "frontend/public/Elemen/Vierra/Image%20Songs/Seandainya.webp"
-            },
-            {
-                "id": "for-revenge-&-stereo-wall-jakarta-hari-ini", "name": "Jakarta Hari Ini", "artist": "For Revenge & Stereo Wall", "plays": "28.9M", "duration": 224,
-                "audio": "frontend/public/Elemen/For%20Revenge/Jakarta%20Hari%20Ini.mp3", "cover": "frontend/public/Elemen/For%20Revenge/Image%20Songs/Jakarta%20Hari%20Ini.webp"
-            },
-            {
-                "id": "radiohead-creep", "name": "Creep", "artist": "Radiohead", "plays": "25.7M", "duration": 236,
-                "audio": "frontend/public/Elemen/Radiohead/Creep.mp3", "cover": "frontend/public/Elemen/Radiohead/Image%20Songs/Creep.webp"
-            },
-            {
-                "id": "batas-senja-kita-usahakan-lagi", "name": "Kita Usahakan Lagi", "artist": "Batas Senja", "plays": "22.4M", "duration": 234,
-                "audio": "frontend/public/Elemen/Batas%20Senja/Kita%20Usahakan%20Lagi.mp3", "cover": "frontend/public/Elemen/Batas%20Senja/Image%20Songs/Kita%20Usahakan%20Lagi.webp"
-            },
-            {
-                "id": "bilal-indrajaya-niscaya", "name": "Niscaya", "artist": "Bilal Indrajaya", "plays": "19.1M", "duration": 241,
-                "audio": "frontend/public/Elemen/Bilal%20Indrajaya/Niscaya.mp3", "cover": "frontend/public/Elemen/Bilal%20Indrajaya/Image%20Songs/Niscaya.webp"
-            }
-        ];
+        const IndonesianGridSongs = getFeaturedLocalSongs();
 
         // [FIX 1] Render the grid immediately. This ensures the grid is always visible.
         indonesianGridPlaylist = IndonesianGridSongs;
         renderGridProgressively(gridSelector, IndonesianGridSongs, createSongCardHTML, '.song-card-skeleton', 'local');
 
         try {
-            // [FIX 2] Correct the path to the manifest file. Assuming it's in the public assets folder.
-            const res = await fetch('frontend/public/indonesian-songs-manifest.json');
-            if (!res.ok) throw new Error(`Failed to load manifest: ${res.status}`);
-            const data = await res.json();
-
-            // [NEW] Populate local artists from the manifest
-            if (data.artists) {
-                indonesianArtistsPlaylist = (data.artists || []).map(artist => ({
-                    ...artist,
-                    photo: `frontend/public/${artist.photo}` // Prepend the correct path to the artist photo
-                }));
-            }
-
-            // [FIX] Now, populate the full playlist for the search functionality.
-            // Instead of reconstructing paths (which can fail if names don't match file names),
-            // we now trust the paths in the manifest and simply prepend the required prefix.
-            indonesianSongsPlaylist = (data.songs || []).map((s, idx) => {
-                return {
-                    id: s.id || `local-${idx}`,
-                    name: s.name,
-                    artist: s.artist,
-                    cover: `frontend/public/${s.cover}`,
-                    audio: `frontend/public/${s.audio}`,
-                    duration: s.duration || 0,
-                    plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
-                };
-            });
+            const catalog = await loadLocalCatalog();
+            indonesianArtistsPlaylist = catalog.artists;
+            indonesianSongsPlaylist = catalog.songs;
 
             return true;
 
@@ -1524,30 +1154,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         try {
             if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
             
-            const results = await jamendoService.getTrendingTracks(50);
-
-            // Filter logic: Only take one song per artist for visual variety
-            const seenArtists = new Set();
-            const uniqueResults = [];
-            for (const item of results) {
-                if (!seenArtists.has(item.artist_id)) {
-                    seenArtists.add(item.artist_id);
-                    uniqueResults.push(item);
-                }
-                if (uniqueResults.length >= 12) break;
-            }
-
-            const rawSongs = uniqueResults.map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    artist: item.artist_name,
-                    album: item.album_name,
-                    cover: item.image,
-                    audio: item.audio,
-                    duration: item.duration,
-                    // New range: 300k to 5 million to feel more popular
-                    plays: formatPlayCount(Math.floor(Math.random() * 4700000) + 300000)
-        }));
+            const rawSongs = await getTrendingCatalog(12);
 
         // [FIX] Only render and return true if there is data to display.
         if (rawSongs.length === 0) {
@@ -1570,23 +1177,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
      * @param {() => Promise<boolean>} fetchFunction - The async function to execute.
      * @param {number} delay - The delay (ms) before retrying.
      */
-    const fetchWithContinuousRetry = async (fetchFunction, delay = 5000) => {
-    // NEW: True Promise-based retry loop. This will hold Promise.all until success.
-    while (true) {
-        try {
-            const success = await fetchFunction();
-            if (success) {
-                return true; // Success! Exit the loop and resolve the promise.
-            }
-            // If fetchFunction returns false (e.g., empty results), log and retry.
-            console.log(`${fetchFunction.name} returned no data. Retrying in ${delay}ms...`);
-        } catch (error) {
-            // If fetchFunction throws an error (e.g., network failure), log and retry.
-            console.error(`Error in ${fetchFunction.name}. Retrying in ${delay}ms...`, error);
-            }
-        // Wait for the specified delay before the next iteration of the loop.
-        await new Promise(resolve => setTimeout(resolve, delay));
-        }
+    const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries = 5) => {
+        return retryCatalogRequest(fetchFunction, maxRetries, delay);
     };
 
     // Click Logic for Bottom Navigation
@@ -1686,9 +1278,28 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (dropdownEmail) dropdownEmail.textContent = user.email;
     };
 
+    const loadStylesheet = (href, currentLink) => {
+        if (currentLink) {
+            return Promise.resolve(currentLink);
+        }
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+
+        const loaded = new Promise((resolve, reject) => {
+            link.addEventListener('load', () => resolve(link), { once: true });
+            link.addEventListener('error', () => reject(new Error(`Could not load stylesheet ${href}`)), { once: true });
+        });
+
+        document.head.appendChild(link);
+        return loaded;
+    };
+
     const loadPageContent = async (page) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
+        const navigationId = ++pageLoadSequence;
 
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'mobile.html') {
@@ -1696,6 +1307,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.style.opacity = '0';
 
                 await new Promise(res => setTimeout(res, 200));
+
+                if (typeof activePageCleanup === 'function') {
+                    activePageCleanup();
+                    activePageCleanup = null;
+                }
+                if (unreadNotificationsListener) {
+                    unreadNotificationsListener();
+                    unreadNotificationsListener = null;
+                }
 
                 contentContainer.innerHTML = initialHomeContent;
                 // Restore scroll position for the home page
@@ -1757,49 +1377,49 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             const newContent = doc.body.innerHTML;
 
             if (newContent) {
+                if (navigationId !== pageLoadSequence) return;
+
                 // Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
                 // This prevents the jarring scroll jump on the old page.
                 document.documentElement.scrollTop = 0;
+                if (typeof activePageCleanup === 'function') {
+                    activePageCleanup();
+                    activePageCleanup = null;
+                }
+                if (unreadNotificationsListener) {
+                    unreadNotificationsListener();
+                    unreadNotificationsListener = null;
+                }
                 contentContainer.innerHTML = newContent;
 
                 // [FIX] Re-initialize dropdown listeners first before other UI updates.
                 // [NEW] Dynamically load notification page CSS
                 if (page.includes('notifications-mobile.html')) {
-                    if (!notificationPageStyleLink) {
-                        notificationPageStyleLink = document.createElement('link');
-                        notificationPageStyleLink.rel = 'stylesheet';
-                        notificationPageStyleLink.href = 'frontend/src/assets/css/notifications-mobile.css';
-                        document.head.appendChild(notificationPageStyleLink);
-                    }
+                    notificationPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/notifications-mobile.css',
+                        notificationPageStyleLink
+                    );
                 } else if (page.includes('artist-mobile.html')) {
-                    if (!artistPageStyleLink) {
-                        artistPageStyleLink = document.createElement('link');
-                        artistPageStyleLink.rel = 'stylesheet';
-                        artistPageStyleLink.href = 'frontend/src/assets/css/artist-mobile.css';
-                        document.head.appendChild(artistPageStyleLink);
-                    }
+                    artistPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/artist-mobile.css',
+                        artistPageStyleLink
+                    );
                 } else if (page.includes('library-mobile.html')) {
                     // [NEW] Dynamically load library page CSS
-                    if (!libraryPageStyleLink) {
-                        libraryPageStyleLink = document.createElement('link');
-                        libraryPageStyleLink.rel = 'stylesheet';
-                        libraryPageStyleLink.href = 'frontend/src/assets/css/library-mobile.css';
-                        document.head.appendChild(libraryPageStyleLink);
-                    }
+                    libraryPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/library-mobile.css',
+                        libraryPageStyleLink
+                    );
                 } else if (page.includes('account-mobile.html')) {
-                    if (!accountPageStyleLink) {
-                        accountPageStyleLink = document.createElement('link');
-                        accountPageStyleLink.rel = 'stylesheet';
-                        accountPageStyleLink.href = 'frontend/src/assets/css/account-mobile.css';
-                        document.head.appendChild(accountPageStyleLink);
-                    }
+                    accountPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/account-mobile.css',
+                        accountPageStyleLink
+                    );
                 } else if (page.includes('radio-mobile.html')) {
-                    if (!radioPageStyleLink) {
-                        radioPageStyleLink = document.createElement('link');
-                        radioPageStyleLink.rel = 'stylesheet';
-                        radioPageStyleLink.href = 'frontend/src/assets/css/radio-mobile.css';
-                        document.head.appendChild(radioPageStyleLink);
-                    }
+                    radioPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/radio-mobile.css',
+                        radioPageStyleLink
+                    );
                 } else {
                     // Remove notification page CSS if navigating away
                     if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
@@ -1851,6 +1471,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 } else if (page.includes('artist-mobile.html')) {
                     const artistModule = await import('./artist-mobile.js').catch(err => { console.error("Failed to load artist module:", err); return {}; });
                     const { initArtistPage } = artistModule;
+                    activePageCleanup = artistModule.cleanupArtistPage;
 
                     if (typeof initArtistPage === 'function' && artistDataForPageLoad) {
                         initArtistPage(artistDataForPageLoad, previousPageUrl);
@@ -1863,6 +1484,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     // --- LOGIKA YANG DIPINDAHKAN DARI loadNotificationPage ---
                     const notificationsModule = await import('./notifications-mobile.js').catch(err => { console.error("Failed to load notifications module:", err); return {}; });
                     const { cleanupNotifications, initNotificationsPage } = notificationsModule;
+                    activePageCleanup = cleanupNotifications;
 
                     // Add back button functionality
                     contentContainer.querySelector('#backToHomeBtn')?.addEventListener('click', async (e) => {
@@ -1907,7 +1529,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     const { initLibraryPage } = libraryModule;
 
                     if (typeof initLibraryPage === 'function') {
-                        initLibraryPage();
+                        await initLibraryPage();
+                        activePageCleanup = libraryModule.cleanupLibraryPage;
                     } else {
                         console.error("initLibraryPage function not found in module.");
                     }
@@ -1935,6 +1558,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     initializeSkeletons();
                     initializeData();
                 }
+
+                if (navigationId !== pageLoadSequence) return;
                 
                 // [FIX] Fade the new content in.
                 contentContainer.style.opacity = '1';
@@ -1962,11 +1587,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const notificationBadge = document.getElementById('notificationBadge');
         if (!notificationBadge) return;
 
-        const notificationsRef = collection(db, "users", userId, "notifications");
-        const q = query(notificationsRef, where("isRead", "==", false));
-
-        unreadNotificationsListener = onSnapshot(q, (snapshot) => {
-            const unreadCount = snapshot.size;
+        unreadNotificationsListener = subscribeUnreadNotifications(userId, (unreadCount) => {
             notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
             notificationBadge.classList.toggle('hidden', unreadCount === 0);
         }, (error) => {
@@ -2141,68 +1762,8 @@ window.spotiwind = {
                 const cleanQuery = query.trim().toLowerCase();
             
                 const qWordsForLocal = cleanQuery.split(/\s+/);
-                const localResults = indonesianSongsPlaylist.filter(song => 
-                    qWordsForLocal.every(word => `${song.name} ${song.artist}`.toLowerCase().includes(word))
-                ).map(song => ({ ...song, artist_name: song.artist, image: song.cover, isLocal: true }));
-
-                // [NEW] Search for local artists from the dedicated playlist
-                const localArtists = indonesianArtistsPlaylist.filter(artist =>
-                    artist.name.toLowerCase().includes(cleanQuery)
-                ).map(artist => ({
-                    ...artist,
-                    type: 'artist'
-                }));
-
-            const [songRes1, songRes2, artistRes] = await Promise.all([
-                jamendoService.searchTracks(cleanQuery, 10),
-                jamendoService.searchTracksByName(cleanQuery, 10),
-                jamendoService.searchArtistsByName(cleanQuery, 3)
-                ]);
-
-            // 1. Process Artists
-            const artists = artistRes
-                .filter(a => a.image) // Only artists with images
-                .map(artist => ({
-                    id: artist.id,
-                    name: artist.name,
-                    photo: artist.image,
-                    type: 'artist'
-                }));
-
-            // 2. Process Songs
-            const combinedSongs = [...songRes1, ...songRes2, ...localResults];
-                const qWords = cleanQuery.split(/\s+/);
-            const uniqueSongMap = new Map();
-            combinedSongs.forEach(item => uniqueSongMap.set(item.id, item));
-            
-            const allTracks = Array.from(uniqueSongMap.values());
-                const priorityMatches = allTracks.filter(item => qWords.every(word => `${item.name} ${item.artist_name || item.artist}`.toLowerCase().includes(word)));
-                const sortedTracks = priorityMatches.sort((a, b) => (a.isLocal && !b.isLocal) ? -1 : (!a.isLocal && b.isLocal) ? 1 : (b.stats?.rate_downloads_total || 0) - (a.stats?.rate_downloads_total || 0));
-
-            const finalUniqueTracks = [];
-            const seen = new Set();
-            sortedTracks.forEach(t => {
-                const uniqueKey = t.name + (t.artist_name || t.artist);
-                if (!seen.has(uniqueKey)) {
-                    finalUniqueTracks.push(t);
-                    seen.add(uniqueKey);
-                }
-            });
-
-            const fullMappedResults = finalUniqueTracks.map(song => ({ 
-                id: song.id, 
-                name: song.name, 
-                artist: song.artist_name || song.artist, 
-                album: song.album_name, 
-                cover: song.image, 
-                audio: song.audio, 
-                duration: song.duration, 
-                plays: song.isLocal ? song.plays : formatPlayCount((song.stats?.rate_downloads_total || 0) * 5),
-                type: 'song' // Add type for songs
-            }));
-
-            // 3. Combine artists and songs
-            const finalItems = [...localArtists, ...artists, ...fullMappedResults];
+                const finalItems = await searchCatalog(cleanQuery, indonesianSongsPlaylist, indonesianArtistsPlaylist, 10);
+                const fullMappedResults = finalItems.filter((item) => item.type === 'song');
 
             if (finalItems.length > 0) {
                 searchPlaylist = fullMappedResults.slice(0, 20);
@@ -2381,6 +1942,7 @@ window.spotiwind = {
                     }
                     renderUpNext();
                 }
+                setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
                 // When turning shuffle OFF, we only toggle the button state.
                 // The playlist order remains shuffled, and we don't call renderUpNext() to prevent the "vibration".
             });
@@ -2388,6 +1950,7 @@ window.spotiwind = {
             document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {
                 isRepeat = !isRepeat;
                 if (isRepeat) isShuffle = false; // Turn off shuffle if repeat is active
+                setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
                 const btn = e.currentTarget;
                 btn.classList.add('btn-pop');
                 setTimeout(() => btn.classList.remove('btn-pop'), 400);
@@ -2453,6 +2016,10 @@ window.spotiwind = {
                 unreadNotificationsListener();
                 unreadNotificationsListener = null;
             }
+            if (typeof userPresenceCleanup === 'function') {
+                userPresenceCleanup();
+            }
+            clearFriendPresenceListeners();
         }
     });
 

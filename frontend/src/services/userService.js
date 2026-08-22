@@ -4,9 +4,7 @@ import {
     doc,
     getDoc,
     setDoc,
-    updateDoc,
-    arrayUnion,
-    arrayRemove
+    deleteDoc
 } from "../assets/js/firebase-config.js";
 
 const getUserRef = (uid) => doc(db, "users", uid);
@@ -55,17 +53,8 @@ export const followUser = async (targetUid) => {
     if (!currentUid || !targetUid || currentUid === targetUid) return null;
 
     try {
-        const currentRef = getUserRef(currentUid);
-        const targetRef = getUserRef(targetUid);
-
-        await Promise.all([
-            updateDoc(currentRef, {
-                following: arrayUnion(targetUid)
-            }),
-            updateDoc(targetRef, {
-                followers: arrayUnion(currentUid)
-            })
-        ]);
+        const followingRef = doc(db, "users", currentUid, "following", targetUid);
+        await setDoc(followingRef, { uid: targetUid, createdAt: Date.now() });
 
         return { currentUid, targetUid };
     } catch (error) {
@@ -79,17 +68,8 @@ export const unfollowUser = async (targetUid) => {
     if (!currentUid || !targetUid || currentUid === targetUid) return null;
 
     try {
-        const currentRef = getUserRef(currentUid);
-        const targetRef = getUserRef(targetUid);
-
-        await Promise.all([
-            updateDoc(currentRef, {
-                following: arrayRemove(targetUid)
-            }),
-            updateDoc(targetRef, {
-                followers: arrayRemove(currentUid)
-            })
-        ]);
+        const followingRef = doc(db, "users", currentUid, "following", targetUid);
+        await deleteDoc(followingRef);
 
         return { currentUid, targetUid };
     } catch (error) {
