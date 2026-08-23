@@ -94,13 +94,28 @@
 
     <!-- Search Bar -->
     <section class="search-section">
+        <div class="search-heading">
+            <div class="search-heading-copy">
+                <h1>Search</h1>
+                <p>Find your sound, ride the wind.</p>
+            </div>
+            <button class="microphone-btn" type="button" aria-label="Search by voice" title="Search by voice">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+                    <path d="M5 10a7 7 0 0 0 14 0"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                    <line x1="8" y1="22" x2="16" y2="22"></line>
+                </svg>
+            </button>
+        </div>
         <div class="search-box">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="searchInput" placeholder="What do you want to listen to?">
+            <input type="text" id="searchInput" placeholder="Search songs, artists, albums...">
             <button id="clearSearch" class="clear-search-btn" title="Clear search">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">

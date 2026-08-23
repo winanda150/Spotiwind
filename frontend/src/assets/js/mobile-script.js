@@ -12,7 +12,6 @@ import { watchUserConnection, watchFriendPresence } from '../../services/presenc
 import { subscribeUnreadNotifications } from '../../services/notificationService.js';
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
-import { searchCatalog } from '../../services/searchService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -41,6 +40,7 @@ let artistPageStyleLink = null; // [NEW] To store the dynamically added artist p
 let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
 let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
 let radioPageStyleLink = null; // [NEW] To store the dynamically added radio page CSS link
+let searchPageStyleLink = null;
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 let activePageCleanup = null;
@@ -615,26 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Firebase Save Error:", error);
         }
     };
-
-/**
- * [NEW] Handles clicks on artist items in the search dropdown.
- */
-window.handleArtistClick = (id, name, photo) => {
-    const searchDropdown = document.getElementById('searchDropdown');
-    const searchInput = document.getElementById('searchInput');
-    if (searchDropdown) searchDropdown.classList.remove('active');
-    if (searchInput) searchInput.blur();
-
-    try {
-        // Reconstruct the artist data object from the arguments
-        const artistData = { id, name, photo };
-        // Store current scroll position before navigating
-        homeScrollPosition = document.documentElement.scrollTop;
-        navigateToArtistPage(artistData);
-    } catch (error) {
-        console.error("Failed to handle artist click:", error);
-    }
-};
 
 /**
  * Special function to play a song from the search dropdown results.
@@ -1316,6 +1296,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     unreadNotificationsListener();
                     unreadNotificationsListener = null;
                 }
+                if (searchPageStyleLink && searchPageStyleLink.parentNode) {
+                    searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
+                    searchPageStyleLink = null;
+                }
 
                 contentContainer.innerHTML = initialHomeContent;
                 // Restore scroll position for the home page
@@ -1324,7 +1308,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // Re-inisialisasi skeleton dan fetch data lagi untuk halaman home
                 initializeSkeletons();
                 initializeData(); // Panggil fungsi yang memuat semua data API
-                initializeSearch();
                 initializeHomeContent(); // [FIX] Panggil ulang inisialisasi konten home (copyright, greeting)
 
                 const user = auth.currentUser; // [FIX] Dapatkan user saat ini dari auth
@@ -1394,7 +1377,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 // [FIX] Re-initialize dropdown listeners first before other UI updates.
                 // [NEW] Dynamically load notification page CSS
-                if (page.includes('notifications-mobile.html')) {
+                if (page.includes('search-mobile.html')) {
+                    searchPageStyleLink = await loadStylesheet(
+                        'frontend/src/assets/css/search-mobile.css',
+                        searchPageStyleLink
+                    );
+                } else if (page.includes('notifications-mobile.html')) {
                     notificationPageStyleLink = await loadStylesheet(
                         'frontend/src/assets/css/notifications-mobile.css',
                         notificationPageStyleLink
@@ -1421,6 +1409,10 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         radioPageStyleLink
                     );
                 } else {
+                    if (searchPageStyleLink && searchPageStyleLink.parentNode) {
+                        searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
+                        searchPageStyleLink = null;
+                    }
                     // Remove notification page CSS if navigating away
                     if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
                         notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
@@ -1459,14 +1451,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     notificationBtn.addEventListener('click', navigateToNotificationPage);
                 }
 
-                // Re-initialize search functionality as it might be on the new page.
-                initializeSearch();
-
                 // [FIX] Correct if-else-if chain
                 if (page.includes('search-mobile.html')) {
                     // Khusus untuk halaman search, kita tidak perlu memuat data trending/top artist,
                     // cukup inisialisasi fungsi search-nya saja.
                     // Fungsi fetchIndonesianSongs tetap dipanggil agar data lagu lokal tersedia untuk pencarian.
+                    const searchModule = await import('./search-mobile.js');
+                    searchModule.initSearchPage({
+                        debounce,
+                        activeAudio,
+                        getCurrentSongData: () => currentSongData,
+                        getSongs: () => indonesianSongsPlaylist,
+                        getArtists: () => indonesianArtistsPlaylist,
+                        navigateToArtistPage,
+                        setHomeScrollPosition: (value) => { homeScrollPosition = value; },
+                        getLastSearchQuery: () => lastSearchQuery,
+                        setLastSearchQuery: (value) => { lastSearchQuery = value; },
+                        setSearchPlaylist: (value) => { searchPlaylist = value; }
+                    });
                     fetchWithContinuousRetry(fetchIndonesianSongs); // Diperlukan untuk data lagu lokal di fungsi pencarian
                 } else if (page.includes('artist-mobile.html')) {
                     const artistModule = await import('./artist-mobile.js').catch(err => { console.error("Failed to load artist module:", err); return {}; });
@@ -1717,135 +1719,6 @@ window.spotiwind = {
         if (document.visibilityState === 'visible') updateGreeting();
     });
 
-    const initializeSearch = () => {
-        const searchInput = document.getElementById('searchInput');
-        const searchDropdown = document.getElementById('searchDropdown');
-        const clearSearchBtn = document.getElementById('clearSearch');
-
-        if (!searchInput || !searchDropdown || !clearSearchBtn) {
-            // If elements are not found (e.g., on a different page), do nothing.
-            return;
-        }
-
-        // [FIX] Restore the last search query when the search is re-initialized.
-        if (searchInput && lastSearchQuery) {
-            searchInput.value = lastSearchQuery;
-            // Also, make the clear button visible if there's a query.
-            clearSearchBtn?.classList.toggle('visible', lastSearchQuery.length > 0);
-        }
-
-        let searchAbortController = null;
-
-        const updateSearchDropdownHeight = () => {
-            const heroCard = document.querySelector('.hero-card');
-            const searchBox = document.querySelector('.search-box');
-            
-            if (heroCard && searchDropdown && searchBox) {
-                const heroRect = heroCard.getBoundingClientRect();
-                const searchRect = searchBox.getBoundingClientRect();
-                const distanceToBottom = heroRect.bottom - searchRect.bottom;
-                const dropdownStyle = window.getComputedStyle(searchDropdown);
-                const marginTop = parseFloat(dropdownStyle.marginTop) || 0;
-                const finalHeight = Math.max(0, distanceToBottom - marginTop);
-                searchDropdown.style.setProperty('--search-dropdown-height', `${finalHeight}px`);
-            }
-        };
-
-        const fetchDropdownResults = async (query) => {
-            if (!searchDropdown) return;
-
-            if (searchAbortController) searchAbortController.abort();
-            searchAbortController = new AbortController();
-
-            searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
-            try {
-                const cleanQuery = query.trim().toLowerCase();
-            
-                const qWordsForLocal = cleanQuery.split(/\s+/);
-                const finalItems = await searchCatalog(cleanQuery, indonesianSongsPlaylist, indonesianArtistsPlaylist, 10);
-                const fullMappedResults = finalItems.filter((item) => item.type === 'song');
-
-            if (finalItems.length > 0) {
-                searchPlaylist = fullMappedResults.slice(0, 20);
-                const dropdownItems = finalItems.slice(0, 7); // Show max 7 items total
-                window.lastSearchResults = dropdownItems.filter(i => i.type === 'song');
-
-                searchDropdown.innerHTML = dropdownItems.map(item => {
-                    if (item.type === 'artist') {
-                        // Pass data to handleArtistClick for navigation
-                        const safeName = item.name.replace(/'/g, "\\'");
-                        const safePhoto = item.photo.replace(/'/g, "\\'");
-                        return `
-                        <div class="dropdown-item dropdown-item-artist" onclick="window.handleArtistClick('${item.id}', '${safeName}', '${safePhoto}')">
-                            <div class="dropdown-cover-wrapper">
-                                <img src="${item.photo}" style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                            <div class="dropdown-track-info" style="flex: 1; min-width: 0; justify-content: center;">
-                                <div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center;">
-                                    <span>${item.name}</span>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="verified-badge-icon" width="1em" height="1em" viewBox="0 0 256 256">
-                                        <path d="M0 0h256v256H0z" fill="none" />
-                                        <path fill="#0095f6"
-                                            d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57c-1.36-3.27-1.44-8.69-1.52-13.94c-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52c-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14c-3.25 1.36-8.69 1.44-13.94 1.52c-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94c-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18m-52.2 6.84l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32" />
-                                    </svg>
-                                </div>
-                                <div class="dropdown-artist-label">Artist</div>
-                            </div>
-                        </div>`;
-                    } else { // It's a song
-                        const song = item;
-                        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
-                        const isPaused = isActive && activeAudio.paused;
-                        return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${(song.artist).replace(/'/g, "\\'")}', '${song.cover}', '${song.id}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div> <div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
-                    }
-                    }).join('');
-                } else {
-                    searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';
-                }
-            } catch (e) {
-                if (e.name === 'AbortError') return;
-                searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">Error.</div>';
-            }
-        };
-
-        const debouncedSearch = debounce((query) => {
-            const cleanQuery = query.trim();
-            if (cleanQuery.length > 0) {
-                updateSearchDropdownHeight();
-                searchDropdown.classList.add('active');
-                fetchDropdownResults(cleanQuery);
-            } else {
-                searchDropdown.classList.remove('active');
-            }
-        }, 500);
-
-        window.addEventListener('resize', debounce(updateSearchDropdownHeight, 250));
-        searchInput.addEventListener('input', (e) => {
-            const value = e.target.value;
-            clearSearchBtn?.classList.toggle('visible', value.length > 0);
-            lastSearchQuery = value; // [FIX] Update the global variable on every input
-            debouncedSearch(value);
-        });
-        clearSearchBtn?.addEventListener('click', () => { 
-            searchInput.value = ''; 
-            lastSearchQuery = ''; // [FIX] Clear the stored query as well
-            if (searchAbortController) searchAbortController.abort(); 
-            clearSearchBtn.classList.remove('visible'); 
-            searchDropdown.classList.remove('active'); searchInput.focus(); 
-        });
-        
-        // [FIX] Modified focus event to also trigger a search if the input already has a value.
-        searchInput.addEventListener('focus', (e) => { 
-            const query = searchInput.value.trim();
-            if (query.length > 0) { 
-                updateSearchDropdownHeight(); 
-                searchDropdown.classList.add('active');
-                fetchDropdownResults(query); // Trigger search to populate the dropdown
-            } 
-        });
-        document.addEventListener('click', (e) => { if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) { searchDropdown.classList.remove('active'); } });
-    };
-
     onAuthStateChanged(auth, (user) => {
         if (user) {
             // Protection: If opened on Desktop, redirect back to the desktop page
@@ -1865,8 +1738,6 @@ window.spotiwind = {
 
             setupUserPresence(user);
             initializeData(); // Load API data
-            initializeSearch(); // Initialize search functionality
-
             // Event Listeners for mobile player controls
             // Listener for Hero Card Play button 
             const togglePlayHandler = async () => {

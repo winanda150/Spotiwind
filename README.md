@@ -1,86 +1,119 @@
-## Spotiwind - Feel The Music, Ride The Wind.
+# Spotiwind
 
 ![Spotiwind Banner](frontend/public/Elemen/Logo/Spotiwind%20Animation%20Logo.gif)
 
-Spotiwind adalah platform musik modern dengan desain futuristik dan responsif yang dirancang untuk menghadirkan pengalaman mendengarkan musik yang nyaman dan premium.
+**Feel the Music, Ride the Wind.**
 
-Website ini mengusung desain dark premium dengan kombinasi warna neon purple, pink, dan blue gradient, dipadukan dengan elemen antarmuka modern yang terinspirasi dari platform streaming musik masa kini.
+Spotiwind adalah platform streaming musik yang berfokus pada pengalaman mendengarkan yang mengalir, penemuan musik berbasis konteks, dan antarmuka yang bereaksi terhadap audio. Produk ini ditujukan untuk pasar Indonesia terlebih dahulu dan menggabungkan katalog Jamendo dengan katalog lokal Indonesia yang dikurasi.
 
----
+## Status Project
 
-## 🎵 Filosofi Nama Spotiwind
+Repo ini saat ini berisi implementasi web berbasis HTML, CSS, dan JavaScript, termasuk halaman desktop/mobile, aset UI, service Firebase, serta katalog lokal. Dokumen di `docs/` mendefinisikan target arsitektur dan ruang lingkup produk berikutnya; sebagian fitur di dalamnya masih berupa roadmap dan belum seluruhnya tersedia di implementasi saat ini.
 
-Nama Spotiwind merupakan kombinasi dari dua unsur:
+Implementasi yang sudah menjadi fondasi meliputi:
 
-- Spoti → terinspirasi dari kata Spot yang berarti tempat atau ruang untuk menemukan dan menikmati musik.
-- Wind → terinspirasi dari nama Winanda dan Windari yang menjadi bagian dari inspirasi project ini.
+- Halaman web responsif untuk desktop dan mobile
+- Service autentikasi, profil, library, favorit, player, pencarian, katalog, aktivitas, notifikasi, dan presence
+- Integrasi yang direncanakan dengan Firebase dan Jamendo
+- Katalog aset lagu dan artis Indonesia di `frontend/public/Elemen/`
+- Cloud Functions Firebase di `database/`
 
-Nama Spotiwind mencerminkan sebuah platform musik modern yang menggabungkan kreativitas, teknologi, dan pengalaman pengguna dalam satu identitas yang unik.
+## Produk yang Direncanakan
 
-Tagline :
+MVP Spotiwind berfokus pada:
 
-« Feel The Music, Ride The Wind. »
+- Registrasi, login, dan onboarding preferensi musik
+- Home feed dengan shelf personal
+- Pemutaran on-demand dengan queue, seek, shuffle, repeat, dan mini-player persisten
+- Pencarian track, artis, album, dan playlist
+- Library untuk lagu yang disukai, album tersimpan, artis yang diikuti, dan playlist pengguna
+- Playlist publik, privat, atau unlisted
+- WindFlow Radio, yaitu pemutaran berkelanjutan dari track, artis, atau mood tertentu
+- Profil artis untuk katalog lokal
+- Katalog Jamendo non-komersial dan katalog lokal Indonesia
 
----
+Fitur seperti offline listening, Tailwind Playlists, social layer, Artist Dashboard, Gust Mode, Windsock, Wind Rewind, dan Windmap berada di fase lanjutan. Monetisasi juga belum aktif; penggunaan katalog Jamendo harus tetap mematuhi lisensi non-komersialnya.
 
-## 💻 Teknologi yang Digunakan
+## Identitas dan Prinsip Desain
 
-Frontend
+Spotiwind menggunakan canvas hitam dengan **Windstream gradient** sebagai aksen bermakna:
 
-- HTML
-- CSS
-- JavaScript
+```css
+linear-gradient(135deg, #FF2D78 0%, #9B4DFF 35%, #4C6EF5 65%, #1FE8C4 100%)
+```
 
-Backend
+Prinsip utamanya adalah gerakan yang halus, warna yang tidak berlebihan, dan UI yang terasa merespons musik. Player Bar adalah signature element: progress, border, glow, dan transisi audio mengarahkan perhatian utama ke musik yang sedang berjalan. Detail token warna, tipografi Sora/Inter, spacing, motion, accessibility, dan komponen ada di [DESIGN.md](docs/DESIGN.md).
 
-- Firebase Authentication
-- Firebase Firestore
-- Firebase Realtime Database
-- Music Streaming API
+## Arsitektur Teknologi
 
----
+- **Web saat ini:** HTML, CSS, dan JavaScript modular
+- **Target frontend:** Next.js, React, dan TypeScript
+- **Styling target:** Tailwind CSS dengan design tokens dari [DESIGN.md](docs/DESIGN.md)
+- **State target:** Zustand untuk player/queue dan listener real-time Firestore untuk server state
+- **Backend platform:** Firebase Authentication, Cloud Firestore, Cloud Functions, dan Firebase Storage
+- **Katalog internasional:** Jamendo API, dipanggil langsung dari client pada fase ini
+- **Hosting target:** Vercel atau Firebase Hosting
+- **Testing target:** Vitest, React Testing Library, Firebase Local Emulator Suite, dan Playwright
 
-## ✨ Fitur Utama
+Firestore menjadi sumber data utama, bukan Firebase Realtime Database. Model data menggunakan koleksi seperti `users`, `tracks`, `artists`, `albums`, `genres`, `playlists`, `jamendoCache`, dan `windsockTrending`. Katalog lokal menyimpan audio dan gambar di Firebase Storage; komponen Storage ini menggunakan Blaze dan harus dipantau dengan Budget Alert. Rincian schema dan Security Rules ada di [DATABASE.md](docs/DATABASE.md).
 
-- 🔐 Login & Register Authentication
-- 🎧 Music player interaktif
-- 🔍 Pencarian lagu, album, dan artis
-- ❤️ Sistem favorit lagu
-- 📂 Library musik pengguna
-- 🎼 Kategori musik berdasarkan mood
-- 👤 User Account Management
-- 📈 Top Artists dan Popular Songs
-- 🎨 Dark mode premium dengan neon gradient
-- 📱 Responsive design (desktop, tablet, dan mobile)
-- ✨ Animasi dan transisi antarmuka yang halus
+## Struktur Repository
 
----
+```text
+.
+├── desktop.html                 # Entry point desktop saat ini
+├── mobile.html                  # Entry point mobile saat ini
+├── index.html                   # Entry point umum
+├── frontend/
+│   ├── public/                  # Logo, gambar, audio, dan manifest katalog
+│   └── src/
+│       ├── assets/              # CSS dan JavaScript UI
+│       ├── pages/               # Halaman mobile
+│       └── services/            # Auth, catalog, player, library, dan service lain
+├── database/
+│   ├── index.js                 # Entry point Cloud Functions
+│   ├── src/handlers/            # Handler backend
+│   ├── firestore.rules          # Firestore Security Rules
+│   └── database.rules.json      # Aturan database terkait
+├── docs/                        # Dokumentasi produk dan engineering
+└── README.md
+```
 
-## 📦 Tujuan Pengembangan
+## Dokumentasi
 
-Project ini dibuat sebagai:
+Kelima dokumen berikut adalah sumber konteks utama project dan sebaiknya dibaca bersama:
 
-- Portfolio Frontend Development
-- Eksplorasi UI/UX Design
-- Latihan Responsive Web Design
-- Konsep Platform Streaming Musik Modern
+| Dokumen | Fungsi |
+|---|---|
+| [PRD.md](docs/PRD.md) | Apa yang dibangun: visi, persona, requirement, role, scope, monetisasi, risiko, dan roadmap |
+| [DESIGN.md](docs/DESIGN.md) | Bagaimana produk terlihat dan terasa: token, komponen, motion, accessibility, dan UX writing |
+| [DATABASE.md](docs/DATABASE.md) | Bagaimana data dimodelkan di Firestore, caching Jamendo, Storage, indexes, privacy, dan Security Rules |
+| [SKILL.md](docs/SKILL.md) | Bagaimana produk direkayasa: stack target, standar kode, konfigurasi, biaya, testing, security, dan deployment |
+| [USER-FLOW.md](docs/USER-FLOW.md) | Bagaimana pengguna bergerak dari onboarding sampai playback, playlist, settings, upload artis, dan edge cases |
 
----
+Urutan bacaan yang disarankan adalah `PRD.md` untuk scope, `DESIGN.md` untuk UI, `DATABASE.md` untuk data, `USER-FLOW.md` untuk alur, lalu `SKILL.md` sebelum mengubah kode.
 
-## 🚀 Status Project
+## Pengembangan Lokal
 
-✅ UI Design Completed
+Untuk mencoba UI saat ini, buka `index.html`, `desktop.html`, atau `mobile.html` melalui local server. Service Firebase Functions menggunakan Node.js 18 dan memiliki perintah berikut dari folder `database/`:
 
-✅ Responsive Layout
+```bash
+npm install
+npm run serve
+```
 
-✅ Frontend Development
+Konfigurasi Firebase dan Jamendo yang diperlukan untuk target arsitektur dijelaskan di [SKILL.md](docs/SKILL.md). Jangan menaruh credential privat di repository. Firebase web config dan Jamendo `client_id` boleh berada di client sesuai rancangan, tetapi akses tetap harus dilindungi dengan Firestore dan Storage Security Rules.
 
----
+## Konvensi Kontribusi
 
-## 👨‍💻 Developer
+- Gunakan TypeScript strict mode pada target frontend baru.
+- Ikuti token dan komponen dari `DESIGN.md`; jangan membuat warna atau spacing baru tanpa alasan.
+- Ikuti bentuk koleksi dan field di `DATABASE.md`.
+- Perubahan Firestore harus mempertimbangkan Security Rules dan indexes yang terkait.
+- Jamendo lookup harus menggunakan strategi cache, bukan request baru pada setiap render.
+- Gunakan Conventional Commits seperti `feat:`, `fix:`, `docs:`, dan `test:`.
+- Monetisasi tidak boleh diaktifkan sebelum isu lisensi Jamendo dan payment infrastructure diselesaikan.
 
-I Wayan Winanda
+## Developer
 
-Frontend Developer dari Bali, Indonesia.
-
-Fokus membangun website modern, responsif, dan visual yang menarik.
+I Wayan Winanda, frontend developer dari Bali, Indonesia.
