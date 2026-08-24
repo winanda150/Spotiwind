@@ -3,16 +3,12 @@
    Reworked for a cleaner, more premium appearance.
    ============================================= */
 
-.library-page {
-   padding: 0 0 1.5rem;
-}
-
 .library-hero {
    display: flex;
    align-items: center;
    justify-content: space-between;
    gap: 0.75rem;
-   margin: 1rem var(--mobile-horizontal-padding) 0.9rem;
+   margin: 0rem var(--mobile-horizontal-padding) 0.9rem;
    padding: 1rem var(--mobile-horizontal-padding);
    border: 1px solid rgba(255, 255, 255, 0.08);
    border-radius: 1.2rem;
@@ -145,7 +141,7 @@
    display: grid;
    grid-template-columns: 1fr;
    gap: 0.85rem;
-   padding: 0 var(--mobile-horizontal-padding) 1.5rem;
+   padding: 0 var(--mobile-horizontal-padding) 1.25rem;
 }
 
 .library-item {
@@ -251,12 +247,12 @@
 
 @media (min-width: 520px) {
    .library-content-container {
-       grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
    }
 }
 
 @media (min-width: 720px) {
    .library-content-container {
-       grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
    }
 }

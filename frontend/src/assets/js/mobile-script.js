@@ -387,10 +387,16 @@ const setupUserPresence = (user) => {
 
     if (typeof userPresenceCleanup === 'function') userPresenceCleanup();
 
-    const myStatusIndicator = document.querySelector('.header-right .online-status');
+    const myStatusIndicators = document.querySelectorAll('.sidebar-profile .online-status');
+    const updateMyStatus = (isOnline) => {
+        myStatusIndicators.forEach((indicator) => {
+            indicator.classList.toggle('offline', !isOnline);
+        });
+    };
+
     userPresenceCleanup = watchUserConnection(user.uid, {
-        onOnline: () => myStatusIndicator?.classList.remove('offline'),
-        onOffline: () => myStatusIndicator?.classList.add('offline')
+        onOnline: () => updateMyStatus(true),
+        onOffline: () => updateMyStatus(false)
     });
 };
 
@@ -550,15 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // [REFACTOR] Centralized event delegation for dynamic elements
         const target = e.target;
 
-        // 1. Profile Dropdown Toggle
-        const avatarContainer = target.closest('.header-right .avatar-container');
-        if (avatarContainer) {
-            e.stopPropagation();
-            document.getElementById('profileDropdown')?.classList.toggle('active');
-            return;
-        }
-
-        // 2. Home sidebar controls and navigation
+        // 1. Home sidebar controls and navigation
         if (target.closest('.menu-btn')) {
             const sidebar = document.querySelector('.mobile-sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
@@ -591,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 3. Logout Button
+        // 2. Logout Button
         if (target.closest('#logoutBtn, .sidebar-logout-item')) {
             e.preventDefault();
             e.stopPropagation();
@@ -617,7 +615,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 4. Close dropdowns when clicking outside
-        if (!target.closest('.profile-dropdown-menu')) document.getElementById('profileDropdown')?.classList.remove('active');
         if (!target.closest('.footer-link-group')) document.querySelectorAll('.footer-link-group.expanded').forEach(g => g.classList.remove('expanded'));
     });
 
@@ -1311,23 +1308,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const initializeUserUI = (user) => {
         if (!user) return;
 
-        // Update main header avatar
-        updateUserAvatar(user, document.getElementById('userAvatar'));
         updateUserAvatar(user, document.getElementById('sidebarUserAvatar'));
 
-        // Update dropdown info
-        const dropdownAvatar = document.getElementById('dropdownUserAvatar');
-        const dropdownName = document.getElementById('dropdownUserName');
-        const dropdownEmail = document.getElementById('dropdownUserEmail');
         const sidebarName = document.getElementById('sidebarUserName');
         const sidebarEmail = document.getElementById('sidebarUserEmail');
 
-        if (dropdownAvatar) updateUserAvatar(user, dropdownAvatar);
         greetingName = user.displayName || user.email?.split('@')[0] || 'User';
         lastGreetingHour = -1;
         updateGreeting();
-        if (dropdownName) dropdownName.textContent = user.displayName || 'No Name';
-        if (dropdownEmail) dropdownEmail.textContent = user.email;
         if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
         if (sidebarEmail) sidebarEmail.textContent = user.email || '';
     };
@@ -1387,7 +1375,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                 const user = auth.currentUser; // [FIX] Dapatkan user saat ini dari auth
 
-                initializeProfileDropdown();
                 if (user) {
                     initializeUserUI(user);
                 }
@@ -1512,7 +1499,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         radioPageStyleLink = null;
                     }
                 }
-                initializeProfileDropdown();
                 // Now, update user-specific UI elements.
                 const user = auth.currentUser;
                 if (user) {
@@ -1769,17 +1755,6 @@ window.spotiwind = {
     }
 };
 
-    /**
-     * [NEW] Initializes the profile dropdown menu functionality.
-     * This includes opening, closing, and the logout action.
-     */
-    const initializeProfileDropdown = () => {
-        // Some pages (e.g. notifications page) do not render the profile dropdown.
-        // In those cases, this should be a no-op instead of logging a warning.
-        const profileDropdown = document.getElementById('profileDropdown');
-        if (!profileDropdown) return;
-    };
-
     // Panggil initializeSkeletons sekali saat halaman pertama kali dimuat.
     initializeSkeletons();
     
@@ -1807,7 +1782,6 @@ window.spotiwind = {
             // [FIX] Call the new initialization functions
             initializeUserUI(user);
             loadLikedSongsCount(user.uid);
-            initializeProfileDropdown();
 
             // [NEW] Setup unread notification badge listener
             setupUnreadNotificationsListener(user.uid);
