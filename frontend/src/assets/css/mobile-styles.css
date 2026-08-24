@@ -655,6 +655,11 @@ body.player-active .app-container {
     border-color: var(--accent-color);
 }
 
+.song-card.is-active-song {
+    border-color: var(--accent-color) !important;
+    background: rgba(219, 16, 226, 0.07) !important;
+}
+
 .song-cover {
     width: 100%;
     aspect-ratio: 3 / 2;
@@ -1876,6 +1881,10 @@ body.full-player-open {
 /* Logic Equalizer di Up Next */
 .up-next-item .equalizer {
     display: none;
+    align-items: flex-end;
+    gap: 2px;
+    width: 14px;
+    height: 14px;
 }
 
 .up-next-right {
@@ -1907,6 +1916,35 @@ body.full-player-open {
 .mobile-full-player.is-playing .up-next-item.active .equalizer {
     display: flex;
     animation: fadeInScale 0.4s ease forwards;
+}
+
+.mobile-full-player.is-playing .up-next-item.active .equalizer span {
+    width: 3px;
+    background: var(--primary-gradient);
+    background-size: 14px 100%;
+    border-radius: 1px;
+    animation: bounce 0.5s ease-in-out infinite alternate;
+    flex-shrink: 0;
+}
+
+.mobile-full-player.is-playing .up-next-item.active .equalizer span:nth-child(1) {
+    background-position: left;
+    animation-delay: -0.2s;
+}
+
+.mobile-full-player.is-playing .up-next-item.active .equalizer span:nth-child(2) {
+    background-position: center;
+    animation-delay: 0s;
+}
+
+.mobile-full-player.is-playing .up-next-item.active .equalizer span:nth-child(3) {
+    background-position: right;
+    animation-delay: -0.6s;
+}
+
+@keyframes bounce {
+    from { height: 4px; }
+    to { height: 12px; }
 }
 
 .up-next-icon {

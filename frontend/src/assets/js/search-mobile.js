@@ -40,6 +40,8 @@ export const initSearchPage = ({
         const heroCard = document.querySelector('.hero-card');
         const searchBox = document.querySelector('.search-box');
 
+        if (!heroCard || !searchBox || !searchDropdown) return;
+
         if (heroCard) {
             const heroRect = heroCard.getBoundingClientRect();
             const searchRect = searchBox.getBoundingClientRect();
@@ -73,7 +75,11 @@ export const initSearchPage = ({
 
                     const song = item;
                     const currentSongData = getCurrentSongData();
-                    const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+                    const normalizeAudio = (audio) => audio?.replace(/^https?:/, '').replace(/\/$/, '');
+                    const isActive = currentSongData && (
+                        String(song.id) === String(currentSongData.id) ||
+                        normalizeAudio(song.audio) === normalizeAudio(currentSongData.audio)
+                    );
                     const isPaused = isActive && activeAudio.paused;
                     return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="playFromSearch('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${song.artist.replace(/'/g, "\\'")}', '${song.cover}', '${song.id}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div><div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
                 }).join('');

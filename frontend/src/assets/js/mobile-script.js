@@ -77,6 +77,17 @@ const isSameAudio = (url1, url2) => {
     return clean(url1) === clean(url2);
 };
 
+const areSameSongs = (song, otherSong) => {
+    if (!song || !otherSong) return false;
+    return String(song.id) === String(otherSong.id) || isSameAudio(song.audio, otherSong.audio);
+};
+
+const getSongElements = (song) => Array.from(document.querySelectorAll('[data-id]'))
+    .filter(element => areSameSongs(song, {
+        id: element.dataset.id,
+        audio: element.dataset.audio
+    }));
+
 /**
  * Helper to reset play/pause button UI (Sync with Mobile)
  */
@@ -123,7 +134,7 @@ activeAudio.addEventListener('play', () => {
     
     // Sync ALL instances of this song (in Grid and Search Dropdown)
     if (currentSongData) {
-        document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
+        getSongElements(currentSongData).forEach(el => {
             el.classList.add('is-active-song');
             el.classList.remove('is-paused');
             const overlay = el.querySelector('.play-overlay');
@@ -143,7 +154,7 @@ activeAudio.addEventListener('pause', () => {
     if (fullPlayBtn) fullPlayBtn.innerHTML = PLAY_ICON;
     
     if (currentSongData) {
-        document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
+        getSongElements(currentSongData).forEach(el => {
             el.classList.add('is-paused');
             const overlay = el.querySelector('.play-overlay');
             if (overlay) overlay.innerHTML = PLAY_ICON;
@@ -245,8 +256,8 @@ const triggerSongByIndex = (index) => {
     if (!song) return;
 
     // Find the specific play-overlay element to avoid overwriting the main container
-    const activeEl = document.querySelector(`.is-active-song[data-id="${song.id}"]`) || 
-                     document.querySelector(`[data-id="${song.id}"]`);
+    const activeEl = getSongElements(song).find(element => element.classList.contains('is-active-song')) ||
+                     getSongElements(song)[0];
     const btn = activeEl?.querySelector('.play-overlay');
 
     window.playPreview(btn, song.audio, song.name, song.artist, song.cover, song.id, song.duration);
@@ -603,11 +614,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             return;
         }
 
-        const wasSameSong = currentSongData && String(currentSongData.id) === String(id);
+        const wasSameSong = currentSongData && areSameSongs(currentSongData, { id, audio: audioUrl });
         // If btn is null (called from Up Next/Next/Prev), try to find the button in the DOM to sync the UI
         if (!btn) {
-            const activeEl = document.querySelector(`.is-active-song[data-id="${id}"]`) || 
-                             document.querySelector(`[data-id="${id}"]`);
+            const activeEl = getSongElements({ id, audio: audioUrl }).find(element => element.classList.contains('is-active-song')) ||
+                             getSongElements({ id, audio: audioUrl })[0];
             btn = activeEl?.querySelector('.play-overlay');
         }
 
@@ -679,7 +690,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         });
 
         // Activate the class on all elements with this ID
-        document.querySelectorAll(`[data-id="${songId}"]`).forEach(el => el.classList.add('is-active-song'));
+        getSongElements(currentSongData).forEach(el => el.classList.add('is-active-song'));
 
         // Reset Mini Progress Bar to 0 instantly before the new song loads
         document.querySelectorAll('.mobile-mini-progress-bar').forEach(thumb => thumb.style.width = '0%');
@@ -912,7 +923,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
      * This promotes reusability without causing side effects.
      */
     const createSongCardHTML = (song, context) => {
-        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+        const isActive = areSameSongs(song, currentSongData);
         const safeName = song.name.replace(/'/g, "\\'");
         const safeArtist = song.artist.replace(/'/g, "\\'");
 
