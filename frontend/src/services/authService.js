@@ -1,7 +1,11 @@
 import {
     auth,
+    db,
     createUserWithEmailAndPassword,
+    doc,
+    getDoc,
     signInWithEmailAndPassword,
+    setDoc,
     updateProfile,
     GoogleAuthProvider,
     FacebookAuthProvider,
@@ -21,6 +25,7 @@ import {
 export const getErrorMessage = (code) => {
     switch (code) {
         case 'auth/email-already-in-use': return 'Email is already registered.';
+        case 'auth/username-already-in-use': return 'Username is already registered.';
         case 'auth/invalid-email': return 'Invalid email format. Please check your email address.';
         case 'auth/weak-password': return 'Password is too weak (min 6 characters).';
         case 'auth/user-not-found':
@@ -41,15 +46,55 @@ export const getErrorMessage = (code) => {
  * @param {string} email - The user's email.
  * @param {string} password - The user's password.
  * @param {boolean} rememberMe - Whether to persist the session.
+ * @param {string} username - The user's unique username.
  */
-export const registerWithEmail = async (name, email, password, rememberMe) => {
+export const registerWithEmail = async (name, email, password, rememberMe, username) => {
     const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    const normalizedUsername = username.trim().toLowerCase();
+    const usernameRef = doc(db, "usernames", normalizedUsername);
+    const existingUsername = await getDoc(usernameRef);
+
+    if (existingUsername.exists()) {
+        const error = new Error('Username is already registered');
+        error.code = 'auth/username-already-in-use';
+        throw error;
+    }
+
     await setPersistence(auth, persistence);
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, {
         displayName: name
     });
+
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        email,
+        username: normalizedUsername,
+        displayName: name,
+        createdAt: Date.now()
+    }, { merge: true });
+
+    await setDoc(usernameRef, {
+        uid: userCredential.user.uid,
+        email
+    });
+
     return userCredential.user;
+};
+
+const resolveLoginEmail = async (identifier) => {
+    if (identifier.includes('@')) return identifier;
+
+    const usernameSnapshot = await getDoc(doc(db, "usernames", identifier.toLowerCase()));
+    const profile = usernameSnapshot.exists() ? usernameSnapshot.data() : null;
+
+    if (!profile?.email) {
+        const error = new Error('User not found');
+        error.code = 'auth/user-not-found';
+        throw error;
+    }
+
+    return profile.email;
 };
 
 /**
@@ -61,7 +106,8 @@ export const registerWithEmail = async (name, email, password, rememberMe) => {
 export const loginWithEmail = async (email, password, rememberMe) => {
     const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
     await setPersistence(auth, persistence);
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const loginEmail = await resolveLoginEmail(email.trim());
+    const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
     return userCredential.user;
 };
 

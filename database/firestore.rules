@@ -28,6 +28,14 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email is string;
+      allow update, delete: if isOwner(resource.data.uid);
+    }
+
     match /users/{userId}/{allSubcollections=**} {
       allow read, write: if isOwner(userId);
     }

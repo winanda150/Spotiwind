@@ -1,6 +1,7 @@
 import {
     auth,
-    onAuthStateChanged
+    onAuthStateChanged,
+    signOut
 } from "./firebase-config.js";
 
 import {
@@ -17,9 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerTab = document.getElementById('registerTab');
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
+    const registerLink = document.getElementById('registerLink');
+    const loginLink = document.getElementById('loginLink');
+    const loginBrand = document.querySelector('.login-brand');
     const formTitle = document.querySelector('.title');
     const formSubtitle = document.querySelector('.subtitle');
     const overlay = document.getElementById('pageTransition');
+    let suppressAuthRedirect = false;
 
     const waitForPageLoad = (callback) => {
         const run = () => requestAnimationFrame(callback);
@@ -45,9 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    setTimeout(() => {
+        if (!document.body.classList.contains('is-transitioning')) {
+            hideLoadingOverlay();
+        }
+    }, 1500);
+
     // Auth Observer: Check if the user was previously logged in
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            if (suppressAuthRedirect) {
+                hideLoadingOverlay();
+                return;
+            }
+
             document.body.classList.add('is-transitioning');
             console.log("User detected:", user.email);
             document.body.classList.add('is-transitioning'); // Add this class
@@ -61,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.replace(targetPage);
             }, 1000);
         } else {
+            suppressAuthRedirect = false;
             // Jika tidak ada user (Logged Out), langsung sembunyikan overlay
             document.body.classList.remove('is-transitioning');
             // dan tampilkan halaman login.
@@ -78,6 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
         inactiveBtn.classList.remove('active');
         showForm.classList.remove('hidden');
         hideForm.classList.add('hidden');
+        document.querySelector('.login-switch').classList.toggle('hidden', showForm === registerForm);
+        document.querySelector('.register-switch').classList.toggle('hidden', showForm === loginForm);
+        loginBrand.classList.toggle('hidden', showForm === registerForm);
         formTitle.textContent = title;
         formSubtitle.textContent = subtitle;
     };
@@ -108,12 +128,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Tab Event Listeners
     loginTab.addEventListener('click', () => {
-        switchTab(loginTab, registerTab, loginForm, registerForm, 'Welcome Back 👋', 'Login to continue your music journey');
+        switchTab(loginTab, registerTab, loginForm, registerForm, 'Welcome back!', 'Good to see you again. Login to continue your music journey.');
     });
 
     registerTab.addEventListener('click', () => {
-        switchTab(registerTab, loginTab, registerForm, loginForm, 'Create Account ✨', 'Start your musical journey today');
+        switchTab(registerTab, loginTab, registerForm, loginForm, 'Create your account', 'Join Spotiwind and start your music adventure.');
     });
+
+    registerLink.addEventListener('click', () => registerTab.click());
+    loginLink.addEventListener('click', () => loginTab.click());
 
     // Social Login Bindings
     document.getElementById('googleBtn').addEventListener('click', (e) => { // [FIX] Pass the provider name as a string
@@ -187,7 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (type === 'register') {
                     console.log("Attempting registration for:", email);
-                    await registerWithEmail(data.name.trim(), email, password, rememberMe);
+                    suppressAuthRedirect = true;
+                    const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
+                    await registerWithEmail(fullName, email, password, rememberMe, data.username);
+                    await signOut(auth);
                     loginTab.click(); // Switch to login tab
                 } else {
                     console.log("Attempting manual login for:", email);
@@ -196,6 +222,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Redirect is handled automatically by onAuthStateChanged
                 }
             } catch (error) {
+                if (type === 'register') {
+                    suppressAuthRedirect = false;
+                }
                 console.error("Login/Register Error:", error.code, error.message);
                 const errorMessage = getErrorMessage(error.code);
 
