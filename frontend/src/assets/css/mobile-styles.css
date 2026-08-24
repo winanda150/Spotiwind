@@ -367,6 +367,24 @@ body.player-active .app-container {
     }
 }
 
+/* Greeting above the hero card */
+.greeting-section {
+    padding: 0rem 1.5rem 1rem;
+}
+
+.greeting-section .badge {
+    display: block;
+    color: var(--text-main);
+    font-size: 1.08rem;
+    font-weight: 600;
+}
+
+.greeting-section p {
+    margin: 0.35rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
 /* Hero Card Styles for Mobile */
 .hero-card {
     background: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('../../../public/Elemen/Logo/Gambar1.webp');
@@ -405,17 +423,10 @@ body.player-active .app-container {
     background-clip: text;
 }
 
-.badge {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-weight: 600;
-}
-
 /* NEW: Mood Section Styles */
 .mood-section {
     padding: 0;
-    margin: 1.5rem 0 2rem 0;
-    /* Spacing between Hero and Content */
+    margin: 1rem 0 1.2rem 0;
 }
 
 .section-header {
@@ -428,7 +439,7 @@ body.player-active .app-container {
 }
 
 .section-title {
-    font-size: 0.9rem;
+    font-size: 1rem;
     /* Consistent with mobile header titles */
     font-weight: 600;
     margin-bottom: 0;
@@ -439,28 +450,14 @@ body.player-active .app-container {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.9rem;
+    color: var(--accent-color);
     text-decoration: none;
     font-weight: 600;
     transition: color 0.2s;
 }
 
-.see-all-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    color: var(--text-muted);
-    transition: color 0.2s;
-}
-
 .see-all-link:hover {
-    color: var(--text-main);
-}
-
-.see-all-link:hover .see-all-icon {
     color: var(--text-main);
 }
 

@@ -240,6 +240,25 @@ body.player-active .right-sidebar {
     border-color: var(--accent-color);
 }
 
+.greeting-section {
+    margin-bottom: 1rem;
+}
+
+.greeting-section .badge {
+    display: block;
+    color: var(--text-main);
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.greeting-section p {
+    margin: 0.35rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
 .hero-card {
     background: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('../../../public/Elemen/Logo/Gambar1.webp');
     background-size: 100% 130%;
@@ -253,14 +272,6 @@ body.player-active .right-sidebar {
     align-items: flex-start;
     gap: 0.8rem;
     margin-bottom: 2.5rem;
-}
-
-#greetingBadge {
-    font-size: 1rem;
-    color: var(--text-muted);
-    margin: 0;
-    font-weight: 600;
-    letter-spacing: -0.02em;
 }
 
 .hero-card p {

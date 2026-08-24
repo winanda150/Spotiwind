@@ -698,46 +698,31 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
 
     const logoutBtn = document.getElementById('logoutBtn');
 
-    let lastHour = -1; // Stores the last hour's status for rendering optimization
-
-    /**
-     * Updates the greeting text based on the device's local time
-     */
+    let lastGreetingHour = -1;
+    let greetingName = 'User';
     const updateGreeting = () => {
-        const greetingBadge = document.getElementById('greetingBadge'); // Get it here as it might be re-rendered
+        const greetingBadge = document.getElementById('greetingBadge');
+        if (!greetingBadge) return;
+
         const hour = new Date().getHours();
-        if (hour === lastHour) return; // Optimization: Do nothing if the hour hasn't changed
-        lastHour = hour;
+        if (hour === lastGreetingHour) return;
+        lastGreetingHour = hour;
 
-        let greeting = "";
-        let emoji = "";
+        let greeting = 'Night';
+        if (hour >= 4 && hour < 10) greeting = 'Morning';
+        else if (hour >= 10 && hour < 15) greeting = 'Afternoon';
+        else if (hour >= 15 && hour < 18) greeting = 'Evening';
 
-        // Time division logic: Morning (4-10), Afternoon (10-15), Evening (15-18), Night (18-04)
-        if (hour >= 4 && hour < 10) {
-            greeting = "Morning";
-            emoji = "🌅";
-        } else if (hour >= 10 && hour < 15) {
-            greeting = "Afternoon";
-            emoji = "☀️";
-        } else if (hour >= 15 && hour < 18) {
-            greeting = "Evening";
-            emoji = "🌇";
-        } else {
-            greeting = "Night";
-            emoji = "🌙";
-        }
-
-        // Display greeting without user name (Example: Good Morning 🌅)
-        greetingBadge.textContent = `Good ${greeting} ${emoji}`;
+        greetingBadge.innerHTML = `Good ${greeting}, ${greetingName} <span aria-hidden="true">👋</span>`;
     };
 
     updateGreeting();
-    // Update the greeting every 1 minute to keep it accurate if the page is left open
     setInterval(updateGreeting, 60000);
-
-    // Immediately update if the user returns to this tab (Visibility API)
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') updateGreeting();
+        if (document.visibilityState === 'visible') {
+            lastGreetingHour = -1;
+            updateGreeting();
+        }
     });
 
     // Initialize search with Slidedown Dropdown feature
@@ -1279,6 +1264,9 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
 
             // Update username
             const userNameElement = document.getElementById('userName');
+            greetingName = user.displayName || user.email?.split('@')[0] || 'User';
+            lastGreetingHour = -1;
+            updateGreeting();
             if (userNameElement) {
                 userNameElement.textContent = user.displayName || user.email.split('@')[0];
             }

@@ -452,38 +452,6 @@ const renderMobileFriendActivity = async () => {
     }
 };
 
-    /**
-     * [REFACTOR] Updates the greeting badge based on the time of day.
-     * Moved to global scope to be callable on navigation.
-     */
-    let lastHour = -1; // Stores the last hour's status for rendering optimization
-    const updateGreeting = (forceUpdate = false) => {
-        const greetingBadge = document.getElementById('greetingBadge');
-        if (!greetingBadge) return;
-        
-        const hour = new Date().getHours();
-        if (hour === lastHour && !forceUpdate) return; // Optimization: Only process if the hour has changed or if forced
-        lastHour = hour;
-
-        let greeting = "";
-        let emoji = "";
-
-        if (hour >= 4 && hour < 10) {
-            greeting = "Morning";
-            emoji = "🌅";
-        } else if (hour >= 10 && hour < 15) {
-            greeting = "Afternoon";
-            emoji = "☀️";
-        } else if (hour >= 15 && hour < 18) {
-            greeting = "Evening";
-            emoji = "🌇";
-        } else {
-            greeting = "Night";
-            emoji = "🌙";
-        }
-        greetingBadge.textContent = `Good ${greeting} ${emoji}`;
-    };
-
 /**
  * Helper for relative time format (same as desktop)
  */
@@ -1223,6 +1191,24 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             avatarElement.src = originalPhotoURL || defaultAvatar;
     };
 
+    let lastGreetingHour = -1;
+    let greetingName = 'User';
+    const updateGreeting = () => {
+        const greetingBadge = document.getElementById('greetingBadge');
+        if (!greetingBadge) return;
+
+        const hour = new Date().getHours();
+        if (hour === lastGreetingHour) return;
+        lastGreetingHour = hour;
+
+        let greeting = 'Night';
+        if (hour >= 4 && hour < 10) greeting = 'Morning';
+        else if (hour >= 10 && hour < 15) greeting = 'Afternoon';
+        else if (hour >= 15 && hour < 18) greeting = 'Evening';
+
+        greetingBadge.innerHTML = `Good ${greeting}, ${greetingName} <span aria-hidden="true">👋</span>`;
+    };
+
     /**
      * [NEW] Initializes all dynamic content specific to the home page.
      * This includes the greeting, copyright year, and other UI elements.
@@ -1234,8 +1220,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             copyrightYearEl.textContent = new Date().getFullYear();
         }
 
-        // Update the greeting message
-        updateGreeting(true); // Force update when home content is re-initialized
+        updateGreeting();
+
     };
 
     /**
@@ -1254,6 +1240,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const dropdownEmail = document.getElementById('dropdownUserEmail');
 
         if (dropdownAvatar) updateUserAvatar(user, dropdownAvatar);
+        greetingName = user.displayName || user.email?.split('@')[0] || 'User';
+        lastGreetingHour = -1;
+        updateGreeting();
         if (dropdownName) dropdownName.textContent = user.displayName || 'No Name';
         if (dropdownEmail) dropdownEmail.textContent = user.email;
     };
@@ -1710,13 +1699,12 @@ window.spotiwind = {
     // Panggil initializeHomeContent sekali saat halaman pertama kali dimuat.
     initializeHomeContent();
 
-    updateGreeting(true); // Force update on initial load
-    // Update the greeting every 1 minute to keep it accurate if the page is left open
     setInterval(updateGreeting, 60000);
-
-    // Immediately update if the user returns to this tab (Visibility API)
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') updateGreeting();
+        if (document.visibilityState === 'visible') {
+            lastGreetingHour = -1;
+            updateGreeting();
+        }
     });
 
     onAuthStateChanged(auth, (user) => {
