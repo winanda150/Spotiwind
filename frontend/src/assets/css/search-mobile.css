@@ -55,7 +55,7 @@
 }
 
 .search-section {
-    padding: 0 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding);
     margin-bottom: 1.1rem;
 }
 

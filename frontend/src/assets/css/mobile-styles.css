@@ -7,6 +7,7 @@
     --text-main: #ffffff;
     --text-muted: #9ca3af;
     --bg-dark: #0f172a;
+    --mobile-horizontal-padding: 0.9375rem;
 }
 
 * {
@@ -46,7 +47,7 @@ body.player-active .app-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.25rem;
+    padding: 1rem var(--mobile-horizontal-padding);
     position: sticky;
     top: 0;
     background: rgba(15, 23, 42);
@@ -368,7 +369,7 @@ body.player-active .app-container {
 
 /* Greeting above the hero card */
 .greeting-section {
-    padding: 0rem 1.5rem 1rem;
+    padding: 0rem var(--mobile-horizontal-padding) 1rem;
 }
 
 .greeting-section .badge {
@@ -391,7 +392,7 @@ body.player-active .app-container {
     background-position: center calc(50% + 10px);
     border: 1px solid var(--glass-border);
     border-radius: 1rem;
-    padding: 1.5rem;
+    padding: 1.5rem var(--mobile-horizontal-padding);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -434,7 +435,7 @@ body.player-active .app-container {
     align-items: center;
     margin-bottom: 1rem;
     /* Slightly less margin for mobile */
-    padding: 0 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding);
 }
 
 .section-title {
@@ -465,7 +466,7 @@ body.player-active .app-container {
     gap: 1rem;
     overflow-x: auto;
     /* Memungkinkan scroll horizontal */
-    padding: 0 1.5rem 0.5rem 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding) 0.5rem var(--mobile-horizontal-padding);
     scrollbar-width: none;
     /* Sembunyikan scrollbar di Firefox */
 }
@@ -632,7 +633,7 @@ body.player-active .app-container {
     gap: 1rem;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 0 1.5rem 1.5rem 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding) 1.5rem var(--mobile-horizontal-padding);
 }
 
 .song-grid::-webkit-scrollbar {
@@ -764,7 +765,7 @@ body.player-active .app-container {
 .magic-box-section {
     margin-top: -1.1rem;
     margin-bottom: 1.5rem;
-    padding: 0 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding);
 }
 
 .magic-box {
@@ -775,7 +776,7 @@ body.player-active .app-container {
     /* Memastikan bagian tengah gambar terlihat */
     background-repeat: no-repeat;
     border-radius: 1.25rem;
-    padding: 1.2rem 1.8rem 1.2rem 1.2rem;
+    padding: 1.2rem var(--mobile-horizontal-padding);
     /* Top, Right, Bottom, Left */
     display: flex;
     flex-direction: row;
@@ -820,7 +821,7 @@ body.player-active .app-container {
     background: var(--primary-gradient);
     color: white;
     border: none;
-    padding: 0.5rem 1.5rem;
+    padding: 0.5rem var(--mobile-horizontal-padding);
     border-radius: 2rem;
     font-weight: 700;
     font-size: 0.73rem;
@@ -898,7 +899,7 @@ body.player-active .app-container {
     /* Penting agar progres bar mengikuti radius bar */
     align-items: center;
     justify-content: space-between;
-    padding: 0 15px;
+    padding: 0 var(--mobile-horizontal-padding);
     /* Sedikit padding dalam untuk konten */
     z-index: 999;
     cursor: pointer;
@@ -1390,7 +1391,7 @@ body.player-active .app-container {
     scrollbar-width: none;
     -ms-overflow-style: none;
     /* Sembunyikan scrollbar di IE/Edge */
-    padding: 0 1.5rem 1rem 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding) 1rem var(--mobile-horizontal-padding);
 }
 
 .artists-grid::-webkit-scrollbar {
@@ -1581,7 +1582,7 @@ body.full-player-open {
     min-height: min-content;
     /* Mencegah pemotongan konten saat overflow */
     gap: 2rem;
-    padding: 1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom)) 1.5rem;
+    padding: 1.5rem var(--mobile-horizontal-padding) calc(1.5rem + env(safe-area-inset-bottom)) var(--mobile-horizontal-padding);
 }
 
 .full-cover-wrapper {
@@ -1794,7 +1795,7 @@ body.full-player-open {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
-    padding: 1rem 1.5rem 1rem 1.5rem;
+    padding: 1rem var(--mobile-horizontal-padding);
 }
 
 .up-next-title {
@@ -1993,7 +1994,7 @@ body.full-player-open {
 .mobile-footer {
     background-color: #0c1222;
     /* Sedikit lebih terang dari background utama */
-    padding: 2rem 1.5rem 1.5rem 1.5rem;
+    padding: 2rem var(--mobile-horizontal-padding) 1.5rem var(--mobile-horizontal-padding);
     /* Menambah padding atas agar ada jarak dari konten terakhir */
     border-top: 1px solid var(--glass-border);
 }

@@ -4,7 +4,7 @@
     justify-content: space-between;
     /* Untuk menempatkan tombol di ujung */
     align-items: center;
-    padding: 1rem 1rem;
+    padding: 1rem var(--mobile-horizontal-padding);
     /* Padding yang lebih standar untuk header mobile */
     position: sticky;
     top: 0;
@@ -22,9 +22,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
+    width: 20px;
     /* Lebar tetap untuk area klik */
-    height: 40px;
+    height: 20px;
     /* Tinggi tetap untuk area klik */
     cursor: pointer;
     transition: opacity 0.2s;
@@ -45,10 +45,8 @@
 
 .notification-page-header .page-title {
     font-size: 1rem;
-    /* Ukuran judul yang lebih standar untuk header */
     font-weight: 600;
     white-space: nowrap;
-    /* Mencegah judul turun baris */
 }
 
 .notification-page-header .more-options-btn {
@@ -56,9 +54,8 @@
     border: none;
     color: var(--text-main);
     cursor: pointer;
-    width: 40px;
-    /* Lebar tetap agar seimbang dengan tombol kembali */
-    height: 40px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -73,7 +70,7 @@
 
 /* Kontainer utama untuk daftar notifikasi */
 .notification-list-container {
-    padding: 1.5rem;
+    padding: 1.5rem var(--mobile-horizontal-padding);
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -84,7 +81,7 @@
     align-items: flex-start;
     gap: 1rem;
     background: var(--glass-bg);
-    padding: 1rem;
+    padding: 1rem var(--mobile-horizontal-padding);
     border-radius: 0.8rem;
     border: 1px solid var(--glass-border);
     transition: background-color 0.2s;

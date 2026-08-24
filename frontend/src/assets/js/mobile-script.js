@@ -1046,7 +1046,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (items === null) {
             showSkeletonLoader(gridSelector, skeletonType, skeletonCount);
         } else if (items.length === 0) {
-            grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: 1.5rem; text-align: center; width: 100%;">${emptyMessage}</p>`;
+            grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: var(--mobile-horizontal-padding); text-align: center; width: 100%;">${emptyMessage}</p>`;
         } else {
             grid.innerHTML = items.map(item => itemRenderer(item, context)).join('');
         }

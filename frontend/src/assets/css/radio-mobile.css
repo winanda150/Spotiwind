@@ -1,5 +1,5 @@
 ﻿.radio-page {
-    padding: 1rem 1.5rem 2rem;
+    padding: 1rem var(--mobile-horizontal-padding) 2rem;
 }
 
 .radio-hero {
@@ -10,7 +10,7 @@
     background: linear-gradient(135deg, rgba(241, 46, 119, 0.25), rgba(123, 25, 245, 0.2));
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
-    padding: 1.25rem 1rem 1.25rem 1.25rem;
+    padding: 1.25rem var(--mobile-horizontal-padding);
     margin: 0.5rem 0 1.5rem;
 }
 

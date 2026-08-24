@@ -117,7 +117,7 @@ const loadNotifications = (userId) => {
 
         if (notifications.length === 0) {
             currentContainer.innerHTML = `
-                <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                <div style="text-align: center; padding: 3rem var(--mobile-horizontal-padding); color: var(--text-muted);">
                     <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem; opacity: 0.5;">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -168,7 +168,7 @@ export const initNotificationsPage = () => {
             loadNotifications(user.uid);
         } else {
             if (container) {
-                container.innerHTML = `<p style="text-align: center; padding: 2rem;">Please <a href="index.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
+                container.innerHTML = `<p style="text-align: center; padding: 2rem var(--mobile-horizontal-padding);">Please <a href="index.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
             }
         }
     });

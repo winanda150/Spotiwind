@@ -3,7 +3,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.8rem 1.3rem;
+    padding: 0.8rem var(--mobile-horizontal-padding);
     position: sticky;
     /* Sticky is better than fixed within a scrollable container */
     top: 0;
@@ -164,7 +164,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 0rem 1.5rem;
+    padding: 0rem var(--mobile-horizontal-padding);
     background: transparent;
     /* Wrapper ini transparan, berada di atas gambar hero */
 }
@@ -212,7 +212,7 @@
     flex-direction: column;
     gap: 0.75rem;
     /* Spacing between items */
-    padding: 0rem 1.5rem 1.3rem 1.5rem;
+    padding: 0rem var(--mobile-horizontal-padding) 1.3rem var(--mobile-horizontal-padding);
     /* Adjust padding to match other sections, add top padding */
     overflow-x: hidden;
     /* No horizontal scroll */
