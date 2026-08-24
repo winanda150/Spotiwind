@@ -1590,8 +1590,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (!notificationBadge) return;
 
         unreadNotificationsListener = subscribeUnreadNotifications(userId, (unreadCount) => {
-            notificationBadge.textContent = unreadCount > 99 ? '99+' : unreadCount.toString();
-            notificationBadge.classList.toggle('hidden', unreadCount === 0);
+            notificationBadge.textContent = '';
+            notificationBadge.classList.toggle('hidden', unreadCount <= 0);
         }, (error) => {
             console.error("Error fetching unread notification count:", error);
         });

@@ -95,17 +95,16 @@ body.player-active .app-container {
 
 .notification-badge {
     position: absolute;
-    top: -2px;
-    right: 1px;
-    background-color: #ad41bb;
-    /* Pinkish-red from Spotiwind's primary gradient */
+    top: 1px;
+    right: 4px;
+    background-color: var(--accent-color);
     color: white;
     font-size: 0.6rem;
     font-weight: 600;
     border-radius: 50%;
-    min-width: 13px;
+    min-width: 9px;
     /* Lebih kecil */
-    height: 13px;
+    height: 9px;
     /* Lebih kecil */
     display: flex;
     align-items: center;
