@@ -4,7 +4,7 @@ import {
     signOut
 } from "./firebase-config.js";
 
-import { toggleFavorite } from '../../services/favoriteService.js';
+import { toggleFavorite, getFavoriteSongs } from '../../services/favoriteService.js';
 import { isFavoriteSong } from '../../services/favoriteService.js';
 import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
@@ -51,6 +51,15 @@ let unreadNotificationsListener = null; // [NEW] To store the unsubscribe functi
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Map();
 let userPresenceCleanup = null;
+
+const updateLikedSongsCount = (songs) => {
+    const countElement = document.getElementById('likedSongsCount');
+    if (countElement) countElement.textContent = String(songs?.length ?? 0).padStart(2, '0');
+};
+
+const loadLikedSongsCount = async (uid) => {
+    updateLikedSongsCount(await getFavoriteSongs(uid));
+};
 
 // Cache friend online status (same as desktop)
 const friendOnlineStatus = {};
@@ -646,7 +655,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            await toggleFavorite(currentSongData);
+            const favorites = await toggleFavorite(currentSongData);
+            updateLikedSongsCount(favorites);
         } catch (error) {
             syncPlayerLikeButtons(wasLiked);
             console.error("Firebase Save Error:", error);
@@ -1796,6 +1806,7 @@ window.spotiwind = {
 
             // [FIX] Call the new initialization functions
             initializeUserUI(user);
+            loadLikedSongsCount(user.uid);
             initializeProfileDropdown();
 
             // [NEW] Setup unread notification badge listener
