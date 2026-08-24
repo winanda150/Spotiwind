@@ -1,4 +1,6 @@
-import { auth, signOut } from './firebase-config.js';
+import { auth, onAuthStateChanged, signOut } from './firebase-config.js';
+
+let unsubscribeAccountAuth = null;
 
 const defaultAvatar = (name = 'User') => `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=B91EC9&color=fff&bold=true&size=128`;
 
@@ -18,8 +20,7 @@ const showPageToast = (message) => {
     setTimeout(() => toast.remove(), 2200);
 };
 
-const updateAccountUserInfo = () => {
-    const user = auth.currentUser;
+const updateAccountUserInfo = (user) => {
     const accountAvatar = document.getElementById('accountAvatar');
     const accountName = document.getElementById('accountName');
     const accountEmail = document.getElementById('accountEmail');
@@ -81,6 +82,12 @@ const bindAccountInteractions = () => {
 };
 
 export const initAccountPage = () => {
-    updateAccountUserInfo();
+    unsubscribeAccountAuth?.();
+    unsubscribeAccountAuth = onAuthStateChanged(auth, updateAccountUserInfo);
     bindAccountInteractions();
+};
+
+export const cleanupAccountPage = () => {
+    unsubscribeAccountAuth?.();
+    unsubscribeAccountAuth = null;
 };

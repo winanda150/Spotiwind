@@ -69,7 +69,8 @@ export const loginWithEmail = async (email, password, rememberMe) => {
  * Handles social media login popup.
  * @param {string} providerName - The name of the provider ('google', 'facebook', 'apple').
  */
-export const loginWithSocial = (providerName) => {
+export const loginWithSocial = async (providerName) => {
+    await setPersistence(auth, browserLocalPersistence);
     const provider = providerName === 'google' ? new GoogleAuthProvider()
         : providerName === 'facebook' ? new FacebookAuthProvider()
         : new OAuthProvider('apple.com');

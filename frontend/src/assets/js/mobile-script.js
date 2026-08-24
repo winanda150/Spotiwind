@@ -482,15 +482,37 @@ const formatRelativeTime = (timestamp) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Keep shared sidebar elements outside the page content that gets replaced during navigation.
+    document.querySelectorAll('.sidebar-overlay, .mobile-sidebar').forEach((element) => {
+        document.body.appendChild(element);
+    });
+
     // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
     const appContainer = document.querySelector('.app-container');
     if (appContainer) {
         initialHomeContent = appContainer.innerHTML;
     }
 
+    const closeSidebar = () => {
+        const sidebar = document.querySelector('.mobile-sidebar');
+        const menuButton = document.querySelector('.menu-btn');
+        if (sidebar?.contains(document.activeElement)) {
+            menuButton?.focus();
+        }
+        sidebar?.classList.remove('is-open');
+        document.querySelector('.sidebar-overlay')?.classList.remove('is-visible');
+        sidebar?.setAttribute('aria-hidden', 'true');
+    };
+
+    const updateSidebarActiveState = (targetPage) => {
+        document.querySelectorAll('.sidebar-nav-item').forEach((item) => {
+            item.classList.toggle('active', item.dataset.sidebarTarget === targetPage);
+        });
+    };
+
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
-    document.body.addEventListener('click', (e) => {
+    document.body.addEventListener('click', async (e) => {
         const playBtn = e.target.closest('.song-card .play-overlay') || e.target.closest('.song-card .play-mini-btn');
         if (playBtn) {
             // Prevent the click from bubbling up to other potential listeners (like the mini player bar)
@@ -527,8 +549,44 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Logout Button
-        if (target.closest('#logoutBtn')) {
+        // 2. Home sidebar controls and navigation
+        if (target.closest('.menu-btn')) {
+            const sidebar = document.querySelector('.mobile-sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar?.classList.add('is-open');
+            overlay?.classList.add('is-visible');
+            sidebar?.setAttribute('aria-hidden', 'false');
+            return;
+        }
+
+        if (target.closest('[data-sidebar-close]')) {
+            closeSidebar();
+            return;
+        }
+
+        const sidebarItem = target.closest('[data-sidebar-target]');
+        if (sidebarItem) {
+            e.preventDefault();
+            const targetPage = sidebarItem.dataset.sidebarTarget;
+            if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active')) {
+                return;
+            }
+            if (sidebarItem.classList.contains('sidebar-nav-item')) {
+                updateSidebarActiveState(targetPage);
+            }
+            document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.target === targetPage);
+            });
+            closeSidebar();
+            await loadPageContent(targetPage);
+            return;
+        }
+
+        // 3. Logout Button
+        if (target.closest('#logoutBtn, .sidebar-logout-item')) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeSidebar();
             signOut(auth).catch(error => {
                 console.error("Logout Error:", error);
                 showToast("Failed to log out. Please try again.");
@@ -1161,6 +1219,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             if (document.querySelector('.app-container .hero-card')) {
                 homeScrollPosition = document.documentElement.scrollTop;
             }
+            updateSidebarActiveState(targetPage);
             await loadPageContent(targetPage);
         });
     });
@@ -1244,11 +1303,14 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
         // Update main header avatar
         updateUserAvatar(user, document.getElementById('userAvatar'));
+        updateUserAvatar(user, document.getElementById('sidebarUserAvatar'));
 
         // Update dropdown info
         const dropdownAvatar = document.getElementById('dropdownUserAvatar');
         const dropdownName = document.getElementById('dropdownUserName');
         const dropdownEmail = document.getElementById('dropdownUserEmail');
+        const sidebarName = document.getElementById('sidebarUserName');
+        const sidebarEmail = document.getElementById('sidebarUserEmail');
 
         if (dropdownAvatar) updateUserAvatar(user, dropdownAvatar);
         greetingName = user.displayName || user.email?.split('@')[0] || 'User';
@@ -1256,6 +1318,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         updateGreeting();
         if (dropdownName) dropdownName.textContent = user.displayName || 'No Name';
         if (dropdownEmail) dropdownEmail.textContent = user.email;
+        if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
+        if (sidebarEmail) sidebarEmail.textContent = user.email || '';
     };
 
     const loadStylesheet = (href, currentLink) => {
@@ -1280,6 +1344,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
         const navigationId = ++pageLoadSequence;
+        updateSidebarActiveState(page);
 
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'mobile.html') {
@@ -1542,6 +1607,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
                     if (typeof initAccountPage === 'function') {
                         initAccountPage();
+                        activePageCleanup = accountModule.cleanupAccountPage;
                     } else {
                         console.error("initAccountPage function not found in module.");
                     }
@@ -1878,7 +1944,7 @@ window.spotiwind = {
                 fullProgressTrack.addEventListener('click', seek);
             }
         } else {
-            // If not logged in, return to the login page
+            // Setelah sesi berakhir, arahkan kembali ke halaman login.
             window.location.href = 'index.html';
 
             // [NEW] Clean up unread notification listener on logout

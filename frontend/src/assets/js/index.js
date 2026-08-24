@@ -93,7 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = result.user;
             // Redirect is handled automatically by onAuthStateChanged
         } catch (error) {
-            console.error("Social Auth Error Details:", error.code, error.message);
+            if (error.code === 'auth/popup-closed-by-user') {
+                console.info('Google sign-in cancelled: the popup was closed before login completed.');
+            } else if (error.code === 'auth/popup-blocked') {
+                console.warn('Google sign-in popup was blocked by the browser.');
+            } else {
+                console.error("Social Auth Error Details:", error.code, error.message);
+            }
         } finally {
             btn.disabled = false;
             btn.style.opacity = '1';
