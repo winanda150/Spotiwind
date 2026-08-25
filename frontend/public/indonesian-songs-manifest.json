@@ -146,6 +146,11 @@
       "id": "surya-raj-kamal",
       "name": "Surya Raj Kamal",
       "photo": "Elemen/Surya%20Raj%20Kamal/Artis/Surya%20Raj%20Kamal.webp"
+    },
+    {
+      "id": "raden-rakha",
+      "name": "Raden Rakha",
+      "photo": "Elemen/Raden%20Rakha/Artis/Raden%20Rakha.webp"
     }
   ],
   "songs": [
@@ -886,11 +891,19 @@
       "duration": 235
     },
     {
-      "id": "surya-raj-kamal-&-mohit-lalwani-&-aishwarya-anand",
+      "id": "surya-raj-kamal-&-mohit-lalwani-&-aishwarya-anand-tum-prem-ho-tum-preet-ho",
       "name": "Tum Prem Ho Tum Preet Ho",
       "artist": "Surya Raj Kamal & Mohit Lalwani & Aishwarya Anand",
       "audio": "Elemen/Surya%20Raj%20Kamal/Tum%20Prem%20Ho%20Tum%20Preet%20Ho.mp3",
       "cover": "Elemen/Surya%20Raj%20Kamal/Image%20Songs/Tum%20Prem%20Ho%20Tum%20Preet%20Ho.webp",
+      "duration": 235
+    },
+    {
+      "id": "raden-rakha-basmalah-aku-jatuh-cinta",
+      "name": "Aku Jatuh Cinta",
+      "artist": "Raden Rakha & Basmalah",
+      "audio": "Elemen/Raden%20Rakha/Aku%20Jatuh%20Cinta.mp3",
+      "cover": "Elemen/Raden%20Rakha/Image%20Songs/Aku%20Jatuh%20Cinta.webp",
       "duration": 235
     }
   ]

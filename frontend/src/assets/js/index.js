@@ -27,11 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let suppressAuthRedirect = false;
 
     const waitForPageLoad = (callback) => {
-        const run = () => requestAnimationFrame(callback);
+        const waitForFonts = document.fonts?.ready || Promise.resolve();
+        const run = () => waitForFonts.then(() => requestAnimationFrame(callback));
+
         if (document.readyState === 'complete') {
             run();
             return;
         }
+
         window.addEventListener('load', run, { once: true });
     };
 
@@ -49,12 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             overlay.classList.remove('fade-out');
         }
     };
-
-    setTimeout(() => {
-        if (!document.body.classList.contains('is-transitioning')) {
-            hideLoadingOverlay();
-        }
-    }, 1500);
 
     // Auth Observer: Check if the user was previously logged in
     onAuthStateChanged(auth, (user) => {
@@ -95,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inactiveBtn.classList.remove('active');
         showForm.classList.remove('hidden');
         hideForm.classList.add('hidden');
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
         document.querySelector('.login-switch').classList.toggle('hidden', showForm === registerForm);
         document.querySelector('.register-switch').classList.toggle('hidden', showForm === loginForm);
         loginBrand.classList.toggle('hidden', showForm === registerForm);

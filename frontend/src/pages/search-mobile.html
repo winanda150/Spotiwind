@@ -50,7 +50,7 @@
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="searchInput" placeholder="Search songs, artists, albums...">
+            <input type="search" id="searchInput" enterkeyhint="search" placeholder="Search songs, artists, albums...">
             <button id="clearSearch" class="clear-search-btn" title="Clear search">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -61,6 +61,49 @@
             <!-- Dropdown untuk hasil pencarian cepat -->
             <div id="searchDropdown" class="search-results-dropdown"></div>
         </div>
+    </section>
+
+    <!-- Browse by mood -->
+    <section class="search-mood-section" aria-labelledby="searchMoodTitle">
+        <div class="search-mood-header">
+            <h2 id="searchMoodTitle">Browse by mood</h2>
+            <a href="#" class="search-mood-see-all">See all</a>
+        </div>
+        <div class="search-mood-grid">
+            <div class="search-mood-card search-mood-card--chill">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg></span>
+                <span class="search-mood-info"><strong>Chill</strong><small>120 songs</small></span>
+            </div>
+            <div class="search-mood-card search-mood-card--focus">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg></span>
+                <span class="search-mood-info"><strong>Focus</strong><small>85 songs</small></span>
+            </div>
+            <div class="search-mood-card search-mood-card--workout">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8h2a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2V8Z"></path><path d="M4 8h2v8H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"></path><path d="M6 5h2v14H6V5Z"></path><path d="M16 5h2v14h-2V5Z"></path><path d="M2 12h20"></path></svg></span>
+                <span class="search-mood-info"><strong>Workout</strong><small>150 songs</small></span>
+            </div>
+            <div class="search-mood-card search-mood-card--sleep">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454z"></path></svg></span>
+                <span class="search-mood-info"><strong>Sleep</strong><small>60 songs</small></span>
+            </div>
+            <div class="search-mood-card search-mood-card--happy">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg></span>
+                <span class="search-mood-info"><strong>Happy</strong><small>200 songs</small></span>
+            </div>
+            <div class="search-mood-card search-mood-card--romantic">
+                <span class="search-mood-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg></span>
+                <span class="search-mood-info"><strong>Romantic</strong><small>95 songs</small></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Recent searches -->
+    <section class="recent-searches-section" aria-labelledby="recentSearchesTitle">
+        <div class="recent-searches-header">
+            <h2 id="recentSearchesTitle">Recent searches</h2>
+            <button id="clearRecentSearches" class="clear-recent-searches" type="button">Clear all</button>
+        </div>
+        <div id="recentSearchesList" class="recent-searches-grid"></div>
     </section>
 
     <!-- Konten utama halaman pencarian -->

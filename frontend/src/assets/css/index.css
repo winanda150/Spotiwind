@@ -69,12 +69,6 @@ body:active {
     gap: 1rem;
 }
 
-.page-transition-overlay.is-loading::after {
-    content: "Checking authentication...";
-    color: var(--text-muted);
-    font-size: 0.8rem;
-}
-
 .page-transition-overlay.fade-out {
     opacity: 0;
     visibility: hidden;
@@ -317,8 +311,13 @@ body.login-page::before {
     white-space: nowrap;
 }
 
+.remember-me label {
+    cursor: pointer;
+}
+
 .forgot-link {
     text-align: right;
+    text-decoration: none;
 }
 
 .remember-me input,

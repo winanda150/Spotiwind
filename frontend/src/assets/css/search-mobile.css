@@ -58,6 +58,225 @@
     margin-bottom: 1.1rem;
 }
 
+.recent-searches-section {
+    margin: 0 0 1.35rem;
+    padding: 0 var(--mobile-horizontal-padding);
+}
+
+.recent-searches-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.recent-searches-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.clear-recent-searches {
+    padding: 0;
+    color: var(--accent-color);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.clear-recent-searches:hover,
+.clear-recent-searches:focus-visible {
+    color: var(--accent-color);
+    outline: none;
+}
+
+.recent-searches-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.recent-search-card {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.4rem;
+    padding: 0.6rem 0.55rem;
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.7rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.recent-search-card:hover,
+.recent-search-card:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--accent-color);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.recent-search-icon {
+    display: grid;
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 1rem;
+    place-items: center;
+    color: var(--text-muted);
+}
+
+.recent-search-icon svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.recent-search-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-searches-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
+.search-mood-section {
+    margin: 0 0 1.2rem;
+}
+
+.search-mood-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 0 var(--mobile-horizontal-padding);
+}
+
+.search-mood-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.search-mood-see-all {
+    color: var(--accent-color);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.search-mood-grid {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 0 var(--mobile-horizontal-padding) 0;
+    scrollbar-width: none;
+}
+
+.search-mood-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.search-mood-card {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-width: 130px;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--glass-border);
+    border-radius: 0.7rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.search-mood-card:hover {
+    border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.search-mood-card--chill { background: linear-gradient(135deg, #2D2342, #1E182D); }
+.search-mood-card--focus { background: linear-gradient(135deg, #1A2C42, #111D2D); }
+.search-mood-card--workout { background: linear-gradient(135deg, #22351E, #162214); }
+.search-mood-card--sleep { background: linear-gradient(135deg, #251546, #1D1439); }
+.search-mood-card--happy { background: linear-gradient(135deg, #4C2110, #28171C); }
+.search-mood-card--romantic { background: linear-gradient(135deg, #421A2C, #2D111D); }
+
+.search-mood-icon {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    place-items: center;
+}
+
+.search-mood-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+.search-mood-card--chill .search-mood-icon svg path:first-child,
+.search-mood-card--focus .search-mood-icon svg path:first-child,
+.search-mood-card--workout .search-mood-icon svg path:last-child {
+    fill: none;
+}
+
+.search-mood-card--happy .search-mood-icon svg circle {
+    fill: currentColor;
+}
+
+.search-mood-card--happy .search-mood-icon svg path,
+.search-mood-card--happy .search-mood-icon svg line {
+    fill: none;
+    stroke: var(--bg-dark);
+    stroke-width: 2.5;
+}
+
+.search-mood-card--sleep .search-mood-icon svg {
+    stroke: none;
+}
+
+.search-mood-card--chill .search-mood-icon { color: #FAD0CC; }
+.search-mood-card--focus .search-mood-icon { color: #66D9EF; }
+.search-mood-card--workout .search-mood-icon { color: #A6E22E; }
+.search-mood-card--sleep .search-mood-icon { color: #AE81FF; }
+.search-mood-card--happy .search-mood-icon { color: #FAB314; }
+.search-mood-card--romantic .search-mood-icon { color: #FB5D95; }
+
+.search-mood-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.search-mood-info strong {
+    color: var(--text-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.search-mood-info small {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+}
+
 .search-box {
     position: relative;
     width: 100%;
@@ -113,6 +332,10 @@
 
 .search-box input:focus {
     border-color: var(--accent-color);
+}
+
+.search-box input::-webkit-search-cancel-button {
+    display: none;
 }
 
 .search-results-dropdown {

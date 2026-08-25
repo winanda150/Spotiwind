@@ -2,16 +2,19 @@ import { searchTracks, searchTracksByName, searchArtistsByName, getTrendingTrack
 
 export const searchSongs = async (query, limit = 10) => {
     if (!query || !query.trim()) return [];
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) return [];
     const [tracks, namedTracks] = await Promise.all([
-        searchTracks(query, limit),
-        searchTracksByName(query, limit)
+        searchTracks(normalizedQuery, limit),
+        searchTracksByName(normalizedQuery, limit)
     ]);
     return [...new Map([...tracks, ...namedTracks].map((song) => [song.id, song])).values()];
 };
 
 export const searchArtists = async (query, limit = 3) => {
-    if (!query || !query.trim()) return [];
-    return searchArtistsByName(query, limit);
+    const normalizedQuery = query?.trim();
+    if (!normalizedQuery || normalizedQuery.length < 2) return [];
+    return searchArtistsByName(normalizedQuery, limit);
 };
 
 export const searchAll = async (query, limit = 10) => {
@@ -23,6 +26,7 @@ export const searchAll = async (query, limit = 10) => {
             trending: await getTrendingTracks(limit)
         };
     }
+    if (normalizedQuery.length < 2) return { songs: [], artists: [] };
 
     const [songs, artists] = await Promise.all([
         searchSongs(normalizedQuery, limit),
@@ -34,7 +38,7 @@ export const searchAll = async (query, limit = 10) => {
 
 export const searchCatalog = async (query, localSongs = [], localArtists = [], limit = 10) => {
     const normalizedQuery = query?.trim().toLowerCase();
-    if (!normalizedQuery) return [];
+    if (!normalizedQuery || normalizedQuery.length < 2) return [];
 
     const words = normalizedQuery.split(/\s+/);
     const localResults = localSongs

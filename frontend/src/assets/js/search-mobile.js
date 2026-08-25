@@ -1,4 +1,9 @@
 import { searchCatalog } from '../../services/searchService.js';
+import {
+    getRecentSearches,
+    saveRecentSearch,
+    clearRecentSearches
+} from '../../services/recentSearchService.js';
 
 export const initSearchPage = ({
     debounce,
@@ -15,6 +20,8 @@ export const initSearchPage = ({
     const searchInput = document.getElementById('searchInput');
     const searchDropdown = document.getElementById('searchDropdown');
     const clearSearchBtn = document.getElementById('clearSearch');
+    const recentSearchesList = document.getElementById('recentSearchesList');
+    const clearRecentSearchesBtn = document.getElementById('clearRecentSearches');
     const microphoneButton = document.querySelector('.microphone-btn');
 
     if (!searchInput || !searchDropdown || !clearSearchBtn || microphoneButton?.dataset.initialized === 'true') {
@@ -35,6 +42,34 @@ export const initSearchPage = ({
     }
 
     let searchAbortController = null;
+    const renderRecentSearches = async () => {
+        if (!recentSearchesList) return;
+
+        const recentSearches = await getRecentSearches();
+        recentSearchesList.innerHTML = recentSearches.length > 0
+            ? recentSearches.map((query) => `<button class="recent-search-card" type="button" data-recent-query="${query.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"><span class="recent-search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg></span><span class="recent-search-name">${query.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span></button>`).join('')
+            : '<p class="recent-searches-empty">Your recent searches will appear here.</p>';
+    };
+
+    renderRecentSearches();
+
+    recentSearchesList?.addEventListener('click', (event) => {
+        const recentCard = event.target.closest('[data-recent-query]');
+        if (!recentCard) return;
+
+        const query = recentCard.dataset.recentQuery;
+        searchInput.value = query;
+        clearSearchBtn.classList.add('visible');
+        setLastSearchQuery(query);
+        updateSearchDropdownHeight();
+        searchDropdown.classList.add('active');
+        fetchDropdownResults(query);
+    });
+
+    clearRecentSearchesBtn?.addEventListener('click', async () => {
+        await clearRecentSearches();
+        renderRecentSearches();
+    });
 
     const updateSearchDropdownHeight = () => {
         const heroCard = document.querySelector('.hero-card');
@@ -92,24 +127,39 @@ export const initSearchPage = ({
         }
     };
 
-    const debouncedSearch = debounce((query) => {
-        const cleanQuery = query.trim();
-        if (cleanQuery.length > 0) {
-            updateSearchDropdownHeight();
-            searchDropdown.classList.add('active');
-            fetchDropdownResults(cleanQuery);
-        } else {
-            searchDropdown.classList.remove('active');
-        }
-    }, 500);
-
     window.addEventListener('resize', debounce(updateSearchDropdownHeight, 250));
     searchInput.addEventListener('input', (event) => {
         const value = event.target.value;
         clearSearchBtn.classList.toggle('visible', value.length > 0);
         setLastSearchQuery(value);
-        debouncedSearch(value);
+        if (searchAbortController) searchAbortController.abort();
+        searchDropdown.classList.remove('active');
     });
+    let lastSubmittedQuery = '';
+    let lastSubmittedAt = 0;
+
+    const submitSearch = () => {
+        const query = searchInput.value.trim();
+        if (query.length < 2) return;
+        const now = Date.now();
+        if (query === lastSubmittedQuery && now - lastSubmittedAt < 500) return;
+        lastSubmittedQuery = query;
+        lastSubmittedAt = now;
+
+        saveRecentSearch(query);
+        renderRecentSearches();
+        updateSearchDropdownHeight();
+        searchDropdown.classList.add('active');
+        fetchDropdownResults(query);
+    };
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            submitSearch();
+        }
+    });
+    searchInput.addEventListener('search', submitSearch);
     clearSearchBtn.addEventListener('click', () => {
         searchInput.value = '';
         setLastSearchQuery('');
@@ -117,14 +167,6 @@ export const initSearchPage = ({
         clearSearchBtn.classList.remove('visible');
         searchDropdown.classList.remove('active');
         searchInput.focus();
-    });
-    searchInput.addEventListener('focus', () => {
-        const query = searchInput.value.trim();
-        if (query.length > 0) {
-            updateSearchDropdownHeight();
-            searchDropdown.classList.add('active');
-            fetchDropdownResults(query);
-        }
     });
     document.addEventListener('click', (event) => {
         if (!searchInput.contains(event.target) && !searchDropdown.contains(event.target)) {
