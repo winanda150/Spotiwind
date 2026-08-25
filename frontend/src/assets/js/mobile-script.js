@@ -245,19 +245,28 @@ const renderUpNext = () => {
     `;}).join('');
 
     // Use View Transitions API if available (Chrome/Safari 17.4+)
-    if (document.startViewTransition && !isTransitioningUpNext) {
+    // Guard against: document hidden (tab in background), page visibility changes,
+    // or rapid successive calls that can cause InvalidStateError.
+    if (document.startViewTransition && !isTransitioningUpNext && !document.hidden) {
         isTransitioningUpNext = true;
-        const transition = document.startViewTransition(() => {
-            listContainer.innerHTML = html;
-        });
+        try {
+            const transition = document.startViewTransition(() => {
+                listContainer.innerHTML = html;
+            });
 
-        // The .finished promise resolves when the transition is complete.
-        // Use .finally() to ensure the flag is always reset.
-        transition.finished.finally(() => {
+            // The .finished promise resolves when the transition is complete.
+            // Use .finally() to ensure the flag is always reset even on error.
+            transition.finished.finally(() => {
+                isTransitioningUpNext = false;
+            });
+        } catch (e) {
+            // InvalidStateError can occur if the document becomes hidden mid-transition
+            // or if another transition starts unexpectedly. Fall back gracefully.
             isTransitioningUpNext = false;
-        });
+            listContainer.innerHTML = html;
+        }
     } else {
-        listContainer.innerHTML = html; // Fallback for browsers without the API or if a transition is active
+        listContainer.innerHTML = html; // Fallback: no API, tab hidden, or transition in progress
     }
 };
 
