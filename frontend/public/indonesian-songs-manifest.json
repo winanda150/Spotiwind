@@ -151,6 +151,16 @@
       "id": "raden-rakha",
       "name": "Raden Rakha",
       "photo": "Elemen/Raden%20Rakha/Artis/Raden%20Rakha.webp"
+    },
+    {
+      "id": "piche-kota",
+      "name": "Piche Kota",
+      "photo": "Elemen/Piche%20Kota/Artis/Piche%20Kota.webp"
+    },
+    {
+      "id": "christina-perri",
+      "name": "Christina Perri",
+      "photo": "Elemen/Christina%20Perri/Artis/Christina%20Perri.webp"
     }
   ],
   "songs": [
@@ -905,6 +915,22 @@
       "audio": "Elemen/Raden%20Rakha/Aku%20Jatuh%20Cinta.mp3",
       "cover": "Elemen/Raden%20Rakha/Image%20Songs/Aku%20Jatuh%20Cinta.webp",
       "duration": 281
+    },
+    {
+      "id": "piche-kota-bahagia-lagi",
+      "name": "Bahagia Lagi",
+      "artist": "Piche Kota",
+      "audio": "Elemen/Piche%20Kota/Bahagia%20Lagi.mp3",
+      "cover": "Elemen/Piche%20Kota/Image%20Songs/Bahagia%20Lagi.webp",
+      "duration": 225
+    },
+    {
+      "id": "christina-perri-a-thousand-years",
+      "name": "A Thousand Years",
+      "artist": "Christina Perri",
+      "audio": "Elemen/Christina%20Perri/A%20Thousand%20Years.mp3",
+      "cover": "Elemen/Christina%20Perri/Image%20Songs/A%20Thousand%20Years.webp",
+      "duration": 287
     }
   ]
 }
