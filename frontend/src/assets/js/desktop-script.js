@@ -10,6 +10,7 @@ let currentFriendActivityLimit = 10;
 let isLoadingMoreActivity = false;
 let hasReachedActivityEnd = false;
 let activityUpdateTimeout = null; // For activity update optimization
+let lastRecordedActivitySong = '';
 
 let allFriendsActivityData = []; // Buffer for all data from the modal
 let modalDisplayCount = 0; // Tracking the number of items rendered in the modal
@@ -184,6 +185,9 @@ const updateMyActivity = async (songName) => {
     const user = auth.currentUser;
     if (!user) return;
 
+    const activityKey = songName.trim().toLowerCase();
+    if (!activityKey || activityKey === lastRecordedActivitySong) return;
+
     // Cancel the previous timeout if it exists (Debouncing/Delaying)
     if (activityUpdateTimeout) clearTimeout(activityUpdateTimeout);
 
@@ -191,6 +195,7 @@ const updateMyActivity = async (songName) => {
     activityUpdateTimeout = setTimeout(async () => {
         try {
             await updateActivityRecord(songName);
+            lastRecordedActivitySong = activityKey;
             console.log("Activity updated:", songName);
         } catch (error) {
             console.error("Failed to update activity to Firestore:", error);

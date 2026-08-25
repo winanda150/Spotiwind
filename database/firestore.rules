@@ -36,6 +36,16 @@ service cloud.firestore {
       allow update, delete: if isOwner(resource.data.uid);
     }
 
+    match /search_stats/{type}/items/{itemId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.type == type
+        && request.resource.data.searchCount == 1;
+      allow update: if isSignedIn()
+        && request.resource.data.type == type
+        && request.resource.data.searchCount == resource.data.searchCount + 1;
+    }
+
     match /users/{userId}/{allSubcollections=**} {
       allow read, write: if isOwner(userId);
     }

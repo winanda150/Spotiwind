@@ -106,6 +106,19 @@
         <div id="recentSearchesList" class="recent-searches-grid"></div>
     </section>
 
+    <!-- Popular search results -->
+    <section class="popular-search-section" aria-labelledby="popularSearchTitle">
+        <h2 id="popularSearchTitle">Popular searches</h2>
+        <div class="popular-search-tabs" role="tablist" aria-label="Popular search categories">
+            <button class="popular-search-tab is-active" type="button" role="tab" aria-selected="true" data-popular-tab="top">Top results</button>
+            <button class="popular-search-tab" type="button" role="tab" aria-selected="false" data-popular-tab="songs">Songs</button>
+            <button class="popular-search-tab" type="button" role="tab" aria-selected="false" data-popular-tab="artists">Artists</button>
+            <button class="popular-search-tab" type="button" role="tab" aria-selected="false" data-popular-tab="albums">Albums</button>
+            <span class="popular-search-active-indicator" aria-hidden="true"></span>
+        </div>
+        <div id="popularSearchContent" class="popular-search-content"></div>
+    </section>
+
     <!-- Konten utama halaman pencarian -->
     <main class="mobile-content">
         <!-- Bagian ini akan menampilkan hasil pencarian atau kategori -->

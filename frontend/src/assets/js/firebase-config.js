@@ -18,6 +18,7 @@ import {
 import {
     getFirestore,
     collection,
+    writeBatch,
     query,
     onSnapshot,
     orderBy,
@@ -33,7 +34,8 @@ import {
     addDoc,
     updateDoc,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    increment
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
     getDatabase,
@@ -69,8 +71,8 @@ export {
     updateProfile, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup,
     sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence,
     // Firestore
-    collection, query, onSnapshot, orderBy, getDocs, where, doc, documentId, setDoc,
-    limit, serverTimestamp, getDoc, deleteDoc, addDoc, updateDoc, arrayUnion, arrayRemove,
+    collection, writeBatch, query, onSnapshot, orderBy, getDocs, where, doc, documentId, setDoc,
+    limit, serverTimestamp, getDoc, deleteDoc, addDoc, updateDoc, arrayUnion, arrayRemove, increment,
     // Realtime Database
     ref, onValue, rtdbSet, onDisconnect, rtdbServerTimestamp
 };

@@ -156,6 +156,196 @@
     font-size: 0.72rem;
 }
 
+.popular-search-section {
+    margin: 0 0 1.5rem;
+    padding: 0 var(--mobile-horizontal-padding);
+}
+
+.popular-search-section h2 {
+    margin: 0 0 0.85rem;
+    color: var(--text-main);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.popular-search-tabs {
+    position: relative;
+    display: flex;
+    gap: 0.50rem;
+    margin-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.popular-search-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.popular-search-tab {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.45rem 0.25rem 0.55rem;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.popular-search-tab.is-active,
+.popular-search-tab:hover,
+.popular-search-tab:focus-visible {
+    color: var(--accent-color);
+    outline: none;
+}
+
+.popular-search-tab.is-active::after {
+    display: none;
+}
+
+.popular-search-active-indicator {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 0;
+    height: 2.5px;
+    background: var(--accent-color);
+    pointer-events: none;
+    transform: translateX(0);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.popular-search-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.popular-search-card {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.75rem;
+    padding: 0.55rem;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.65rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.popular-search-card:hover,
+.popular-search-card:focus-visible {
+    border-color: var(--accent-color);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.popular-search-card.is-active-song .popular-search-title-row strong {
+    color: #22c55e;
+}
+
+.popular-search-cover {
+    width: 3.25rem;
+    height: 3.25rem;
+    flex: 0 0 3.25rem;
+    border-radius: 0.4rem;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.popular-search-card[data-popular-type="artists"] .popular-search-cover {
+    border-radius: 50%;
+}
+
+.popular-search-info {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0;
+}
+
+.popular-search-menu {
+    display: grid;
+    width: 1.8rem;
+    height: 2.4rem;
+    flex: 0 0 1.8rem;
+    place-items: center;
+    padding: 0;
+    color: var(--text-muted);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.popular-search-menu:hover,
+.popular-search-menu:focus-visible {
+    color: var(--text-main);
+    outline: none;
+}
+
+.popular-search-menu svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+}
+
+.popular-search-title-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 0.3rem;
+}
+
+.popular-search-verified {
+    width: 0.9rem;
+    height: 0.9rem;
+    flex: 0 0 0.9rem;
+}
+
+.popular-search-info strong,
+.popular-search-info span,
+.popular-search-info small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.popular-search-info strong {
+    color: var(--text-main);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.popular-search-info span {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+}
+
+.popular-search-info small {
+    color: var(--text-muted);
+    font-size: 0.62rem;
+}
+
+.popular-search-info small i {
+    margin-left: 0.35rem;
+    font-style: normal;
+}
+
+.popular-search-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+}
+
 .search-mood-section {
     margin: 0 0 1.2rem;
 }

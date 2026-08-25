@@ -30,6 +30,7 @@ let isRepeat = false;
 let isDragging = false;
 let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
+let lastRecordedActivitySong = '';
 let artistPageCurrentSongs = []; // [NEW] Buffer to store songs from the current artist page
 let homeScrollPosition = 0; // NEW: To store scroll position of the home page
 let artistDataForPageLoad = null; // [NEW] Untuk menyimpan data artis saat navigasi
@@ -279,6 +280,9 @@ const updateMyActivity = async (songName) => {
     const user = auth.currentUser;
     if (!user) return;
 
+    const activityKey = songName.trim().toLowerCase();
+    if (!activityKey || activityKey === lastRecordedActivitySong) return;
+
     // Cancel previous timeout if any (Debouncing as per desktop)
     if (activityUpdateTimeout) clearTimeout(activityUpdateTimeout);
 
@@ -286,6 +290,7 @@ const updateMyActivity = async (songName) => {
     activityUpdateTimeout = setTimeout(async () => {
         try {
             await updateActivityRecord(songName);
+            lastRecordedActivitySong = activityKey;
             console.log("Activity updated:", songName);
         } catch (error) {
             console.error("Failed to update activity to Firestore:", error);
@@ -668,7 +673,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     // Get duration from lastSearchResults if available
     const songData = window.lastSearchResults?.find(s => String(s.id) === String(id));
     const duration = songData ? songData.duration : 0; // Default to 0 if not found
-    window.playPreview(null, audioUrl, title, artist, cover, id, duration, 'search');
+    const isSameActiveSong = currentSongData && areSameSongs(currentSongData, { id, audio: audioUrl }) && activeAudio.src;
+    window.playPreview(null, audioUrl, title, artist, cover, id, duration, isSameActiveSong ? null : 'search');
 };
 
     /**

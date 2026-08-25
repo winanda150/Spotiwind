@@ -64,3 +64,4 @@ export const getNewReleases = (limit = 50) => fetchFromJamendo('/tracks/', { lim
 export const searchTracks = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, search: query, include: 'stats' });
 export const searchTracksByName = (query, limit = 10) => fetchFromJamendo('/tracks/', { limit, namesearch: query, include: 'stats' });
 export const searchArtistsByName = (query, limit = 3) => fetchFromJamendo('/artists/', { limit, namesearch: query });
+export const searchAlbumsByName = (query, limit = 10) => fetchFromJamendo('/albums/', { limit, namesearch: query });
