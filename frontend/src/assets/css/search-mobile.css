@@ -148,6 +148,7 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.22);
     overflow-x: auto;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .popular-search-tabs::-webkit-scrollbar {
@@ -156,9 +157,9 @@
 
 .popular-search-tab {
     position: relative;
-    flex: 1 1 0;
+    flex: 0 0 auto;
     min-width: 0;
-    padding: 0.45rem 0.25rem 0.55rem;
+    padding: 0.45rem 0.8rem 0.55rem;
     color: var(--text-muted);
     background: transparent;
     border: 0;
@@ -167,6 +168,9 @@
     font-size: 0.8rem;
     font-weight: 600;
     white-space: nowrap;
+    text-align: center;
+    transition: color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .popular-search-tab.is-active,

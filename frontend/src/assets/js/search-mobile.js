@@ -176,7 +176,11 @@ export const initSearchPage = ({
         });
     });
 
-    movePopularSearchIndicator(document.querySelector('[data-popular-tab].is-active'));
+    const initialActiveTab = document.querySelector('[data-popular-tab].is-active');
+    movePopularSearchIndicator(initialActiveTab);
+    requestAnimationFrame(() => {
+        movePopularSearchIndicator(document.querySelector(`[data-popular-tab="${activePopularTab}"]`) || initialActiveTab);
+    });
     window.addEventListener('resize', debounce(() => {
         movePopularSearchIndicator(document.querySelector(`[data-popular-tab="${activePopularTab}"]`));
     }, 150));

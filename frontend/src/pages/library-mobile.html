@@ -1,68 +1,128 @@
-﻿<body>
+<body>
     <header class="mobile-header">
-    <div class="header-left">
-        <button class="menu-btn" type="button" aria-label="Open menu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-        </button>
-    </div>
-    <div class="header-brand">
-        <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
-        <span class="mobile-brand-name">Spotiwind</span>
-    </div>
-    <div class="header-right">
-        <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
-            </svg>
-            <span id="notificationBadge" class="notification-badge hidden"></span>
-        </button>
-    </div>
-</header>
-
-    <main class="mobile-content library-page">
-        <section class="library-hero">
-            <div class="library-hero__content">
-                <span class="library-hero__eyebrow">Your collection</span>
-                <h1 class="section-title">Your Library</h1>
-                <p class="library-hero__description">Organize your favorite playlists, discover artists, and keep every
-                    album close to hand.</p>
-            </div>
-            <button class="add-playlist-btn" type="button" aria-label="Create playlist">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
+        <div class="header-left">
+            <button class="menu-btn" type="button" aria-label="Open menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
                 </svg>
             </button>
-        </section>
+        </div>
+        <div class="header-brand">
+            <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
+            <span class="mobile-brand-name">Spotiwind</span>
+        </div>
+        <div class="header-right">
+            <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
+                </svg>
+                <span id="notificationBadge" class="notification-badge hidden"></span>
+            </button>
+        </div>
+    </header>
 
-        <div class="library-stats" aria-label="Library statistics">
-            <div class="stat-pill">
-                <span>Playlists</span>
-                <strong>12</strong>
+    <main class="mobile-content library-page">
+        <!-- Library Header Section -->
+        <div class="library-header">
+            <div class="library-header-left">
+                <h1 class="library-title">Library</h1>
+                <p class="library-subtitle">Your music, your collection.</p>
             </div>
-            <div class="stat-pill">
-                <span>Artists</span>
-                <strong>28</strong>
-            </div>
-            <div class="stat-pill">
-                <span>Albums</span>
-                <strong>9</strong>
+            <div class="library-header-actions">
+                <button class="library-action-btn" id="librarySearchBtn" type="button" aria-label="Search in library" title="Search">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </button>
+                <button class="library-action-btn" id="libraryAddBtn" type="button" aria-label="Add to library" title="Add">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                </button>
             </div>
         </div>
 
-        <div class="library-filters" role="tablist" aria-label="Library filters">
-            <button class="filter-btn active" type="button" data-filter="playlists">Playlists</button>
-            <button class="filter-btn" type="button" data-filter="artists">Artists</button>
-            <button class="filter-btn" type="button" data-filter="albums">Albums</button>
+        <!-- Library Tabs Navigation (Underline Style like Search Page) -->
+        <div class="library-tabs" role="tablist" aria-label="Library categories">
+            <button class="library-tab is-active" type="button" role="tab" aria-selected="true" data-library-tab="overview">Overview</button>
+            <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="playlists">Playlists</button>
+            <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="albums">Albums</button>
+            <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="artists">Artists</button>
+            <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="tracks">Tracks</button>
+            <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="download">Download</button>
+            <span class="library-active-indicator" aria-hidden="true"></span>
         </div>
 
-        <div id="libraryContent" class="library-content-container" aria-live="polite"></div>
+        <!-- Library Tab Panels -->
+        <div class="library-panels">
+            <!-- Overview Panel -->
+            <section class="library-panel is-active" id="overviewPanel" data-library-panel="overview">
+                <div class="overview-grid">
+                    <div class="overview-card card-liked" data-overview-item="liked-songs">
+                        <div class="overview-card-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                            </svg>
+                        </div>
+                        <div class="overview-card-info">
+                            <span class="overview-card-title">Liked Songs</span>
+                            <span class="overview-card-count" id="overviewLikedCount">0 songs</span>
+                        </div>
+                    </div>
+
+                    <div class="overview-card card-downloads" data-overview-item="downloads">
+                        <div class="overview-card-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </div>
+                        <div class="overview-card-info">
+                            <span class="overview-card-title">Downloads</span>
+                            <span class="overview-card-count" id="overviewDownloadsCount">0 songs</span>
+                        </div>
+                    </div>
+
+                    <div class="overview-card card-recent" data-overview-item="recently-played">
+                        <div class="overview-card-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <div class="overview-card-info">
+                            <span class="overview-card-title">Recently Played</span>
+                            <span class="overview-card-count" id="overviewRecentCount">0 songs</span>
+                        </div>
+                    </div>
+
+                    <div class="overview-card card-favorites" data-overview-item="favorites">
+                        <div class="overview-card-icon">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                        </div>
+                        <div class="overview-card-info">
+                            <span class="overview-card-title">Favorites</span>
+                            <span class="overview-card-count" id="overviewFavoritesCount">0 playlists</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Other Panels Placeholders -->
+            <section class="library-panel" data-library-panel="playlists"></section>
+            <section class="library-panel" data-library-panel="albums"></section>
+            <section class="library-panel" data-library-panel="artists"></section>
+            <section class="library-panel" data-library-panel="tracks"></section>
+            <section class="library-panel" data-library-panel="download"></section>
+        </div>
     </main>
 </body>

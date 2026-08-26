@@ -1,240 +1,206 @@
-import { auth } from './firebase-config.js';
+/**
+ * Library Page Module (Mobile)
+ * Handles Tabs, Real-time Liked Songs & Overview statistics.
+ */
+
+import { auth, db, onAuthStateChanged, collection, onSnapshot } from './firebase-config.js';
 import { getFavoriteSongs } from '../../services/favoriteService.js';
 import { getUserPlaylists } from '../../services/libraryService.js';
 
-const libraryCollections = {
-    playlists: [
-        {
-            name: 'Liked Songs',
-            details: 'Playlist • 123 songs',
-            type: 'Playlist',
-            featured: true,
-            coverType: 'gradient',
-            gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)',
-            icon: 'heart',
-        },
-        {
-            name: 'My Awesome Mix',
-            details: 'Playlist • Winanda',
-            type: 'Playlist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'Indie Vibes',
-            details: 'Playlist • Winanda',
-            type: 'Playlist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'Night Drive',
-            details: 'Playlist • 48 songs',
-            type: 'Playlist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1493225457124-cac638e3d7a0?auto=format&fit=crop&w=300&q=80',
-        },
-    ],
-    artists: [
-        {
-            name: 'Ariana Grande',
-            details: 'Artist • 124 tracks',
-            type: 'Artist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'The Weeknd',
-            details: 'Artist • 89 tracks',
-            type: 'Artist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'Doja Cat',
-            details: 'Artist • 67 tracks',
-            type: 'Artist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'Billie Eilish',
-            details: 'Artist • 95 tracks',
-            type: 'Artist',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=300&q=80',
-        },
-    ],
-    albums: [
-        {
-            name: 'Future Nostalgia',
-            details: 'Album • Dua Lipa',
-            type: 'Album',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1525201548942-d8732f6617a0?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'After Hours',
-            details: 'Album • The Weeknd',
-            type: 'Album',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'Amala',
-            details: 'Album • Doja Cat',
-            type: 'Album',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=300&q=80',
-        },
-        {
-            name: 'When We All Fall Asleep',
-            details: 'Album • Billie Eilish',
-            type: 'Album',
-            coverType: 'image',
-            image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80',
-        },
-    ],
-};
-
-const libraryPageState = {
-    listeners: [],
-};
-
-const escapeHtml = (value) => String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-
-const getSafeImageUrl = (value) => {
-    try {
-        const url = new URL(value);
-        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
-    } catch {
-        return '';
-    }
-};
-
-function createCoverMarkup(item) {
-    if (item.coverType === 'gradient') {
-        return `
-            <div class="library-item__cover library-item__cover--gradient" style="background: ${escapeHtml(item.gradient || 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)')};">
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" aria-hidden="true">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-                </svg>
-            </div>
-        `;
-    }
-
-    return `
-        <img
-            src="${escapeHtml(getSafeImageUrl(item.image))}"
-            alt="${escapeHtml(item.name)}"
-            class="library-item__cover"
-            loading="lazy"
-        >
-    `;
-}
-
-function createLibraryCard(item) {
-    const badge = item.type ? `<span class="library-item__badge">${escapeHtml(item.type)}</span>` : '';
-    const featuredClass = item.featured ? 'library-item--featured' : '';
-
-    return `
-        <article class="library-item ${featuredClass}" tabindex="0" aria-label="${escapeHtml(item.name)}">
-            ${createCoverMarkup(item)}
-            <div class="library-item__info">
-                <div class="library-item__header">
-                    <span class="library-item__name">${escapeHtml(item.name)}</span>
-                    ${badge}
-                </div>
-                <span class="library-item__details">${escapeHtml(item.details)}</span>
-            </div>
-        </article>
-    `;
-}
-
-function renderLibraryContent(filter = 'playlists') {
-    const container = document.getElementById('libraryContent');
-    if (!container) return;
-
-    const selectedItems = libraryCollections[filter] || libraryCollections.playlists;
-    container.innerHTML = selectedItems.map(createLibraryCard).join('');
-}
-
-function initializeFilterButtons() {
-    const filterButtons = document.querySelectorAll('.library-filters .filter-btn');
-    const onFilterClick = (event) => {
-        const selectedButton = event.currentTarget;
-        const filter = selectedButton.dataset.filter;
-
-        filterButtons.forEach((button) => {
-            button.classList.toggle('active', button === selectedButton);
-        });
-
-        renderLibraryContent(filter);
-    };
-
-    filterButtons.forEach((button) => {
-        button.removeEventListener('click', onFilterClick);
-        button.addEventListener('click', onFilterClick);
-        libraryPageState.listeners.push({ element: button, handler: onFilterClick });
-    });
-
-    const addPlaylistButton = document.querySelector('.add-playlist-btn');
-    if (addPlaylistButton && !addPlaylistButton.dataset.libraryBound) {
-        addPlaylistButton.dataset.libraryBound = 'true';
-        const onCreatePlaylistClick = () => {
-            if (typeof window.showToast === 'function') {
-                window.showToast('Playlist baru siap dibuat.');
-            }
-        };
-        addPlaylistButton.addEventListener('click', onCreatePlaylistClick);
-        libraryPageState.listeners.push({ element: addPlaylistButton, handler: onCreatePlaylistClick });
-    }
-
-    renderLibraryContent('playlists');
-}
+let activeLibraryTab = 'overview';
+const listeners = [];
+let likedSongsUnsubscribe = null;
+let playlistsUnsubscribe = null;
 
 export async function initLibraryPage() {
-    const user = auth.currentUser;
-    if (user) {
-        const [favoriteSongs, userPlaylists] = await Promise.all([
-            getFavoriteSongs(user.uid),
-            getUserPlaylists(user.uid)
-        ]);
+    setupLibraryTabs();
+    setupOverviewCards();
+    setupRealtimeOverviewData();
+}
 
-        if (favoriteSongs.length > 0) {
-            libraryCollections.playlists = favoriteSongs.map((song) => ({
-                name: song.name || 'Untitled song',
-                details: `Liked Songs • ${song.artist || 'Unknown artist'}`,
-                type: 'Liked song',
-                coverType: 'image',
-                image: song.cover || ''
-            }));
-        }
+function setupLibraryTabs() {
+    const tabs = document.querySelectorAll('[data-library-tab]');
+    const indicator = document.querySelector('.library-active-indicator');
+    const panels = document.querySelectorAll('[data-library-panel]');
 
-        if (userPlaylists.length > 0) {
-            libraryCollections.playlists = userPlaylists.map((playlist) => ({
-                name: playlist.name,
-                details: 'Playlist • You',
-                type: 'Playlist',
-                coverType: 'gradient',
-                gradient: 'linear-gradient(135deg, #ff7a18 0%, #ff4d9a 45%, #7d5cf4 100%)'
-            }));
-        }
+    const moveIndicator = (tab) => {
+        if (!tab || !indicator) return;
+        indicator.style.width = `${tab.offsetWidth}px`;
+        indicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+    };
+
+    const switchPanel = (tabKey) => {
+        panels.forEach((panel) => {
+            const isMatch = panel.dataset.libraryPanel === tabKey;
+            panel.classList.toggle('is-active', isMatch);
+        });
+    };
+
+    tabs.forEach((tab) => {
+        const handler = () => {
+            activeLibraryTab = tab.dataset.libraryTab;
+            tabs.forEach((item) => {
+                const isActive = item === tab;
+                item.classList.toggle('is-active', isActive);
+                item.setAttribute('aria-selected', String(isActive));
+            });
+            moveIndicator(tab);
+            switchPanel(activeLibraryTab);
+        };
+        tab.addEventListener('click', handler);
+        listeners.push({ element: tab, type: 'click', handler });
+    });
+
+    const activeTabEl = document.querySelector('[data-library-tab].is-active') || tabs[0];
+    if (activeTabEl) {
+        requestAnimationFrame(() => moveIndicator(activeTabEl));
+        switchPanel(activeTabEl.dataset.libraryTab || 'overview');
     }
 
-    initializeFilterButtons();
+    const resizeHandler = () => {
+        const currentActive = document.querySelector(`[data-library-tab="${activeLibraryTab}"]`) || tabs[0];
+        moveIndicator(currentActive);
+    };
+    window.addEventListener('resize', resizeHandler);
+    listeners.push({ element: window, type: 'resize', handler: resizeHandler });
+}
+
+function setupOverviewCards() {
+    const cards = document.querySelectorAll('[data-overview-item]');
+    cards.forEach((card) => {
+        const handler = () => {
+            const itemType = card.dataset.overviewItem;
+            console.log(`[Library] Overview item clicked: ${itemType}`);
+            // Navigasi atau filter jika diperlukan
+        };
+        card.addEventListener('click', handler);
+        listeners.push({ element: card, type: 'click', handler });
+    });
+}
+
+function formatCount(count, singular = 'song', plural = 'songs') {
+    const n = Number(count) || 0;
+    const formattedNumber = (n > 0 && n < 10) ? `0${n}` : `${n}`;
+    return `${formattedNumber} ${n === 1 ? singular : plural}`;
+}
+
+function setupRealtimeOverviewData() {
+    // 1. Update localStorage-based counts (Downloads & Recently Played)
+    updateLocalStats();
+
+    // 2. Listen to Auth State to bind live Firestore data
+    const authUnsub = onAuthStateChanged(auth, async (user) => {
+        cleanupUserSubscriptions();
+
+        if (user) {
+            bindUserLikedSongs(user.uid);
+            bindUserPlaylists(user.uid);
+        } else {
+            setLikedSongsCount(0);
+            setFavoritesCount(0);
+        }
+    });
+
+    listeners.push({ cleanup: authUnsub });
+}
+
+function bindUserLikedSongs(uid) {
+    if (!uid) return;
+
+    try {
+        const likedRef = collection(db, "users", uid, "liked_songs");
+        likedSongsUnsubscribe = onSnapshot(likedRef, (snapshot) => {
+            const count = snapshot.docs.length;
+            setLikedSongsCount(count);
+        }, async (error) => {
+            console.warn("Firestore snapshot error, falling back to getFavoriteSongs:", error);
+            const fallbackSongs = await getFavoriteSongs(uid);
+            setLikedSongsCount(fallbackSongs.length);
+        });
+    } catch (e) {
+        console.error("Error setting up liked songs listener:", e);
+    }
+}
+
+function bindUserPlaylists(uid) {
+    if (!uid) return;
+
+    try {
+        const playlistsRef = collection(db, "users", uid, "playlists");
+        playlistsUnsubscribe = onSnapshot(playlistsRef, (snapshot) => {
+            const count = snapshot.docs.length;
+            setFavoritesCount(count);
+        }, async (error) => {
+            console.warn("Firestore playlists snapshot error, falling back:", error);
+            const fallbackPlaylists = await getUserPlaylists(uid);
+            setFavoritesCount(fallbackPlaylists.length);
+        });
+    } catch (e) {
+        console.error("Error setting up playlists listener:", e);
+    }
+}
+
+function updateLocalStats() {
+    // Downloads
+    try {
+        const savedDownloads = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
+        const count = Array.isArray(savedDownloads) ? savedDownloads.length : 0;
+        setDownloadsCount(count);
+    } catch {
+        setDownloadsCount(0);
+    }
+
+    // Recently Played
+    try {
+        const savedRecent = JSON.parse(localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]');
+        const count = Array.isArray(savedRecent) ? savedRecent.length : 0;
+        setRecentCount(count);
+    } catch {
+        setRecentCount(0);
+    }
+}
+
+function setLikedSongsCount(count) {
+    const el = document.getElementById('overviewLikedCount');
+    if (el) el.textContent = formatCount(count, 'song', 'songs');
+}
+
+function setDownloadsCount(count) {
+    const el = document.getElementById('overviewDownloadsCount');
+    if (el) el.textContent = formatCount(count, 'song', 'songs');
+}
+
+function setRecentCount(count) {
+    const el = document.getElementById('overviewRecentCount');
+    if (el) el.textContent = formatCount(count, 'song', 'songs');
+}
+
+function setFavoritesCount(count) {
+    const el = document.getElementById('overviewFavoritesCount');
+    if (el) el.textContent = formatCount(count, 'playlist', 'playlists');
+}
+
+function cleanupUserSubscriptions() {
+    if (typeof likedSongsUnsubscribe === 'function') {
+        likedSongsUnsubscribe();
+        likedSongsUnsubscribe = null;
+    }
+    if (typeof playlistsUnsubscribe === 'function') {
+        playlistsUnsubscribe();
+        playlistsUnsubscribe = null;
+    }
 }
 
 export function cleanupLibraryPage() {
-    libraryPageState.listeners.forEach(({ element, handler }) => {
-        if (element) {
-            element.removeEventListener('click', handler);
+    cleanupUserSubscriptions();
+
+    listeners.forEach((item) => {
+        if (item.element && item.type && item.handler) {
+            item.element.removeEventListener(item.type, item.handler);
+        }
+        if (typeof item.cleanup === 'function') {
+            item.cleanup();
         }
     });
-    libraryPageState.listeners = [];
+    listeners.length = 0;
 }
