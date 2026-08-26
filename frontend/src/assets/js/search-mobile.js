@@ -5,6 +5,12 @@ import {
     clearRecentSearches
 } from '../../services/recentSearchService.js';
 import { subscribePopularSearches, recordSearchSelection } from '../../services/searchPopularityService.js';
+import {
+    voiceCatalogKnowledge,
+    cleanVoiceQuery,
+    parseVoiceIntent,
+    calculateFuzzySimilarity
+} from '../../services/voiceSearchService.js';
 
 export const initSearchPage = ({
     debounce,
@@ -380,434 +386,71 @@ export const initSearchPage = ({
         }
     });
 
-    // ==========================================
-    // SMART VOICE SEARCH PIPELINE & AI MATCHER
-    // ==========================================
-
-    const calculateSimilarity = (str1, str2) => {
-        if (!str1 || !str2) return 0;
-        const s1 = str1.toLowerCase().trim();
-        const s2 = str2.toLowerCase().trim();
-        if (s1 === s2) return 1.0;
-        if (s1.includes(s2) || s2.includes(s1)) return 0.85;
-
-        const m = s1.length;
-        const n = s2.length;
-        const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-
-        for (let i = 0; i <= m; i++) dp[i][0] = i;
-        for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-        for (let i = 1; i <= m; i++) {
-            for (let j = 1; j <= n; j++) {
-                const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-                dp[i][j] = Math.min(
-                    dp[i - 1][j] + 1,
-                    dp[i][j - 1] + 1,
-                    dp[i - 1][j - 1] + cost
-                );
-            }
-        }
-
-        const distance = dp[m][n];
-        const maxLen = Math.max(m, n);
-        return maxLen === 0 ? 1.0 : (1.0 - distance / maxLen);
-    };
-
     // =========================================================================
-    // SMART VOICE AI ENGINE: PHONETICS & CATALOG MATCHER
-    // =========================================================================    
-
-    // 1. Algoritma Metaphone & Fonetik Skeleton Bahasa Indonesia / Inggris
-    const toPhoneticSkeleton = (str) => {
-        if (!str) return '';
-        let s = str.toLowerCase().trim();
-
-        // Bersihkan simbol & tanda baca
-        s = s.replace(/[^a-z0-9\s]/g, ' ');
-
-        // Reduksi huruf vokal beruntun & diftong
-        s = s
-            .replace(/ea|ee|ei|ie|ey/g, 'i')
-            .replace(/oo|ou|ow/g, 'u')
-            .replace(/oa/g, 'o')
-            .replace(/ai|ay/g, 'e')
-            .replace(/au|aw/g, 'o');
-
-        // Konsonan yang sering tertukar dalam speech-to-text
-        s = s
-            .replace(/f|v|ph/g, 'p')
-            .replace(/c(?=[eiy])/g, 's')
-            .replace(/c/g, 'k')
-            .replace(/q/g, 'k')
-            .replace(/x/g, 'ks')
-            .replace(/z|j/g, 's')
-            .replace(/th/g, 't')
-            .replace(/dh/g, 'd')
-            .replace(/gh/g, 'g')
-            .replace(/kh/g, 'k')
-            .replace(/sy|sh/g, 's');
-
-        // Kompresi karakter kembar (misal: "fiiist" -> "fist")
-        s = s.replace(/(.)\1+/g, '$1');
-
-        return s.replace(/\s+/g, ' ').trim();
-    };
-
-    // Helper untuk membersihkan tanda baca dan spasi di awal/akhir
-    const cleanPunct = (s) => (s || '').toLowerCase().replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, '').trim();
-    // 2. Kamus Fonetik & Normalisasi Musik Ekstensif (Huruf Kecil Alami)
-    const normalizeCommonMusicTerms = (text) => {
-        if (!text) return '';
-        return text
-            // .Feast & variasi fonetik
-            .replace(/\b(dot\s+feast|titik\s+feast|\.feast|feast|fist|feest|pist|vist|pest|fis|fiss|feis|feist|peist|dist)\b/gi, 'feast')
-            // Sheila On 7 & angka Indonesia/Inggris
-            .replace(/\b(sheila|sela|seila)\s+on\s+(seven|7|sefen|sepen|tujuh)\b/gi, 'sheila on 7')
-            .replace(/\bso7\b/gi, 'sheila on 7')
-            // Hindia
-            .replace(/\b(india|hinda|hindya|hindia)\b/gi, 'hindia')
-            // Raim Laode
-            .replace(/\b(raim\s+laode|raim\s+la\s+ode|raim\s+laude|rayem\s+laode|rahim\s+laode|rhyme\s+laode)\b/gi, 'raim laode')
-            // Juicy Luicy
-            .replace(/\b(jusi\s+luisi|jusi\s+luici|juicy\s+luisy|jucy\s+luci|juisi\s+luisi)\b/gi, 'juicy luicy')
-            // Sal Priadi
-            .replace(/\b(sal\s+priyadi|sal\s+priadi|sal\s+pribadi)\b/gi, 'sal priadi')
-            // Bernadya
-            .replace(/\b(bernadia|bernadya|bernadhia)\b/gi, 'bernadya')
-            // Mahalini
-            .replace(/\b(maha\s+lini|mahalini)\b/gi, 'mahalini')
-            // Nadin Amizah
-            .replace(/\b(nadin\s+hamzah|nadin\s+amizah|nadin\s+amijah)\b/gi, 'nadin amizah')
-            // Vierra / Vierratale
-            .replace(/\b(viera|vierra|vieratal|vieratale)\b/gi, 'vierra')
-            // For Revenge
-            .replace(/\b(for\s+rivens|for\s+revenge|por\s+ripens)\b/gi, 'for revenge')
-            // Bilal Indrajaya
-            .replace(/\b(bilal\s+indra\s+jaya|bilal\s+indrajaya)\b/gi, 'bilal indrajaya')
-            // Feby Putri
-            .replace(/\b(febi\s+putri|feby\s+putri)\b/gi, 'feby putri')
-            // Fiersa Besari
-            .replace(/\b(pirsa\s+besari|fiersa\s+besari)\b/gi, 'fiersa besari')
-            // Barasuara
-            .replace(/\bbara\s+suara\b/gi, 'barasuara')
-            // DHOT DESIGN
-            .replace(/\b(dhot|dot)\s+(desain|design)\b/gi, 'dhot design')
-            // Guyon Waton & Denny Caknan
-            .replace(/\bguyon\s+waton\b/gi, 'guyon waton')
-            .replace(/\b(deni|denny)\s+caknan\b/gi, 'denny caknan')
-            // Radiohead & Lagu Radiohead
-            .replace(/\b(rediohed|redio\s+hed|radio\s+hed|radiohead)\b/gi, 'radiohead')
-            .replace(/\b(krip|klip|crip)\b/gi, 'creep')
-            .replace(/\bkarma\s+polis\b/gi, 'karma police')
-            .replace(/\bno\s+(seprais|serpres|surpres)\b/gi, 'no surprises')
-            .replace(/\bol\s+ai\s+nid\b/gi, 'all i need')
-            .replace(/\blet\s+(dawn|don|daun)\b/gi, 'let down')
-            // Backstreet Boys
-            .replace(/\b(bekstrit\s+bois|bekstrit\s+boy|back\s+street\s+boys)\b/gi, 'backstreet boys')
-            .replace(/\bsep\s+of\s+mai\s+hart\b/gi, 'shape of my heart')
-            // Western Bands & Angka
-            .replace(/\bmaroon\s+(five|5|lima)\b/gi, 'maroon 5')
-            .replace(/\bblink\s+(one\s+eighty\s+two|182|seratus\s+delapan\s+puluh\s+dua)\b/gi, 'blink-182')
-            .replace(/\b(twenty\s+one|21|dua\s+puluh\s+satu)\s+pilots\b/gi, 'twenty one pilots')
-            .replace(/\bone\s+direction\b/gi, 'one direction')
-            .replace(/\bthe\s+(1975|nineteen\s+seventy\s+five|sembilan\s+belas\s+tujuh\s+puluh\s+lima)\b/gi, 'the 1975')
-            // Normalisasi Judul Album Populer
-            .replace(/\bmembangun\s+(dan|\&)\s+menghancurkan\b/gi, 'membangun & menghancurkan')
-            .replace(/\bmenari\s+dengan\s+bayangan\b/gi, 'menari dengan bayangan')
-            .replace(/\bduka\s+bersama\b/gi, 'duka bersama')
-            .replace(/\bkisah\s+klasik\s+(untuk\s+masa\s+depan)?\b/gi, 'kisah klasik untuk masa depan')
-            .replace(/\bpejantan\s+tangguh\b/gi, 'pejantan tangguh')
-            // Normalisasi Judul Lagu Populer
-            .replace(/\b(evaluasi|epaluasi)\b/gi, 'evaluasi')
-            .replace(/\b(komang|koma)\b/gi, 'komang')
-            .replace(/\b(nina|nyna)\b/gi, 'nina')
-            .replace(/\bsecukupnya\b/gi, 'secukupnya')
-            .replace(/\brumah\s+ke\s+rumah\b/gi, 'rumah ke rumah')
-            .replace(/\btarian\s+penghancur\s+raya\b/gi, 'tarian penghancur raya')
-            .replace(/\bperadaban\b/gi, 'peradaban')
-            .replace(/\bsephia\b/gi, 'sephia')
-            .replace(/\bmelompat\s+lebih\s+tinggi\b/gi, 'melompat lebih tinggi')
-            .replace(/\bsebuah\s+kisah\s+klasik\b/gi, 'sebuah kisah klasik')
-            .replace(/\bsahabat\s+sejati\b/gi, 'sahabat sejati')
-            .replace(/\blapang\s+dada\b/gi, 'lapang dada')
-            .replace(/\bgala\s+bunga\s+matahari\b/gi, 'gala bunga matahari')
-            .replace(/\buntungnya\s+hidup\s+harus\s+tetap\s+berjalan\b/gi, 'untungnya hidup harus tetap berjalan')
-            .replace(/\bruntuh\b/gi, 'runtuh')
-            .replace(/\bserana\b/gi, 'serana')
-            .replace(/\brayuan\s+perempuan\s+gila\b/gi, 'rayuan perempuan gila')
-            .replace(/\bbertaut\b/gi, 'bertaut');
-    };
-
-    // 3. Pembersih & Normalisasi Perintah Suara
-    const cleanVoiceQuery = (rawText) => {
-        if (!rawText) return '';
-        let text = rawText.trim();
-
-        // 1. Bersihkan tanda baca di awal/akhir/tengah kecuali titik pada .Feast
-        text = text.replace(/[\,\?\!\;\"\“\”\‘\’\:]+/g, ' ').replace(/\s+/g, ' ').trim();
-
-        // 2. Normalisasi ejaan band / istilah populer
-        text = normalizeCommonMusicTerms(text);
-
-        // 3. Bersihkan kata awalan perintah suara multi-bahasa (Indonesia, English, Español, dll.)
-        const commandPrefixPattern = /^(tolong\s+)?(putarkan|putar|puterin|mainkan|setelkan|setel|dengarkan|dengerin|bunyikan|nyalakan|play|carikan|cari|temukan|search|buka|lihat|tampilkan|buscar|reproducir|escuchar|listen\s+to)\s*(kan\s+)?(semua|seluruh|semuanya|koleksi|daftar|all|todos)?\s*(lagu-lagu|lagu|musik|track|songs|music|cancion|canciones|musica)?\s*(dari|punya|milik|oleh|artis|penyanyi|musisi|band|album|judul|tentang|for|by|from|de|por)?\s*/i;
-        text = text.replace(commandPrefixPattern, '').trim();
-
-        // 4. Bersihkan kata pengisi di akhir
-        text = text.replace(/\s+(dong|ya|tolong|please|deh|nih|yah|por\s+favor)$/i, '').trim();
-        return text;
-    };
-
-    // 4. Ekstraktor Pola 'Lagu [X] dari Artis [Y]' (Multi-Language)
-    const parseSongAndArtist = (query) => {
-        if (!query) return null;
-
-        // Contoh: "Nina dari Feast", "Dan oleh Sheila On 7", "Creep by Radiohead", "Despacito de Luis Fonsi"
-        const separatorPattern = /\s+(dari|oleh|milik|punya|ciptaan|by|from|feat\.?|ft\.?|de|por)\s+/i;
-        if (separatorPattern.test(query)) {
-            const parts = query.split(separatorPattern);
-            if (parts.length >= 3) {
-                return {
-                    song: parts[0].trim(),
-                    artist: parts[2].trim()
-                };
-            }
-        }
-
-        // Contoh: "Hindia yang judulnya Rumah Ke Rumah", "Sheila On 7 lagunya Sephia"
-        const yangJudulnyaPattern = /\s+(yang\s+judulnya|yang\s+nyanyi|lagunya)\s+/i;
-        if (yangJudulnyaPattern.test(query)) {
-            const parts = query.split(yangJudulnyaPattern);
-            if (parts.length >= 3) {
-                return {
-                    artist: parts[0].trim(),
-                    song: parts[2].trim()
-                };
-            }
-        }
-
-        return null;
-    };
-
-    // 5. Pengambil SEMUA Lagu Berdasarkan Artis
-    const getAllSongsByArtist = async (artistQuery, artistItem = null) => {
-        const localSongs = typeof getSongs === 'function' ? getSongs() : [];
-        let targetName = artistQuery || '';
-        if (artistItem) {
-            targetName = artistItem.type === 'artist' && artistItem.name ? artistItem.name : (artistItem.artist || artistItem.name || targetName);
-        }
-        targetName = targetName.toLowerCase().trim();
-        const targetNorm = cleanPunct(targetName);
-        const targetPhon = toPhoneticSkeleton(targetName);
-
-        // 1. Ambil dari katalog lagu lokal yang artisnya cocok
-        const matchedLocal = localSongs.filter((song) => {
-            if (!song.artist) return false;
-            const sArtist = song.artist.toLowerCase().trim();
-            const sNorm = cleanPunct(sArtist);
-            const sPhon = toPhoneticSkeleton(sArtist);
-
-            return (
-                sArtist === targetName ||
-                sNorm === targetNorm ||
-                sPhon === targetPhon ||
-                sArtist.includes(targetName) ||
-                targetName.includes(sArtist) ||
-                (targetPhon.length >= 3 && (sPhon.includes(targetPhon) || targetPhon.includes(sPhon)))
-            );
-        });
-
-        // 2. Jika artis juga punya lagu di catalog remote/Jamendo, cari dan gabungkan
-        let allSongs = [...matchedLocal];
-        try {
-            const catalog = await searchCatalogData(targetName, getSongs(), getArtists(), 30);
-            const catalogSongs = (catalog.songs || []).filter((s) => {
-                const sArtist = (s.artist || '').toLowerCase();
-                return sArtist.includes(targetName) || targetName.includes(sArtist);
-            });
-
-            const seen = new Set(allSongs.map((s) => String(s.id)));
-            for (const cs of catalogSongs) {
-                if (!seen.has(String(cs.id))) {
-                    seen.add(String(cs.id));
-                    allSongs.push(cs);
-                }
-            }
-        } catch (e) {
-            console.warn('Error fetching catalog artist songs:', e);
-        }
-
-        return allSongs;
-    };
-
-    // 5. Multi-Stage Intelligent Catalog Matcher (Local Data & Jamendo Global API Integration)
-    const findSmartCatalogMatch = async (candidates = []) => {
-        const pool = [];
-
-        // 1. Kumpulkan data lagu, artis, dan album lokal
-        const localSongs = typeof getSongs === 'function' ? getSongs() : [];
-        (localSongs || []).forEach((s) => {
-            if (s.name) pool.push({ name: s.name, type: 'song', item: s });
-            if (s.artist) pool.push({ name: s.artist, type: 'artist', item: { id: `artist-${s.artist}`, name: s.artist, photo: s.cover, type: 'artist' } });
-            if (s.album) pool.push({ name: s.album, type: 'album', item: { id: `album-${s.album}`, name: s.album, cover: s.cover, type: 'album' } });
-            if (s.name && s.artist) pool.push({ name: s.name, combined: `${s.name} ${s.artist}`, type: 'song', item: s });
-        });
-
-        // 2. Kumpulkan data artis lokal
-        const localArtists = typeof getArtists === 'function' ? getArtists() : [];
-        (localArtists || []).forEach((a) => {
-            if (a.name) pool.push({ name: a.name, type: 'artist', item: a });
-        });
-
-        // 3. Kumpulkan data popular searches
-        (popularSearchData.songs || []).forEach((s) => {
-            if (s.name) pool.push({ name: s.name, type: 'song', item: s });
-            if (s.artist) pool.push({ name: s.artist, type: 'artist', item: { id: `artist-${s.artist}`, name: s.artist, photo: s.cover, type: 'artist' } });
-            if (s.name && s.artist) pool.push({ name: s.name, combined: `${s.name} ${s.artist}`, type: 'song', item: s });
-        });
-        (popularSearchData.artists || []).forEach((a) => {
-            if (a.name) pool.push({ name: a.name, type: 'artist', item: a });
-        });
-        (popularSearchData.albums || []).forEach((al) => {
-            if (al.name) pool.push({ name: al.name, type: 'album', item: al });
-        });
-
-        for (const rawCandidate of candidates) {
-            const cleaned = cleanVoiceQuery(rawCandidate);
-            if (!cleaned) continue;
-
-            const lowerCleaned = cleaned.toLowerCase();
-            const normCleaned = cleanPunct(cleaned);
-            const phonCleaned = toPhoneticSkeleton(cleaned);
-
-            // A. Cek pola 'Lagu [Song] dari [Artist]'
-            const parsed = parseSongAndArtist(cleaned);
-            if (parsed) {
-                const normSong = cleanPunct(parsed.song);
-                const normArtist = cleanPunct(parsed.artist);
-                const phonSong = toPhoneticSkeleton(parsed.song);
-                const phonArtist = toPhoneticSkeleton(parsed.artist);
-
-                for (const entry of pool) {
-                    if (entry.type === 'song' && entry.item) {
-                        const songName = cleanPunct(entry.item.name);
-                        const songArtist = cleanPunct(entry.item.artist);
-                        const songPhonName = toPhoneticSkeleton(entry.item.name);
-                        const songPhonArtist = toPhoneticSkeleton(entry.item.artist);
-
-                        const isSongMatch = songName.includes(normSong) || normSong.includes(songName) || songPhonName === phonSong;
-                        const isArtistMatch = songArtist.includes(normArtist) || normArtist.includes(songArtist) || songPhonArtist === phonArtist;
-
-                        if (isSongMatch && isArtistMatch) {
-                            return { text: entry.item.name.toLowerCase(), score: 1.0, isMatch: true, item: entry.item, type: 'song' };
-                        }
-                    }
-                }
-            }
-
-            // B. Pencocokan ke entitas katalog lokal & populer (Hanya untuk exact/typo mirip)
-            for (const entry of pool) {
-                const entryName = entry.name;
-                const lowerEntry = entryName.toLowerCase();
-                const normEntry = cleanPunct(entryName);
-                const phonEntry = toPhoneticSkeleton(entryName);
-
-                // 1. Exact Match Teks
-                if (lowerCleaned === lowerEntry || normCleaned === normEntry) {
-                    return { text: lowerEntry, score: 1.0, isMatch: true, item: entry.item, type: entry.type };
-                }
-
-                // 2. Exact Phonetic Match (hanya jika panjang kata mirip, misal "fist" -> "feast", "koma" -> "komang")
-                if (phonCleaned === phonEntry && Math.abs(normCleaned.length - normEntry.length) <= 3) {
-                    return { text: lowerEntry, score: 1.0, isMatch: true, item: entry.item, type: entry.type };
-                }
-
-                // 3. Typo fuzzy similarity tinggi pada kata yang setara
-                const textSim = calculateSimilarity(normCleaned, normEntry);
-                const phonSim = calculateSimilarity(phonCleaned, phonEntry);
-                const bestSim = Math.max(textSim, phonSim);
-
-                if (bestSim >= 0.85 && Math.abs(normCleaned.length - normEntry.length) <= 2) {
-                    return { text: lowerEntry, score: bestSim, isMatch: true, item: entry.item, type: entry.type };
-                }
-            }
-
-            // C. Pencocokan ke Jamendo Remote Catalog API (Lagu, Artis, & Album Mancanegara)
-            try {
-                if (typeof searchCatalogData === 'function' && lowerCleaned.length >= 2) {
-                    const remoteData = await searchCatalogData(lowerCleaned, localSongs, localArtists, 5);
-                    const remoteEntries = [
-                        ...(remoteData.artists || []).map((a) => ({ name: a.name, type: 'artist', item: a })),
-                        ...(remoteData.songs || []).map((s) => ({ name: s.name, type: 'song', item: s })),
-                        ...(remoteData.albums || []).map((al) => ({ name: al.name, type: 'album', item: al }))
-                    ];
-
-                    for (const rentry of remoteEntries) {
-                        const rName = (rentry.name || '').toLowerCase();
-                        const rNorm = cleanPunct(rName);
-                        const rPhon = toPhoneticSkeleton(rName);
-
-                        if (lowerCleaned === rName || normCleaned === rNorm) {
-                            return { text: rName, score: 1.0, isMatch: true, item: rentry.item, type: rentry.type };
-                        }
-                        if (phonCleaned === rPhon && Math.abs(normCleaned.length - rNorm.length) <= 3) {
-                            return { text: rName, score: 1.0, isMatch: true, item: rentry.item, type: rentry.type };
-                        }
-                    }
-                }
-            } catch (err) {
-                console.warn('Voice Jamendo Catalog match lookup error:', err);
-            }
-
-            // Jika tidak ada exact/typo match pada entitas penuh, gunakan kueri asli user dalam huruf kecil
-            if (lowerCleaned.length >= 1) {
-                return { text: lowerCleaned, score: 1.0, isMatch: false, item: null, type: null };
-            }
-        }
-
-        // Default jika tidak ada match katalog: gunakan apa yang diucapkan user dalam huruf kecil
-        const defaultCleaned = cleanVoiceQuery(candidates[0] || '');
-        return { text: (defaultCleaned || (candidates[0] || '')).toLowerCase().trim(), score: 0, isMatch: false, item: null, type: null };
-    };
-
+    // INTELLIGENT VOICE SEARCH & PHONETIC TYPO ENGINE INTEGRATION
+    // =========================================================================
     if (microphoneButton) {
         microphoneButton.dataset.initialized = 'true';
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
 
         if (!SpeechRecognition) {
             microphoneButton.title = 'Voice search not supported on this browser';
             microphoneButton.addEventListener('click', () => searchInput.focus());
         } else {
             const recognition = new SpeechRecognition();
-            // Default ke id-ID (sangat peka terhadap bahasa Indonesia & judul internasional)
             const getAppLanguage = () => localStorage.getItem('app_language') || localStorage.getItem('user_language') || 'id-ID';
+
             recognition.lang = getAppLanguage();
-            recognition.interimResults = true;  // Real-time visual feedback
-            recognition.maxAlternatives = 5;    // Analisis 5 kandidat suara teratas dari browser AI
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 10; // Evaluate up to 10 neural alternatives for max accuracy
             recognition.continuous = false;
+
+            // Inject dynamic JSGF SpeechGrammarList if supported by the browser engine
+            if (SpeechGrammarList) {
+                try {
+                    const grammarList = new SpeechGrammarList();
+                    const grammar = voiceCatalogKnowledge.generateJSGFGrammar();
+                    if (grammar) {
+                        grammarList.addFromString(grammar, 1.0);
+                        recognition.grammars = grammarList;
+                    }
+                } catch (grammarErr) {
+                    console.debug('SpeechGrammarList notice:', grammarErr);
+                }
+            }
 
             let isListening = false;
             let lastCandidates = [];
+            let wasAudioPlaying = false;
 
             const startListening = () => {
                 try {
+                    // Auto-pause active music so speaker sound does not leak into microphone
+                    if (activeAudio && !activeAudio.paused && !activeAudio.ended) {
+                        wasAudioPlaying = true;
+                        activeAudio.pause();
+                    } else {
+                        wasAudioPlaying = false;
+                    }
+
                     recognition.lang = getAppLanguage();
                     lastCandidates = [];
+                    // Ensure knowledge base is initialized with local & Jamendo data
+                    voiceCatalogKnowledge.initialize().catch(() => {});
                     recognition.start();
                 } catch (e) {
-                    // Abaikan jika recognition sudah berjalan
+                    // Ignore if already listening
                 }
             };
 
             const stopListening = () => {
                 try {
                     recognition.stop();
-                } catch (e) { /* abaikan */ }
+                } catch (e) { /* ignore */ }
             };
 
-            // Saat mulai mendengarkan: bersihkan input dan tampilkan status listening
             recognition.addEventListener('start', () => {
                 isListening = true;
                 microphoneButton.classList.add('is-listening');
@@ -819,11 +462,10 @@ export const initSearchPage = ({
                 searchInput.placeholder = 'Listening... Speak song, artist, or album 🎙️';
             });
 
-            // Hasil suara masuk: rekam kalimat penuh dan alternatif suara di latar belakang
             recognition.addEventListener('result', (event) => {
                 const candidates = [];
 
-                // 1. Ambil transcript utama dari gabungan seluruh segmen
+                // 1. Primary transcript
                 const fullSentence = Array.from(event.results)
                     .map((r) => (r[0] ? r[0].transcript : ''))
                     .join(' ')
@@ -832,12 +474,14 @@ export const initSearchPage = ({
 
                 if (fullSentence) {
                     candidates.push(fullSentence);
+                    // Show live interim feedback in search box placeholder
+                    searchInput.placeholder = `🎙️ "${fullSentence}"`;
                 }
 
-                // 2. Ambil alternatif lain dari neural speech engine
+                // 2. Multi-candidate alternatives from speech recognition neural engine
                 for (let i = 0; i < event.results.length; i++) {
                     const res = event.results[i];
-                    for (let alt = 1; alt < Math.min(res.length, 5); alt++) {
+                    for (let alt = 0; alt < Math.min(res.length, 10); alt++) {
                         const altText = res[alt]?.transcript?.trim();
                         if (altText && !candidates.includes(altText)) {
                             candidates.push(altText);
@@ -850,7 +494,6 @@ export const initSearchPage = ({
                 }
             });
 
-            // Saat user SELESAI berbicara: selesaikan dengan matching cerdas & buka dropdown hasil pencarian (tanpa auto-play)
             recognition.addEventListener('end', async () => {
                 isListening = false;
                 microphoneButton.classList.remove('is-listening');
@@ -858,26 +501,39 @@ export const initSearchPage = ({
                 microphoneButton.title = 'Search by voice';
                 searchInput.placeholder = 'Search songs, artists, albums...';
 
+                let newSongTriggered = false;
+
                 if (lastCandidates.length > 0) {
-                    const smartResult = await findSmartCatalogMatch(lastCandidates);
-                    const finalQuery = (smartResult.text && smartResult.text.trim().length >= 2)
-                        ? smartResult.text
-                        : cleanVoiceQuery(lastCandidates[0] || '');
+                    // Match against Local Indonesian catalog + Jamendo Global API + Typo correction
+                    const matchResult = await voiceCatalogKnowledge.matchVoiceQuery(lastCandidates);
+                    const finalQuery = matchResult.text || cleanVoiceQuery(lastCandidates[0] || '');
 
                     if (finalQuery && finalQuery.trim().length >= 1) {
-                        // Ketikkan teks yang sudah dibersihkan/dikenali ke kotak pencarian
                         searchInput.value = finalQuery;
                         clearSearchBtn.classList.add('visible');
                         setLastSearchQuery(finalQuery);
 
-                        // Tampilkan hasil pencarian di dropdown secara murni TANPA auto-play
+                        // If user gave a direct Play command ("Putar lagu Nina dari Feast") and we found the song
+                        if (matchResult.intent === 'PLAY_TRACK' && matchResult.type === 'song' && matchResult.item?.audio) {
+                            newSongTriggered = true;
+                            const s = matchResult.item;
+                            window.handleSongSearchClick(
+                                s.audio,
+                                s.name,
+                                s.artist || '',
+                                s.cover || '',
+                                s.id,
+                                s.duration || 0
+                            );
+                        }
+
+                        // Submit search to update the dropdown list
                         submitSearch(false);
                     } else if (finalQuery) {
                         searchInput.value = finalQuery;
                         clearSearchBtn.classList.toggle('visible', finalQuery.length > 0);
                     }
                 } else if (searchInput.value.trim().length > 0) {
-                    // Fallback jika ada teks interim yang tertulis
                     const fallbackQuery = cleanVoiceQuery(searchInput.value);
                     if (fallbackQuery) {
                         searchInput.value = fallbackQuery;
@@ -885,15 +541,26 @@ export const initSearchPage = ({
                         submitSearch(false);
                     }
                 }
+
+                // If no new song was started and music was playing before voice search, resume smoothly
+                if (!newSongTriggered && wasAudioPlaying && activeAudio && activeAudio.paused) {
+                    activeAudio.play().catch(() => {});
+                    wasAudioPlaying = false;
+                }
             });
 
-            // Error handling dengan pesan ramah pengguna
             recognition.addEventListener('error', (event) => {
                 isListening = false;
                 microphoneButton.classList.remove('is-listening');
                 microphoneButton.setAttribute('aria-label', 'Search by voice');
                 microphoneButton.title = 'Search by voice';
                 searchInput.placeholder = 'Search songs, artists, albums...';
+
+                // Resume previous music if voice recognition resulted in an error or cancel
+                if (wasAudioPlaying && activeAudio && activeAudio.paused) {
+                    activeAudio.play().catch(() => {});
+                    wasAudioPlaying = false;
+                }
 
                 if (event.error === 'not-allowed') {
                     searchInput.placeholder = 'Microphone access denied.';
@@ -908,7 +575,7 @@ export const initSearchPage = ({
                 }
             });
 
-            // Toggle listen / stop
+
             microphoneButton.addEventListener('click', () => {
                 if (isListening) {
                     stopListening();
@@ -918,4 +585,4 @@ export const initSearchPage = ({
             });
         }
     }
-};
+};
