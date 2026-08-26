@@ -37,7 +37,11 @@ export const subscribePopularSearches = (type, callback, resultLimit = MAX_RESUL
     const popularQuery = firestoreQuery(getStatsRef(type), orderBy('searchCount', 'desc'), limit(resultLimit));
 
     return onSnapshot(popularQuery, (snapshot) => {
-        const firestoreItems = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        const firestoreItems = snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+            searchCount: Number(item.data()?.searchCount) || 0
+        }));
         callback(firestoreItems);
     }, (error) => {
         console.error(`Failed to subscribe to popular ${type}:`, error);

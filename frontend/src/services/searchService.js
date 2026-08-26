@@ -1,10 +1,16 @@
 import { searchTracks, searchTracksByName, searchArtistsByName, searchAlbumsByName, getTrendingTracks } from "./jamendoService.js";
 
+const cleanPunct = (str) => str?.toLowerCase().replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, '').trim() || '';
+
 const getRelevanceScore = (query, ...values) => {
+    const rawQuery = query?.toLowerCase().trim() || '';
+    const normQuery = cleanPunct(query);
     const normalizedValues = values.filter(Boolean).map((value) => value.toLowerCase());
-    if (normalizedValues.some((value) => value === query)) return 100;
-    if (normalizedValues.some((value) => value.startsWith(query))) return 80;
-    if (normalizedValues.some((value) => value.includes(query))) return 60;
+    const cleanedValues = values.filter(Boolean).map((value) => cleanPunct(value));
+
+    if (normalizedValues.some((value) => value === rawQuery) || cleanedValues.some((value) => value === normQuery)) return 100;
+    if (normalizedValues.some((value) => value.startsWith(rawQuery)) || cleanedValues.some((value) => value.startsWith(normQuery))) return 80;
+    if (normalizedValues.some((value) => value.includes(rawQuery)) || cleanedValues.some((value) => value.includes(normQuery))) return 60;
     return 0;
 };
 
@@ -49,12 +55,19 @@ export const searchCatalogData = async (query, localSongs = [], localArtists = [
     const normalizedQuery = query?.trim().toLowerCase();
     if (!normalizedQuery || normalizedQuery.length < 2) return { songs: [], artists: [], albums: [] };
 
+    const cleanQ = cleanPunct(normalizedQuery);
     const words = normalizedQuery.split(/\s+/);
     const localResults = localSongs
-        .filter((song) => words.every((word) => `${song.name} ${song.artist}`.toLowerCase().includes(word)))
+        .filter((song) => {
+            const fullText = `${song.name} ${song.artist}`.toLowerCase();
+            return words.every((word) => fullText.includes(word) || cleanPunct(fullText).includes(cleanPunct(word)));
+        })
         .map((song) => ({ ...song, type: 'song', isLocal: true, searchRank: 200 + getRelevanceScore(normalizedQuery, song.name, song.artist) }));
     const localArtistResults = localArtists
-        .filter((artist) => artist.name.toLowerCase().includes(normalizedQuery))
+        .filter((artist) => {
+            const artistName = artist.name.toLowerCase();
+            return artistName.includes(normalizedQuery) || cleanPunct(artistName).includes(cleanQ);
+        })
         .map((artist) => ({ ...artist, type: 'artist', isLocal: true, searchRank: 300 + getRelevanceScore(normalizedQuery, artist.name) }));
     const remote = await searchAll(normalizedQuery, limit);
     const remoteSongs = remote.songs.map((song) => ({
