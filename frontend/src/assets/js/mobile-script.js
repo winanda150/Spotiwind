@@ -20,6 +20,7 @@ let currentPlaylist = [];
 let trendingPlaylist = []; // Buffer to store the list of popular songs
 let newReleasesPlaylist = []; // Buffer to store the list of new releases
 let searchPlaylist = []; // Buffer to store search results
+let popularPlaylist = []; // Buffer to store Popular Searches song list for Up Next
 let indonesianSongsPlaylist = []; // NEW: Buffer for all local songs
 let indonesianGridPlaylist = []; // NEW: Buffer specifically for the 12 songs in the Indonesian grid
 let indonesianArtistsPlaylist = []; // NEW: Buffer for local artists
@@ -711,6 +712,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 baseQueue = Array.from(new Map(masterPool.map(s => [s.id, s])).values());
             } else if (context === 'search') {
                 baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
+            } else if (context === 'popular') {
+                baseQueue = [...popularPlaylist]; // Playlist dari Popular Searches
             } else if (context === 'local') {
                 // [FIX] When playing from the Indonesian grid, the playlist context should be the songs
                 // from that specific grid, not the entire local song library.
@@ -1543,7 +1546,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                         setHomeScrollPosition: (value) => { homeScrollPosition = value; },
                         getLastSearchQuery: () => lastSearchQuery,
                         setLastSearchQuery: (value) => { lastSearchQuery = value; },
-                        setSearchPlaylist: (value) => { searchPlaylist = value; }
+                        setSearchPlaylist: (value) => { searchPlaylist = value; },
+                        setPopularPlaylist: (value) => { popularPlaylist = value; }
                     });
                     fetchWithContinuousRetry(fetchIndonesianSongs); // Diperlukan untuk data lagu lokal di fungsi pencarian
                 } else if (page.includes('artist-mobile.html')) {
@@ -1875,6 +1879,9 @@ window.spotiwind = {
                         
                         currentPlaylist = currentSong ? [currentSong, ...others] : others;
                         currentSongIndex = 0;
+                        // [FIX] Sync urutan playlist yang sudah diacak ke playerService
+                        // agar getNextSong() saat onended menggunakan urutan shuffled yang benar
+                        syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
                     }
                     renderUpNext();
                 }

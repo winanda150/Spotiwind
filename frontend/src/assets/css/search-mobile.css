@@ -250,6 +250,43 @@
     color: #22c55e;
 }
 
+/* Badge nomor urut ranking */
+.popular-search-rank {
+    flex: 0 0 1.6rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.popular-search-rank.rank-gold {
+    background: linear-gradient(135deg, #f5b942, #e8960a);
+    color: #fff;
+}
+
+.popular-search-rank.rank-silver {
+    background: linear-gradient(135deg, #c0c0c0, #909090);
+    color: #fff;
+}
+
+.popular-search-rank.rank-bronze {
+    background: linear-gradient(135deg, #cd7f32, #a05820);
+    color: #fff;
+}
+
+.popular-search-rank.rank-default {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+
 .popular-search-cover {
     width: 3.25rem;
     height: 3.25rem;

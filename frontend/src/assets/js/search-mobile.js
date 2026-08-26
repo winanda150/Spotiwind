@@ -16,7 +16,8 @@ export const initSearchPage = ({
     setHomeScrollPosition,
     getLastSearchQuery,
     setLastSearchQuery,
-    setSearchPlaylist
+    setSearchPlaylist,
+    setPopularPlaylist
 }) => {
     const searchInput = document.getElementById('searchInput');
     const searchDropdown = document.getElementById('searchDropdown');
@@ -41,7 +42,11 @@ export const initSearchPage = ({
     };
 
     window.handleSongSearchClick = async (audio, name, artist, cover, id, duration) => {
-        await recordSearchSelection('songs', { id, name, artist, cover, audio, duration });
+        // Hanya beri ranking jika lagu berbeda atau lagu yang sama sudah selesai
+        if (canRecordRanking(id)) {
+            lastRankedSongId = String(id);
+            await recordSearchSelection('songs', { id, name, artist, cover, audio, duration });
+        }
         window.playFromSearch(audio, name, artist, cover, id);
     };
 
@@ -59,6 +64,19 @@ export const initSearchPage = ({
     let searchAbortController = null;
     let popularSearchData = { songs: [], artists: [], albums: [] };
     let activePopularTab = 'top';
+    // Guard: menyimpan ID lagu terakhir yang sudah diberi ranking dalam sesi ini
+    // Ranking baru hanya diberikan jika lagu berbeda ATAU lagu yang sama sudah selesai (ended)
+    let lastRankedSongId = null;
+
+    const canRecordRanking = (songId) => {
+        const currentSong = getCurrentSongData();
+        const isSameSong = currentSong && (String(currentSong.id) === String(songId));
+        // Jika lagu yang sama masih diputar (belum ended) → JANGAN beri ranking lagi
+        if (isSameSong && activeAudio && !activeAudio.ended && lastRankedSongId === String(songId)) {
+            return false;
+        }
+        return true;
+    };
 
     const escapeHtml = (value) => String(value || '')
         .replace(/&/g, '&amp;')
@@ -68,7 +86,8 @@ export const initSearchPage = ({
         .replace(/'/g, '&#039;');
 
     const renderPopularCards = (items, type) => items.length > 0
-        ? items.map((item) => {
+        ? items.map((item, index) => {
+            const rank = index + 1;
             const itemType = item.resultType || type;
             const status = itemType === 'songs' ? 'Song' : itemType === 'artists' ? 'Artist' : 'Album';
             const duration = itemType === 'songs' && item.duration ? `${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2, '0')}` : '';
@@ -82,15 +101,41 @@ export const initSearchPage = ({
             const statusMarkup = itemType === 'songs'
                 ? `<span class="popular-search-song-status">Song${duration ? ` - <i>${duration}</i>` : ''}</span>`
                 : `<span>${statusLabel}</span>`;
-            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(item.audio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><img class="popular-search-cover" src="${escapeHtml(item.cover || item.photo)}" alt=""><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
+            // Badge nomor urut ranking: #1 berwarna emas, #2 perak, #3 perunggu, sisanya abu
+            const rankClass = rank === 1 ? 'rank-gold' : rank === 2 ? 'rank-silver' : rank === 3 ? 'rank-bronze' : 'rank-default';
+            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(item.audio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><span class="popular-search-rank ${rankClass}">${rank}</span><img class="popular-search-cover" src="${escapeHtml(item.cover || item.photo)}" alt=""><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
         }).join('')
         : '<p class="popular-search-empty">No popular searches yet.</p>';
 
     const renderPopularSearches = () => {
         if (!popularSearchContent) return;
-        const items = activePopularTab === 'top'
-            ? [...popularSearchData.songs.map((item) => ({ ...item, resultType: 'songs' })), ...popularSearchData.artists.map((item) => ({ ...item, resultType: 'artists' })), ...popularSearchData.albums.map((item) => ({ ...item, resultType: 'albums' }))].sort((left, right) => (right.searchCount || 0) - (left.searchCount || 0)).slice(0, 9)
-            : popularSearchData[activePopularTab];
+        let items;
+        if (activePopularTab === 'top') {
+            // Gabungkan semua kategori, urutkan dari searchCount terbesar, ambil 10 teratas
+            items = [
+                ...popularSearchData.songs.map((item) => ({ ...item, resultType: 'songs' })),
+                ...popularSearchData.artists.map((item) => ({ ...item, resultType: 'artists' })),
+                ...popularSearchData.albums.map((item) => ({ ...item, resultType: 'albums' }))
+            ].sort((left, right) => (right.searchCount || 0) - (left.searchCount || 0)).slice(0, 10);
+        } else {
+            // Tab individual: data dari Firebase sudah orderBy desc, pastikan max 10
+            items = [...popularSearchData[activePopularTab]]
+                .sort((left, right) => (right.searchCount || 0) - (left.searchCount || 0))
+                .slice(0, 10);
+        }
+        // Sinkron daftar LAGU yang sedang ditampilkan ke buffer popularPlaylist
+        // agar Up Next terisi saat user memutar lagu dari Popular Searches
+        const songItems = items.filter((item) => (item.resultType || activePopularTab) === 'songs');
+        if (typeof setPopularPlaylist === 'function') {
+            setPopularPlaylist(songItems.map((s) => ({
+                id: s.id,
+                audio: s.audio,
+                name: s.name,
+                artist: s.artist || '',
+                cover: s.cover || '',
+                duration: s.duration || 0
+            })));
+        }
         popularSearchContent.innerHTML = renderPopularCards(items, activePopularTab);
     };
 
@@ -123,6 +168,8 @@ export const initSearchPage = ({
         movePopularSearchIndicator(document.querySelector(`[data-popular-tab="${activePopularTab}"]`));
     }, 150));
 
+    // Popular Searches cards: hanya play/navigate, TIDAK memberikan ranking
+    // Ranking hanya diberikan saat memilih dari dropdown pencarian (handleSongSearchClick, handleArtistClick, handleAlbumSearchClick)
     popularSearchContent?.addEventListener('click', (event) => {
         if (event.target.closest('.popular-search-menu')) return;
         const card = event.target.closest('[data-popular-type]');
@@ -133,7 +180,20 @@ export const initSearchPage = ({
             searchDropdown.classList.remove('active');
             navigateToArtistPage({ id: item.id, name: item.name, photo: item.photo });
         } else if (card.dataset.popularType === 'songs') {
-            window.playFromSearch(item.audio, item.name, item.artist, item.cover, item.id);
+            // Gunakan context 'popular' agar Up Next terisi dari lagu-lagu Popular Searches
+            const isSameActiveSong = getCurrentSongData() &&
+                String(getCurrentSongData().id) === String(item.id) &&
+                activeAudio && activeAudio.src;
+            window.playPreview(
+                null,
+                item.audio,
+                item.name,
+                item.artist,
+                item.cover,
+                item.id,
+                item.duration || 0,
+                isSameActiveSong ? null : 'popular'
+            );
         }
     });
 
