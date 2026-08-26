@@ -26,7 +26,6 @@ import { isUserPremium } from '../../services/profileService.js';
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
-import { voiceCatalogKnowledge, cleanVoiceQuery } from '../../services/voiceSearchService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -1347,7 +1346,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 avatarElement.src = originalPhotoURL || defaultAvatar;
             }
 
-            // Initialize Desktop Search & Voice Recognition
+            // Initialize Desktop Search
             initDesktopSearch();
 
         } else {
@@ -1372,7 +1371,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
 });
 
 /**
- * Desktop Search and Voice Recognition System
+ * Desktop Search System
  */
 let desktopLocalSongs = [];
 let desktopLocalArtists = [];
@@ -1380,7 +1379,6 @@ let desktopLocalArtists = [];
 const initDesktopSearch = async () => {
     const searchInput = document.getElementById('searchInput');
     const searchDropdown = document.getElementById('searchDropdown');
-    const desktopMicBtn = document.getElementById('desktopMicBtn');
 
     if (!searchInput || !searchDropdown) return;
 
@@ -1464,155 +1462,8 @@ const initDesktopSearch = async () => {
     }, 250));
 
     document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target) && !desktopMicBtn?.contains(e.target)) {
+        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
             searchDropdown.classList.remove('active');
         }
     });
-
-    // Voice recognition on Desktop
-    if (desktopMicBtn) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-
-        if (!SpeechRecognition) {
-            desktopMicBtn.title = 'Voice search not supported in this browser';
-            desktopMicBtn.addEventListener('click', () => searchInput.focus());
-        } else {
-            const recognition = new SpeechRecognition();
-            const getAppLanguage = () => localStorage.getItem('app_language') || localStorage.getItem('user_language') || 'id-ID';
-
-            recognition.lang = getAppLanguage();
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 10;
-            recognition.continuous = false;
-
-            if (SpeechGrammarList) {
-                try {
-                    const grammarList = new SpeechGrammarList();
-                    const grammar = voiceCatalogKnowledge.generateJSGFGrammar();
-                    if (grammar) {
-                        grammarList.addFromString(grammar, 1.0);
-                        recognition.grammars = grammarList;
-                    }
-                } catch (gErr) {
-                    console.debug('Desktop SpeechGrammarList notice:', gErr);
-                }
-            }
-
-            let isListening = false;
-            let lastCandidates = [];
-            let wasAudioPlaying = false;
-
-            const startListening = () => {
-                try {
-                    // Auto-pause active music so speaker audio does not leak into microphone
-                    if (activeAudio && !activeAudio.paused && !activeAudio.ended) {
-                        wasAudioPlaying = true;
-                        activeAudio.pause();
-                    } else {
-                        wasAudioPlaying = false;
-                    }
-
-                    recognition.lang = getAppLanguage();
-                    lastCandidates = [];
-                    voiceCatalogKnowledge.initialize().catch(() => {});
-                    recognition.start();
-                } catch (e) {}
-            };
-
-            const stopListening = () => {
-                try {
-                    recognition.stop();
-                } catch (e) {}
-            };
-
-            recognition.addEventListener('start', () => {
-                isListening = true;
-                desktopMicBtn.classList.add('is-listening');
-                desktopMicBtn.title = 'Listening... Speak now';
-                searchInput.value = '';
-                searchDropdown.classList.remove('active');
-                searchInput.placeholder = 'Listening... Speak song, artist, or album 🎙️';
-            });
-
-            recognition.addEventListener('result', (event) => {
-                const candidates = [];
-                const fullSentence = Array.from(event.results)
-                    .map((r) => (r[0] ? r[0].transcript : ''))
-                    .join(' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-
-                if (fullSentence) {
-                    candidates.push(fullSentence);
-                    searchInput.placeholder = `🎙️ "${fullSentence}"`;
-                }
-
-                for (let i = 0; i < event.results.length; i++) {
-                    const res = event.results[i];
-                    for (let alt = 0; alt < Math.min(res.length, 10); alt++) {
-                        const altText = res[alt]?.transcript?.trim();
-                        if (altText && !candidates.includes(altText)) {
-                            candidates.push(altText);
-                        }
-                    }
-                }
-
-                if (candidates.length > 0) {
-                    lastCandidates = candidates;
-                }
-            });
-
-            recognition.addEventListener('end', async () => {
-                isListening = false;
-                desktopMicBtn.classList.remove('is-listening');
-                desktopMicBtn.title = 'Search by voice';
-                searchInput.placeholder = 'Search songs, artists, albums...';
-
-                let newSongTriggered = false;
-
-                if (lastCandidates.length > 0) {
-                    const matchResult = await voiceCatalogKnowledge.matchVoiceQuery(lastCandidates);
-                    const finalQuery = matchResult.text || cleanVoiceQuery(lastCandidates[0] || '');
-
-                    if (finalQuery && finalQuery.trim().length >= 1) {
-                        searchInput.value = finalQuery;
-                        performSearch(finalQuery);
-
-                        if (matchResult.intent === 'PLAY_TRACK' && matchResult.type === 'song' && matchResult.item?.audio) {
-                            newSongTriggered = true;
-                            const s = matchResult.item;
-                            window.playPreview(null, s.audio, s.name, s.artist || '', s.cover || '', s.id, s.duration || 0, 'search');
-                        }
-                    }
-                }
-
-                // If no new song was commanded/played, and audio was playing before, resume smoothly
-                if (!newSongTriggered && wasAudioPlaying && activeAudio && activeAudio.paused) {
-                    activeAudio.play().catch(() => {});
-                    wasAudioPlaying = false;
-                }
-            });
-
-            recognition.addEventListener('error', (event) => {
-                isListening = false;
-                desktopMicBtn.classList.remove('is-listening');
-                desktopMicBtn.title = 'Search by voice';
-                searchInput.placeholder = 'Search songs, artists, albums...';
-
-                if (wasAudioPlaying && activeAudio && activeAudio.paused) {
-                    activeAudio.play().catch(() => {});
-                    wasAudioPlaying = false;
-                }
-            });
-
-            desktopMicBtn.addEventListener('click', () => {
-                if (isListening) {
-                    stopListening();
-                } else {
-                    startListening();
-                }
-            });
-        }
-    }
 };

@@ -5,12 +5,6 @@ import {
     clearRecentSearches
 } from '../../services/recentSearchService.js';
 import { subscribePopularSearches, recordSearchSelection } from '../../services/searchPopularityService.js';
-import {
-    voiceCatalogKnowledge,
-    cleanVoiceQuery,
-    parseVoiceIntent,
-    calculateFuzzySimilarity
-} from '../../services/voiceSearchService.js';
 
 export const initSearchPage = ({
     debounce,
@@ -33,11 +27,11 @@ export const initSearchPage = ({
     const popularSearchTabs = document.querySelectorAll('[data-popular-tab]');
     const popularSearchContent = document.getElementById('popularSearchContent');
     const popularSearchActiveIndicator = document.querySelector('.popular-search-active-indicator');
-    const microphoneButton = document.querySelector('.microphone-btn');
 
-    if (!searchInput || !searchDropdown || !clearSearchBtn || microphoneButton?.dataset.initialized === 'true') {
+    if (!searchInput || !searchDropdown || !clearSearchBtn || searchInput.dataset.initialized === 'true') {
         return;
     }
+    searchInput.dataset.initialized = 'true';
 
     window.handleArtistClick = async (id, name, photo) => {
         await recordSearchSelection('artists', { id, name, photo });
@@ -385,204 +379,4 @@ export const initSearchPage = ({
             searchDropdown.classList.remove('active');
         }
     });
-
-    // =========================================================================
-    // INTELLIGENT VOICE SEARCH & PHONETIC TYPO ENGINE INTEGRATION
-    // =========================================================================
-    if (microphoneButton) {
-        microphoneButton.dataset.initialized = 'true';
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-
-        if (!SpeechRecognition) {
-            microphoneButton.title = 'Voice search not supported on this browser';
-            microphoneButton.addEventListener('click', () => searchInput.focus());
-        } else {
-            const recognition = new SpeechRecognition();
-            const getAppLanguage = () => localStorage.getItem('app_language') || localStorage.getItem('user_language') || 'id-ID';
-
-            recognition.lang = getAppLanguage();
-            recognition.interimResults = true;
-            recognition.maxAlternatives = 10; // Evaluate up to 10 neural alternatives for max accuracy
-            recognition.continuous = false;
-
-            // Inject dynamic JSGF SpeechGrammarList if supported by the browser engine
-            if (SpeechGrammarList) {
-                try {
-                    const grammarList = new SpeechGrammarList();
-                    const grammar = voiceCatalogKnowledge.generateJSGFGrammar();
-                    if (grammar) {
-                        grammarList.addFromString(grammar, 1.0);
-                        recognition.grammars = grammarList;
-                    }
-                } catch (grammarErr) {
-                    console.debug('SpeechGrammarList notice:', grammarErr);
-                }
-            }
-
-            let isListening = false;
-            let lastCandidates = [];
-            let wasAudioPlaying = false;
-
-            const startListening = () => {
-                try {
-                    // Auto-pause active music so speaker sound does not leak into microphone
-                    if (activeAudio && !activeAudio.paused && !activeAudio.ended) {
-                        wasAudioPlaying = true;
-                        activeAudio.pause();
-                    } else {
-                        wasAudioPlaying = false;
-                    }
-
-                    recognition.lang = getAppLanguage();
-                    lastCandidates = [];
-                    // Ensure knowledge base is initialized with local & Jamendo data
-                    voiceCatalogKnowledge.initialize().catch(() => {});
-                    recognition.start();
-                } catch (e) {
-                    // Ignore if already listening
-                }
-            };
-
-            const stopListening = () => {
-                try {
-                    recognition.stop();
-                } catch (e) { /* ignore */ }
-            };
-
-            recognition.addEventListener('start', () => {
-                isListening = true;
-                microphoneButton.classList.add('is-listening');
-                microphoneButton.setAttribute('aria-label', 'Stop voice search');
-                microphoneButton.title = 'Listening... Speak now';
-                searchInput.value = '';
-                clearSearchBtn.classList.remove('visible');
-                searchDropdown.classList.remove('active');
-                searchInput.placeholder = 'Listening... Speak song, artist, or album 🎙️';
-            });
-
-            recognition.addEventListener('result', (event) => {
-                const candidates = [];
-
-                // 1. Primary transcript
-                const fullSentence = Array.from(event.results)
-                    .map((r) => (r[0] ? r[0].transcript : ''))
-                    .join(' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-
-                if (fullSentence) {
-                    candidates.push(fullSentence);
-                    // Show live interim feedback in search box placeholder
-                    searchInput.placeholder = `🎙️ "${fullSentence}"`;
-                }
-
-                // 2. Multi-candidate alternatives from speech recognition neural engine
-                for (let i = 0; i < event.results.length; i++) {
-                    const res = event.results[i];
-                    for (let alt = 0; alt < Math.min(res.length, 10); alt++) {
-                        const altText = res[alt]?.transcript?.trim();
-                        if (altText && !candidates.includes(altText)) {
-                            candidates.push(altText);
-                        }
-                    }
-                }
-
-                if (candidates.length > 0) {
-                    lastCandidates = candidates;
-                }
-            });
-
-            recognition.addEventListener('end', async () => {
-                isListening = false;
-                microphoneButton.classList.remove('is-listening');
-                microphoneButton.setAttribute('aria-label', 'Search by voice');
-                microphoneButton.title = 'Search by voice';
-                searchInput.placeholder = 'Search songs, artists, albums...';
-
-                let newSongTriggered = false;
-
-                if (lastCandidates.length > 0) {
-                    // Match against Local Indonesian catalog + Jamendo Global API + Typo correction
-                    const matchResult = await voiceCatalogKnowledge.matchVoiceQuery(lastCandidates);
-                    const finalQuery = matchResult.text || cleanVoiceQuery(lastCandidates[0] || '');
-
-                    if (finalQuery && finalQuery.trim().length >= 1) {
-                        searchInput.value = finalQuery;
-                        clearSearchBtn.classList.add('visible');
-                        setLastSearchQuery(finalQuery);
-
-                        // If user gave a direct Play command ("Putar lagu Nina dari Feast") and we found the song
-                        if (matchResult.intent === 'PLAY_TRACK' && matchResult.type === 'song' && matchResult.item?.audio) {
-                            newSongTriggered = true;
-                            const s = matchResult.item;
-                            window.handleSongSearchClick(
-                                s.audio,
-                                s.name,
-                                s.artist || '',
-                                s.cover || '',
-                                s.id,
-                                s.duration || 0
-                            );
-                        }
-
-                        // Submit search to update the dropdown list
-                        submitSearch(false);
-                    } else if (finalQuery) {
-                        searchInput.value = finalQuery;
-                        clearSearchBtn.classList.toggle('visible', finalQuery.length > 0);
-                    }
-                } else if (searchInput.value.trim().length > 0) {
-                    const fallbackQuery = cleanVoiceQuery(searchInput.value);
-                    if (fallbackQuery) {
-                        searchInput.value = fallbackQuery;
-                        setLastSearchQuery(fallbackQuery);
-                        submitSearch(false);
-                    }
-                }
-
-                // If no new song was started and music was playing before voice search, resume smoothly
-                if (!newSongTriggered && wasAudioPlaying && activeAudio && activeAudio.paused) {
-                    activeAudio.play().catch(() => {});
-                    wasAudioPlaying = false;
-                }
-            });
-
-            recognition.addEventListener('error', (event) => {
-                isListening = false;
-                microphoneButton.classList.remove('is-listening');
-                microphoneButton.setAttribute('aria-label', 'Search by voice');
-                microphoneButton.title = 'Search by voice';
-                searchInput.placeholder = 'Search songs, artists, albums...';
-
-                // Resume previous music if voice recognition resulted in an error or cancel
-                if (wasAudioPlaying && activeAudio && activeAudio.paused) {
-                    activeAudio.play().catch(() => {});
-                    wasAudioPlaying = false;
-                }
-
-                if (event.error === 'not-allowed') {
-                    searchInput.placeholder = 'Microphone access denied.';
-                    setTimeout(() => {
-                        searchInput.placeholder = 'Search songs, artists, albums...';
-                    }, 3000);
-                } else if (event.error === 'no-speech') {
-                    searchInput.placeholder = 'No speech detected. Try again.';
-                    setTimeout(() => {
-                        searchInput.placeholder = 'Search songs, artists, albums...';
-                    }, 2500);
-                }
-            });
-
-
-            microphoneButton.addEventListener('click', () => {
-                if (isListening) {
-                    stopListening();
-                } else {
-                    startListening();
-                }
-            });
-        }
-    }
 };

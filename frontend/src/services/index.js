@@ -10,4 +10,3 @@ export * from "./notificationService.js";
 export * from "./searchService.js";
 export * from "./presenceService.js";
 export * from "./catalogService.js";
-export * from "./voiceSearchService.js";
