@@ -337,19 +337,8 @@ const toggleLike = async (e) => {
  */
 window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
     const songId = String(id);
-    const wasSameSong = currentSongData && String(currentSongData.id) === songId;
-
-    // Context-aware playlist management
-    if (context && currentPlaylist.length > 0) {
-        const queueState = setContextPlaylist(currentPlaylist, songId);
-        currentPlaylist = queueState.playlist;
-        currentSongIndex = queueState.currentIndex;
-        currentSongData = queueState.currentSong;
-    }
-
-    if (!audioUrl) return;
-
-    const isSameSong = wasSameSong && activeAudio.src;
+    const wasSameSong = Boolean(currentSongData && (String(currentSongData.id) === songId || (audioUrl && currentSongData.audio === audioUrl)));
+    const isSameSong = Boolean(wasSameSong && activeAudio && activeAudio.src);
 
     if (isSameSong) {
         if (!activeAudio.paused) {
@@ -365,6 +354,16 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         }
         return;
     }
+
+    // Context-aware playlist management
+    if (context && currentPlaylist.length > 0) {
+        const queueState = setContextPlaylist(currentPlaylist, songId);
+        currentPlaylist = queueState.playlist;
+        currentSongIndex = queueState.currentIndex;
+        currentSongData = queueState.currentSong;
+    }
+
+    if (!audioUrl) return;
 
     activeAudio.pause();
     currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration };

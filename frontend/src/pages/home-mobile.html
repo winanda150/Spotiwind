@@ -5,13 +5,31 @@
     <meta charset="UTF-8">
     <script>
         // Suppress third-party/extension performance observer noise in console
-        window.addEventListener('error', function(e) {
-            if (e && e.message && (e.message.indexOf('startTime') !== -1 || e.message.indexOf('reportAllChanges') !== -1)) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                return true;
-            }
-        }, true);
+        (function() {
+            var suppress = function(e) {
+                var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
+                var stack = (e && e.error && e.error.stack) || '';
+                if (msg.indexOf('startTime') !== -1 || msg.indexOf('reportAllChanges') !== -1 ||
+                    stack.indexOf('startTime') !== -1 || stack.indexOf('reportAllChanges') !== -1) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    return true;
+                }
+            };
+            window.addEventListener('error', suppress, true);
+            window.onerror = function(msg, url, line, col, err) {
+                var text = String(msg || '') + String(err && err.stack || '');
+                if (text.indexOf('startTime') !== -1 || text.indexOf('reportAllChanges') !== -1) {
+                    return true;
+                }
+            };
+            window.addEventListener('unhandledrejection', function(e) {
+                var reason = String(e && e.reason ? (e.reason.message || e.reason) : '');
+                if (reason.indexOf('startTime') !== -1 || reason.indexOf('reportAllChanges') !== -1) {
+                    e.preventDefault();
+                }
+            });
+        })();
 
         // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
         (function() {
@@ -79,7 +97,7 @@
 </header>
 
         <div class="sidebar-overlay" data-sidebar-close></div>
-        <aside class="mobile-sidebar" aria-label="Main navigation" aria-hidden="true">
+        <aside class="mobile-sidebar" aria-label="Main navigation" aria-hidden="true" inert>
             <div class="sidebar-header">
                 <div class="sidebar-brand">
                     <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="" class="sidebar-logo">
@@ -101,7 +119,7 @@
                 <div class="sidebar-profile-info">
                     <div class="sidebar-profile-name-row">
                         <span id="sidebarUserName" class="sidebar-profile-name">User Name</span>
-                        <span class="pro-badge">PRO</span>
+                        <span id="sidebarProBadge" class="pro-badge hidden">PRO</span>
                     </div>
                     <span id="sidebarUserEmail" class="sidebar-profile-email">user@example.com</span>
                     <a href="#" class="sidebar-profile-link" data-sidebar-target="account-mobile.html">
@@ -159,7 +177,7 @@
             <section class="sidebar-music-section" aria-labelledby="yourMusicTitle">
                 <h2 id="yourMusicTitle" class="sidebar-section-title">YOUR MUSIC</h2>
                 <div class="sidebar-music-list">
-                    <a href="#" class="sidebar-music-item">
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="tracks">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round" aria-hidden="true">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -167,23 +185,23 @@
                         <span>Liked Songs</span>
                         <span class="sidebar-music-meta"><span id="likedSongsCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
                     </a>
-                    <a href="#" class="sidebar-music-item">
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="download">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"
                             aria-hidden="true">
                             <path d="M0 0h24v24H0z" fill="none"></path>
                             <path fill="currentColor" d="m12 16l-5-5l1.4-1.45l2.6 2.6V4h2v8.15l2.6-2.6L17 11zm-6 4q-.825 0-1.412-.587T4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413T18 20z"></path>
                         </svg>
                         <span>Downloads</span>
-                        <span class="sidebar-music-meta"><span>02</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        <span class="sidebar-music-meta"><span id="sidebarDownloadsCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
                     </a>
-                    <a href="#" class="sidebar-music-item">
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="overview">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="9"></circle>
                             <polyline points="12 7 12 12 15 14"></polyline>
                         </svg>
                         <span>Recently Played</span>
-                        <span class="sidebar-music-meta"><span>03</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        <span class="sidebar-music-meta"><span id="sidebarRecentCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
                     </a>
                 </div>
             </section>
@@ -198,51 +216,10 @@
                         </svg>
                     </button>
                 </div>
-                <div class="sidebar-playlist-list">
-                    <div class="sidebar-playlist-item">
-                        <img src="../../public/Elemen/Radiohead/Image Songs/Creep.webp" alt="My Playlist cover">
-                        <span class="sidebar-playlist-info">
-                            <span class="sidebar-playlist-name">My Playlist</span>
-                            <span class="sidebar-playlist-count">80 Songs</span>
-                        </span>
-                        <button class="sidebar-playlist-menu" type="button" aria-label="More options for My Playlist">
-                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="1.5"></circle>
-                                <circle cx="12" cy="12" r="1.5"></circle>
-                                <circle cx="19" cy="12" r="1.5"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="sidebar-playlist-item">
-                        <img src="../../public/Elemen/Hindia/Image Songs/Evaluasi.webp" alt="Chill Vibes cover">
-                        <span class="sidebar-playlist-info">
-                            <span class="sidebar-playlist-name">Chill Vibes</span>
-                            <span class="sidebar-playlist-count">42 Songs</span>
-                        </span>
-                        <button class="sidebar-playlist-menu" type="button" aria-label="More options for Chill Vibes">
-                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="1.5"></circle>
-                                <circle cx="12" cy="12" r="1.5"></circle>
-                                <circle cx="19" cy="12" r="1.5"></circle>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="sidebar-playlist-item">
-                        <img src="../../public/Elemen/Vierra/Image Songs/Seandainya.webp" alt="Indie Favorites cover">
-                        <span class="sidebar-playlist-info">
-                            <span class="sidebar-playlist-name">Indie Favorites</span>
-                            <span class="sidebar-playlist-count">36 Songs</span>
-                        </span>
-                        <button class="sidebar-playlist-menu" type="button" aria-label="More options for Indie Favorites">
-                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <circle cx="5" cy="12" r="1.5"></circle>
-                                <circle cx="12" cy="12" r="1.5"></circle>
-                                <circle cx="19" cy="12" r="1.5"></circle>
-                            </svg>
-                        </button>
-                    </div>
+                <div class="sidebar-playlist-list" id="sidebarPlaylistList">
+                    <!-- Dynamic playlists will be rendered here -->
                 </div>
-                <a href="#" class="sidebar-see-all-playlists">
+                <a href="#" class="sidebar-see-all-playlists hidden" id="sidebarSeeAllPlaylists" data-sidebar-target="library-mobile.html" data-library-initial-tab="playlists">
                     <span>See all playlists</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
@@ -885,6 +862,40 @@
             <span>Account</span>
         </a>
     </nav>
+
+    <!-- Create Playlist Modal -->
+    <div id="createPlaylistModal" class="playlist-modal-overlay hidden" aria-hidden="true" inert>
+        <div class="playlist-modal-card" role="dialog" aria-modal="true" aria-labelledby="createPlaylistTitle">
+            <div class="playlist-modal-header">
+                <h2 id="createPlaylistTitle" class="playlist-modal-title">Create New Playlist</h2>
+                <button class="playlist-modal-close-btn" type="button" aria-label="Close modal">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <form id="createPlaylistForm" class="playlist-modal-form" autocomplete="off">
+                <div class="playlist-input-wrapper">
+                    <label for="playlistNameInput" class="playlist-input-label">Playlist Name</label>
+                    <input 
+                        type="text" 
+                        id="playlistNameInput" 
+                        class="playlist-name-input" 
+                        placeholder="e.g. My Favorite Mix" 
+                        maxlength="50" 
+                        required
+                    />
+                </div>
+                <div class="playlist-modal-actions">
+                    <button type="button" class="playlist-btn-cancel">Cancel</button>
+                    <button type="submit" class="playlist-btn-submit" id="submitPlaylistBtn">
+                        <span>Create Playlist</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script type="module" src="../assets/js/home-mobile.js"></script>
 </body>

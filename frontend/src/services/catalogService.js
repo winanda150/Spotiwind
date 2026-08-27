@@ -30,11 +30,13 @@ const featuredLocalSongs = [
     ['bilal-indrajaya-niscaya', 'Niscaya', 'Bilal Indrajaya', 241, 'Bilal%20Indrajaya/Niscaya']
 ];
 
-const getPublicAssetUrl = (relativePath) => {
+export const getPublicAssetUrl = (relativePath) => {
+    if (!relativePath) return '';
     if (typeof window === 'undefined') return relativePath;
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) return relativePath;
     const isGitHub = window.location.pathname.includes('/spotiwind-music');
     const base = `${window.location.origin}${isGitHub ? '/spotiwind-music' : ''}/frontend/public/`;
-    const cleanPath = String(relativePath || '').replace(/^(\.\.\/)+public\//, '').replace(/^\/?public\//, '');
+    const cleanPath = String(relativePath).replace(/^(\.\.\/)+public\//, '').replace(/^\/?public\//, '').replace(/^\/+/, '');
     return `${base}${cleanPath}`;
 };
 

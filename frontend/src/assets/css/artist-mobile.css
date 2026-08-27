@@ -340,9 +340,31 @@
 }
 
 /* Active song styling for list items */
+.artist-song-list-item.is-active-song {
+    background: rgba(185, 30, 201, 0.15);
+    border-color: var(--accent-color);
+}
+
 .artist-song-list-item.is-active-song .item-name {
     color: #22c55e;
     /* Green color for active song */
+}
+
+.artist-song-play-icon {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: #ffffff;
+}
+
+.artist-song-list-item:hover .artist-song-play-icon,
+.artist-song-list-item.is-active-song .artist-song-play-icon {
+    opacity: 1;
 }
 
 /* Three dots icon for list items */

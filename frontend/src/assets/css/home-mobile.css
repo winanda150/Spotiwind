@@ -240,6 +240,11 @@ body.player-active .app-container {
     line-height: 1.2;
 }
 
+.pro-badge.hidden,
+.hidden {
+    display: none !important;
+}
+
 .sidebar-profile-link {
     display: flex;
     align-items: center;
@@ -883,7 +888,7 @@ body.player-active .app-container {
 }
 
 .section-title {
-    font-size: 0.8rem;
+    font-size: 1rem;
     /* Consistent with mobile header titles */
     font-weight: 600;
     margin-bottom: 0;
@@ -894,7 +899,7 @@ body.player-active .app-container {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     color: var(--accent-color);
     text-decoration: none;
     font-weight: 600;
@@ -1101,7 +1106,11 @@ body.player-active .app-container {
 
 .song-card.is-active-song {
     border-color: var(--accent-color) !important;
-    background: rgba(219, 16, 226, 0.07) !important;
+    background: rgba(185, 30, 201, 0.15) !important;
+}
+
+.song-card.is-active-song .song-name {
+    color: #22c55e !important;
 }
 
 .song-cover {
@@ -2778,13 +2787,177 @@ body.full-player-open {
 
 /* Sembunyikan konten secara instan saat transisi (FIXED) */
 .is-transitioning .app-container,
-/* Menargetkan konten utama mobile */
 .is-transitioning .mobile-bottom-nav,
-/* Menargetkan navigasi bawah */
 .is-transitioning .mobile-player-bar,
-/* Menargetkan mini player */
 .is-transitioning .mobile-full-player {
-    /* Menargetkan full screen player */
     display: none !important;
+}
+
+/* =============================================
+   Create Playlist Modal
+   ============================================= */
+
+.playlist-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(10, 14, 26, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.playlist-modal-overlay.hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+.playlist-modal-card {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6), 0 0 25px rgba(185, 30, 201, 0.2);
+    border-radius: 1.25rem;
+    width: 100%;
+    max-width: 360px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transform: scale(1);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.playlist-modal-overlay.hidden .playlist-modal-card {
+    transform: scale(0.92);
+}
+
+.playlist-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.playlist-modal-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-main, #fff);
+    margin: 0;
+}
+
+.playlist-modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #94a3b8);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease;
+    padding: 0;
+}
+
+.playlist-modal-close-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.playlist-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.playlist-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.playlist-input-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.playlist-name-input {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: #fff;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.playlist-name-input:focus {
+    border-color: var(--accent-color, #B91EC9);
+    box-shadow: 0 0 0 3px rgba(185, 30, 201, 0.25);
+}
+
+.playlist-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.playlist-btn-cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted, #94a3b8);
+    padding: 0.6rem 1.1rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.playlist-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.playlist-btn-submit {
+    background: linear-gradient(135deg, #B91EC9, #8B5CF6);
+    border: none;
+    color: #fff;
+    padding: 0.6rem 1.3rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(185, 30, 201, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+.playlist-btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(185, 30, 201, 0.45);
+}
+
+.playlist-btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 

@@ -91,10 +91,14 @@ export const initSearchPage = ({
             const itemType = item.resultType || type;
             const status = itemType === 'songs' ? 'Song' : itemType === 'artists' ? 'Artist' : 'Album';
             const duration = itemType === 'songs' && item.duration ? `${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2, '0')}` : '';
-            const currentSong = getCurrentSongData();
+            const currentSong = getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
             const cleanAudio = item.audio;
-            const isActiveSong = itemType === 'songs' && currentSong && (String(item.id) === String(currentSong.id) || (cleanAudio && cleanAudio === currentSong.audio));
-            const statusLabel = isActiveSong ? 'Now playing' : status;
+            const isSame = itemType === 'songs' && currentSong && (typeof window.areSameSongs === 'function'
+                ? window.areSameSongs(currentSong, item)
+                : (String(item.id) === String(currentSong.id) || (cleanAudio && cleanAudio === currentSong.audio)));
+            const isActiveSong = Boolean(isSame);
+            const isPaused = isActiveSong && Boolean(activeAudio?.paused);
+            const statusLabel = isActiveSong ? (isPaused ? 'Paused' : 'Now playing') : status;
             const artistBadge = itemType === 'artists'
                 ? '<svg class="popular-search-verified" viewBox="0 0 256 256" aria-label="Verified"><path fill="#0095f6" d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14-3.25 1.36-8.69 1.44-13.94 1.52-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18M173.66 109.66l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32Z"/></svg>'
                 : '';
@@ -104,9 +108,52 @@ export const initSearchPage = ({
                 : `<span>${statusLabel}</span>`;
             const rankClass = rank === 1 ? 'rank-gold' : rank === 2 ? 'rank-silver' : rank === 3 ? 'rank-bronze' : 'rank-default';
             const cleanCover = item.cover || item.photo || '';
-            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(cleanAudio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><span class="popular-search-rank ${rankClass}">${rank}</span><img class="popular-search-cover" src="${escapeHtml(cleanCover)}" alt="${escapeHtml(item.name)}"><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
+            const playIconHtml = itemType === 'songs' ? `
+                <div class="popular-search-play-icon" aria-hidden="true">
+                    ${isActiveSong && !isPaused ? `
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                    ` : `
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+                    `}
+                </div>
+            ` : '';
+            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(cleanAudio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><span class="popular-search-rank ${rankClass}">${rank}</span><div class="popular-search-cover-wrapper"><img class="popular-search-cover" src="${escapeHtml(cleanCover)}" alt="${escapeHtml(item.name)}" width="52" height="52" loading="lazy">${playIconHtml}</div><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
         }).join('')
-        : '<p class="popular-search-empty">No popular searches yet.</p>';
+        : getPopularEmptyStateHTML(type);
+
+    const getPopularEmptyStateHTML = (type) => {
+        let iconSvg = '';
+        let title = '';
+        let desc = '';
+
+        if (type === 'songs') {
+            iconSvg = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`;
+            title = 'No popular songs yet';
+            desc = 'Popular tracks will appear here as they are played and discovered.';
+        } else if (type === 'artists') {
+            iconSvg = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+            title = 'No popular artists yet';
+            desc = 'Popular artists will appear here as listeners explore music.';
+        } else if (type === 'albums') {
+            iconSvg = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>`;
+            title = 'No popular albums yet';
+            desc = 'Popular albums and releases will be listed here.';
+        } else {
+            iconSvg = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+            title = 'No top results yet';
+            desc = 'Top searches across songs, artists, and albums will appear here.';
+        }
+
+        return `
+            <div class="search-empty-state">
+                <div class="search-empty-icon">
+                    ${iconSvg}
+                </div>
+                <h3 class="search-empty-title">${title}</h3>
+                <p class="search-empty-desc">${desc}</p>
+            </div>
+        `;
+    };
 
     const sortPopularItems = (list = []) => {
         return [...list].sort((left, right) => {
@@ -147,12 +194,26 @@ export const initSearchPage = ({
             })));
         }
         popularSearchContent.innerHTML = renderPopularCards(items, activePopularTab);
+        if (typeof window.syncActiveSongUI === 'function') {
+            window.syncActiveSongUI();
+        }
     };
 
     const movePopularSearchIndicator = (tab) => {
         if (!tab || !popularSearchActiveIndicator) return;
         popularSearchActiveIndicator.style.width = `${tab.offsetWidth}px`;
         popularSearchActiveIndicator.style.transform = `translateX(${tab.offsetLeft}px)`;
+        const tabsContainer = tab.closest('.popular-search-tabs');
+        if (tabsContainer) {
+            const containerWidth = tabsContainer.clientWidth;
+            const tabLeft = tab.offsetLeft;
+            const tabWidth = tab.offsetWidth;
+            const targetScrollLeft = tabLeft - (containerWidth / 2) + (tabWidth / 2);
+            tabsContainer.scrollTo({
+                left: Math.max(0, targetScrollLeft),
+                behavior: 'smooth'
+            });
+        }
     };
 
     const popularSearchUnsubscribers = ['songs', 'artists', 'albums'].map((type) => subscribePopularSearches(type, (items) => {
@@ -197,9 +258,10 @@ export const initSearchPage = ({
             searchDropdown.classList.remove('active');
             navigateToArtistPage({ id: item.id, name: item.name, photo: item.photo || item.cover || '' });
         } else if (pType === 'songs') {
-            const isSameActiveSong = getCurrentSongData() &&
-                String(getCurrentSongData().id) === String(item.id) &&
-                activeAudio && activeAudio.src;
+            const currentSong = getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
+            const isSameActiveSong = currentSong && (typeof window.areSameSongs === 'function'
+                ? window.areSameSongs(currentSong, item)
+                : String(currentSong.id) === String(item.id)) && activeAudio && activeAudio.src;
             window.playPreview(
                 null,
                 item.audio,
@@ -221,9 +283,21 @@ export const initSearchPage = ({
         if (!recentSearchesList) return;
 
         const recentSearches = await getRecentSearches();
+        if (clearRecentSearchesBtn) {
+            clearRecentSearchesBtn.style.display = recentSearches.length > 0 ? '' : 'none';
+        }
+
         recentSearchesList.innerHTML = recentSearches.length > 0
             ? recentSearches.map((query) => `<button class="recent-search-card" type="button" data-recent-query="${query.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"><span class="recent-search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15 14"></polyline></svg></span><span class="recent-search-name">${query.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span></button>`).join('')
-            : '<p class="recent-searches-empty">Your recent searches will appear here.</p>';
+            : `
+                <div class="search-empty-state">
+                    <div class="search-empty-icon">
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </div>
+                    <h3 class="search-empty-title">No recent searches yet</h3>
+                    <p class="search-empty-desc">Search for songs, artists, or albums to see your history here.</p>
+                </div>
+            `;
     };
 
     renderRecentSearches();
@@ -302,6 +376,10 @@ export const initSearchPage = ({
                     const isPaused = isActive && activeAudio.paused;
                     return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="handleSongSearchClick('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${song.artist.replace(/'/g, "\\'")}', '${song.cover}', '${song.id}', '${song.duration || 0}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div><div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
                 }).join('');
+
+                if (typeof window.syncActiveSongUI === 'function') {
+                    window.syncActiveSongUI();
+                }
 
                 // Auto-play lagu teratas jika perintah suara mengandung perintah putar (playIntent)
                 if (autoPlay && fullMappedResults.length > 0) {

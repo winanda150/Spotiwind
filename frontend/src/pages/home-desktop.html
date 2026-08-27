@@ -5,13 +5,31 @@
     <meta charset="UTF-8">
     <script>
         // Suppress third-party/extension performance observer noise in console
-        window.addEventListener('error', function(e) {
-            if (e && e.message && (e.message.indexOf('startTime') !== -1 || e.message.indexOf('reportAllChanges') !== -1)) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                return true;
-            }
-        }, true);
+        (function() {
+            var suppress = function(e) {
+                var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
+                var stack = (e && e.error && e.error.stack) || '';
+                if (msg.indexOf('startTime') !== -1 || msg.indexOf('reportAllChanges') !== -1 ||
+                    stack.indexOf('startTime') !== -1 || stack.indexOf('reportAllChanges') !== -1) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    return true;
+                }
+            };
+            window.addEventListener('error', suppress, true);
+            window.onerror = function(msg, url, line, col, err) {
+                var text = String(msg || '') + String(err && err.stack || '');
+                if (text.indexOf('startTime') !== -1 || text.indexOf('reportAllChanges') !== -1) {
+                    return true;
+                }
+            };
+            window.addEventListener('unhandledrejection', function(e) {
+                var reason = String(e && e.reason ? (e.reason.message || e.reason) : '');
+                if (reason.indexOf('startTime') !== -1 || reason.indexOf('reportAllChanges') !== -1) {
+                    e.preventDefault();
+                }
+            });
+        })();
 
         // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
         (function() {

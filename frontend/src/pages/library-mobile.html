@@ -99,7 +99,7 @@
                         </div>
                         <div class="overview-card-info">
                             <span class="overview-card-title">Recently Played</span>
-                            <span class="overview-card-count" id="overviewRecentCount">0 songs</span>
+                            <span class="overview-card-count" id="overviewRecentCount">0 items</span>
                         </div>
                     </div>
 
@@ -115,14 +115,74 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Recent Playlists Section inside Overview -->
+                <div class="library-section" id="overviewRecentSection">
+                    <div class="library-section-header">
+                        <h2 class="library-section-title">Recent playlists</h2>
+                        <a href="#" class="see-all-link" id="seeAllPlaylistsBtn">See all</a>
+                    </div>
+                    <div class="library-playlists-grid" id="overviewRecentList"></div>
+                </div>
+
+                <!-- Liked Songs Section inside Overview -->
+                <div class="library-section" id="overviewLikedSection">
+                    <div class="library-section-header">
+                        <h2 class="library-section-title">Liked songs</h2>
+                        <a href="#" class="see-all-link" id="seeAllLikedBtn">See all</a>
+                    </div>
+                    <div class="library-songs-list" id="overviewLikedList"></div>
+                </div>
             </section>
 
-            <!-- Other Panels Placeholders -->
-            <section class="library-panel" data-library-panel="playlists"></section>
-            <section class="library-panel" data-library-panel="albums"></section>
-            <section class="library-panel" data-library-panel="artists"></section>
-            <section class="library-panel" data-library-panel="tracks"></section>
-            <section class="library-panel" data-library-panel="download"></section>
+            <!-- Playlists Panel -->
+            <section class="library-panel" data-library-panel="playlists">
+                <div class="library-section-header">
+                    <h2 class="library-section-title">Playlists</h2>
+                    <button class="library-create-btn" id="createPlaylistBtn" type="button" aria-label="Create playlist">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>New Playlist</span>
+                    </button>
+                </div>
+                <div class="library-playlists-grid" id="libraryPlaylistsList"></div>
+            </section>
+
+            <!-- Albums Panel -->
+            <section class="library-panel" data-library-panel="albums">
+                <div class="library-section-header">
+                    <h2 class="library-section-title">Albums</h2>
+                </div>
+                <div class="library-albums-grid" id="libraryAlbumsList"></div>
+            </section>
+
+            <!-- Artists Panel -->
+            <section class="library-panel" data-library-panel="artists">
+                <div class="library-section-header">
+                    <h2 class="library-section-title">Artists</h2>
+                </div>
+                <div class="library-artists-grid" id="libraryArtistsList"></div>
+            </section>
+
+            <!-- Tracks (Liked Songs) Panel -->
+            <section class="library-panel" data-library-panel="tracks">
+                <div class="library-section-header">
+                    <h2 class="library-section-title">Liked Songs</h2>
+                    <span class="library-section-badge" id="libraryTracksCount">0 songs</span>
+                </div>
+                <div class="library-songs-list" id="libraryTracksList"></div>
+            </section>
+
+            <!-- Download Panel -->
+            <section class="library-panel" data-library-panel="download">
+                <div class="library-section-header">
+                    <h2 class="library-section-title">Downloads</h2>
+                    <span class="library-section-badge" id="libraryDownloadsBadge">0 songs</span>
+                </div>
+                <div class="library-songs-list" id="libraryDownloadsList"></div>
+            </section>
         </div>
     </main>
 </body>

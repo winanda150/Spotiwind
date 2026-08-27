@@ -27,7 +27,7 @@ export const setContextPlaylist = (playlist = [], selectedSongId = null) => {
     const selected = source.find((song) => String(song.id) === String(selectedSongId));
     const remaining = source.filter((song) => String(song.id) !== String(selectedSongId));
     currentPlaylist = isShuffle && selected ? [selected, ...shuffleRemaining(remaining)] : source;
-    currentSongIndex = selected ? 0 : -1;
+    currentSongIndex = selected ? currentPlaylist.findIndex((song) => String(song.id) === String(selectedSongId)) : -1;
     currentSongData = selected || null;
     return getPlaybackState();
 };

@@ -6,6 +6,7 @@ import {
 
 import { toggleFavorite, getFavoriteSongs } from '../../services/favoriteService.js';
 import { isFavoriteSong } from '../../services/favoriteService.js';
+import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
 import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
@@ -54,14 +55,122 @@ let unreadNotificationsListener = null; // [NEW] To store the unsubscribe functi
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Map();
 let userPresenceCleanup = null;
+let sidebarPlaylistsUnsubscribe = null;
+
+const renderSidebarPlaylists = (playlists = []) => {
+    const listContainer = document.getElementById('sidebarPlaylistList');
+    const seeAllBtn = document.getElementById('sidebarSeeAllPlaylists');
+    if (!listContainer) return;
+
+    if (!Array.isArray(playlists) || playlists.length === 0) {
+        const isGuest = !auth.currentUser;
+        listContainer.innerHTML = `
+            <p style="font-size: 0.75rem; color: var(--text-muted); padding: 0.4rem 0.85rem; margin: 0;">
+                ${isGuest ? 'Sign in to create playlists' : 'No playlists yet'}
+            </p>
+        `;
+        if (seeAllBtn) {
+            seeAllBtn.classList.add('hidden');
+            seeAllBtn.style.display = 'none';
+        }
+        return;
+    }
+
+    const top3 = playlists.slice(0, 3);
+    listContainer.innerHTML = top3.map(p => {
+        const songCount = p.songs?.length || 0;
+        const songText = `${songCount} ${songCount === 1 ? 'Song' : 'Songs'}`;
+        const pName = p.name || 'Untitled Playlist';
+        return `
+            <div class="sidebar-playlist-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="playlists" data-playlist-id="${p.id}">
+                <div class="sidebar-playlist-cover" style="width: 2.5rem; height: 2.5rem; border-radius: 0.4rem; background: linear-gradient(135deg, #B91EC9, #8B5CF6); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <span class="sidebar-playlist-info">
+                    <span class="sidebar-playlist-name">${pName}</span>
+                    <span class="sidebar-playlist-count">${songText}</span>
+                </span>
+                <button class="sidebar-playlist-menu" type="button" data-playlist-id="${p.id}" data-playlist-name="${pName}" aria-label="More options for ${pName}">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <circle cx="5" cy="12" r="1.5"></circle>
+                        <circle cx="12" cy="12" r="1.5"></circle>
+                        <circle cx="19" cy="12" r="1.5"></circle>
+                    </svg>
+                </button>
+            </div>
+        `;
+    }).join('');
+
+    // If more than 3 playlists (e.g. 4 or more), show See all playlists; otherwise hide it
+    if (seeAllBtn) {
+        if (playlists.length > 3) {
+            seeAllBtn.classList.remove('hidden');
+            seeAllBtn.style.display = 'flex';
+        } else {
+            seeAllBtn.classList.add('hidden');
+            seeAllBtn.style.display = 'none';
+        }
+    }
+};
 
 const updateLikedSongsCount = (songs) => {
     const countElement = document.getElementById('likedSongsCount');
-    if (countElement) countElement.textContent = String(songs?.length ?? 0).padStart(2, '0');
+    if (countElement) countElement.textContent = String(songs?.length ?? 0);
+};
+
+const updateSidebarMusicCounts = () => {
+    // 1. Downloads count
+    try {
+        const savedDownloads = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
+        const count = Array.isArray(savedDownloads) ? savedDownloads.length : 0;
+        const downloadsEl = document.getElementById('sidebarDownloadsCount');
+        if (downloadsEl) downloadsEl.textContent = String(count);
+    } catch {
+        const downloadsEl = document.getElementById('sidebarDownloadsCount');
+        if (downloadsEl) downloadsEl.textContent = '0';
+    }
+
+    // 2. Recently Played count
+    try {
+        const savedRecent = JSON.parse(localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]');
+        const count = Array.isArray(savedRecent) ? savedRecent.length : 0;
+        const recentEl = document.getElementById('sidebarRecentCount');
+        if (recentEl) recentEl.textContent = String(count);
+    } catch {
+        const recentEl = document.getElementById('sidebarRecentCount');
+        if (recentEl) recentEl.textContent = '0';
+    }
+};
+
+const recordRecentlyPlayedSong = (song) => {
+    if (!song || !song.id) return;
+    try {
+        const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+        const list = JSON.parse(raw);
+        const validList = Array.isArray(list) ? list : [];
+        const filtered = validList.filter(item => String(item.id) !== String(song.id));
+        filtered.unshift({
+            id: String(song.id),
+            name: song.name || song.title || '',
+            artist: song.artist || '',
+            cover: song.cover || '',
+            audio: song.audio || '',
+            duration: song.duration || 0,
+            playedAt: Date.now()
+        });
+        if (filtered.length > 50) filtered.length = 50;
+        localStorage.setItem('recently_played_songs', JSON.stringify(filtered));
+        updateSidebarMusicCounts();
+    } catch (e) {
+        console.warn("Failed to record recently played song:", e);
+    }
 };
 
 const loadLikedSongsCount = async (uid) => {
     updateLikedSongsCount(await getFavoriteSongs(uid));
+    updateSidebarMusicCounts();
 };
 
 // Cache friend online status (same as desktop)
@@ -81,24 +190,129 @@ const formatTime = (seconds) => {
 };
 
 /**
- * Helper to accurately compare audio URLs (ignore protocol/trailing slash)
+ * Helper to accurately normalize audio URLs for comparison
  */
+const normalizeAudio = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    try {
+        let clean = decodeURIComponent(url.trim().toLowerCase());
+        clean = clean.replace(/^https?:\/\/[^/]+/, '');
+        clean = clean.split('?')[0].split('#')[0];
+        clean = clean.replace(/^(\.\.\/)+/, '').replace(/^\/?frontend\//, '').replace(/^\/?public\//, '').replace(/^\/+/, '');
+        return clean;
+    } catch {
+        return url.toLowerCase().trim();
+    }
+};
+
+const normalizeText = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+};
+
 const isSameAudio = (url1, url2) => {
     if (!url1 || !url2) return false;
-    const clean = u => u.replace(/^https?:/, '').replace(/\/$/, '');
-    return clean(url1) === clean(url2);
+    const n1 = normalizeAudio(url1);
+    const n2 = normalizeAudio(url2);
+    if (!n1 || !n2) return false;
+    if (n1 === n2) return true;
+    const file1 = n1.split('/').pop();
+    const file2 = n2.split('/').pop();
+    if (file1 && file2 && file1 === file2) return true;
+    return n1.endsWith(n2) || n2.endsWith(n1);
 };
 
 const areSameSongs = (song, otherSong) => {
     if (!song || !otherSong) return false;
-    return String(song.id) === String(otherSong.id) || isSameAudio(song.audio, otherSong.audio);
+    
+    // 1. Direct ID match or prefix-stripped match
+    const s1Id = String(song.id || song.songId || song.docId || '').trim().toLowerCase();
+    const s2Id = String(otherSong.id || otherSong.songId || otherSong.docId || '').trim().toLowerCase();
+    if (s1Id && s2Id) {
+        if (s1Id === s2Id) return true;
+        const cleanId1 = s1Id.replace(/^songs?-/, '');
+        const cleanId2 = s2Id.replace(/^songs?-/, '');
+        if (cleanId1 && cleanId2 && cleanId1 === cleanId2) return true;
+    }
+
+    // 2. Audio URL match (normalized relative path or filename)
+    const s1Audio = song.audio || song.audioUrl || song.songAudio;
+    const s2Audio = otherSong.audio || otherSong.audioUrl || otherSong.songAudio;
+    if (s1Audio && s2Audio && isSameAudio(s1Audio, s2Audio)) {
+        return true;
+    }
+
+    // 3. Name & Artist match
+    const s1Name = normalizeText(song.name || song.title);
+    const s2Name = normalizeText(otherSong.name || otherSong.title);
+    const s1Artist = normalizeText(song.artist || song.artist_name);
+    const s2Artist = normalizeText(otherSong.artist || otherSong.artist_name);
+
+    if (s1Name && s2Name && s1Name === s2Name) {
+        if (!s1Artist || !s2Artist || s1Artist === s2Artist || s1Artist.includes(s2Artist) || s2Artist.includes(s1Artist)) {
+            return true;
+        }
+    }
+
+    return false;
 };
 
-const getSongElements = (song) => Array.from(document.querySelectorAll('[data-id]'))
-    .filter(element => areSameSongs(song, {
-        id: element.dataset.id,
-        audio: element.dataset.audio
-    }));
+const getSongElements = (song) => {
+    if (!song) return [];
+    const elements = Array.from(document.querySelectorAll('[data-id], [data-song-id], .library-song-item, .popular-search-card, .dropdown-item, .song-card, .artist-song-list-item'));
+    return elements.filter(element => {
+        const id = element.dataset.id || element.dataset.songId || element.dataset.popularId;
+        const audio = element.dataset.audio || element.dataset.songAudio || element.querySelector('.play-overlay')?.dataset?.audio;
+        const name = element.dataset.name || element.dataset.songName || element.querySelector('.song-name, .library-song-name, .dropdown-song-name, .popular-search-title-row strong, .item-name')?.textContent;
+        const artist = element.dataset.artist || element.dataset.songArtist || element.querySelector('.song-artist, .library-song-artist, .dropdown-song-artist, .popular-search-info span, .item-artist')?.textContent;
+        return areSameSongs(song, { id, audio, name, artist });
+    });
+};
+
+const syncActiveSongUI = () => {
+    if (!currentSongData) return;
+    const hasAudio = activeAudio && Boolean(activeAudio.src);
+    const isPlaying = hasAudio && !activeAudio.paused && !activeAudio.ended;
+    const isPaused = hasAudio && activeAudio.paused && !activeAudio.ended;
+
+    document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
+        el.classList.remove('is-active-song', 'is-paused');
+    });
+
+    document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
+        el.classList.remove('btn-loading');
+        if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
+    });
+
+    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon').forEach(el => {
+        el.innerHTML = PLAY_ICON;
+    });
+
+    if (isPlaying || isPaused) {
+        const activeElements = getSongElements(currentSongData);
+        activeElements.forEach(el => {
+            el.classList.add('is-active-song');
+            if (isPaused) {
+                el.classList.add('is-paused');
+            } else {
+                el.classList.remove('is-paused');
+            }
+            const overlay = el.querySelector('.play-overlay');
+            if (overlay) {
+                overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+            }
+            const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon');
+            if (playIcon) {
+                playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+            }
+        });
+    }
+};
+window.syncActiveSongUI = syncActiveSongUI;
+window.__activeAudio = activeAudio;
+window.areSameSongs = areSameSongs;
+window.getCurrentSongData = () => currentSongData;
+window.__currentSongData = currentSongData;
 
 /**
  * Helper to reset play/pause button UI (Sync with Mobile)
@@ -144,15 +358,8 @@ activeAudio.addEventListener('play', () => {
     const fullPlayBtn = document.getElementById('fullMainPlayBtn');
     if (fullPlayBtn) fullPlayBtn.innerHTML = PAUSE_ICON;
     
-    // Sync ALL instances of this song (in Grid and Search Dropdown)
-    if (currentSongData) {
-        getSongElements(currentSongData).forEach(el => {
-            el.classList.add('is-active-song');
-            el.classList.remove('is-paused');
-            const overlay = el.querySelector('.play-overlay');
-            if (overlay) overlay.innerHTML = PAUSE_ICON;
-        });
-    }
+    // Sync ALL instances of this song across all pages
+    syncActiveSongUI();
 });
 
 activeAudio.addEventListener('pause', () => {
@@ -165,13 +372,11 @@ activeAudio.addEventListener('pause', () => {
     const fullPlayBtn = document.getElementById('fullMainPlayBtn');
     if (fullPlayBtn) fullPlayBtn.innerHTML = PLAY_ICON;
     
-    if (currentSongData) {
-        getSongElements(currentSongData).forEach(el => {
-            el.classList.add('is-paused');
-            const overlay = el.querySelector('.play-overlay');
-            if (overlay) overlay.innerHTML = PLAY_ICON;
-        });
-    }
+    syncActiveSongUI();
+});
+
+activeAudio.addEventListener('ended', () => {
+    syncActiveSongUI();
 });
 
 /**
@@ -518,6 +723,125 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(element);
     });
 
+    let playlistModalTriggerEl = null;
+
+    const openCreatePlaylistModal = (triggerElement = null) => {
+        const user = auth.currentUser;
+        if (!user) {
+            showToast("Please log in to create and manage playlists.");
+            return;
+        }
+        playlistModalTriggerEl = triggerElement || document.activeElement;
+
+        // Explicitly blur any element inside sidebar before closing to prevent aria-hidden focus conflict
+        const sidebar = document.querySelector('.mobile-sidebar');
+        if (sidebar && sidebar.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+        closeSidebar();
+
+        const modal = document.getElementById('createPlaylistModal');
+        const input = document.getElementById('playlistNameInput');
+        const form = document.getElementById('createPlaylistForm');
+        const submitBtn = document.getElementById('submitPlaylistBtn');
+        if (!modal) return;
+
+        if (form) form.reset();
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Create Playlist</span>';
+        }
+        modal.removeAttribute('inert');
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => input?.focus(), 120);
+    };
+
+    const closeCreatePlaylistModal = () => {
+        const modal = document.getElementById('createPlaylistModal');
+        if (!modal) return;
+
+        // Blur element inside modal before setting aria-hidden to avoid browser warning
+        if (modal.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.setAttribute('inert', '');
+
+        if (playlistModalTriggerEl && typeof playlistModalTriggerEl.focus === 'function' && document.body.contains(playlistModalTriggerEl)) {
+            playlistModalTriggerEl.focus();
+        }
+    };
+
+    window.openCreatePlaylistModal = openCreatePlaylistModal;
+    window.closeCreatePlaylistModal = closeCreatePlaylistModal;
+
+    const setupPlaylistModalListeners = () => {
+        const modal = document.getElementById('createPlaylistModal');
+        const form = document.getElementById('createPlaylistForm');
+        const cancelBtn = modal?.querySelector('.playlist-btn-cancel');
+        const closeBtn = modal?.querySelector('.playlist-modal-close-btn');
+
+        cancelBtn?.addEventListener('click', closeCreatePlaylistModal);
+        closeBtn?.addEventListener('click', closeCreatePlaylistModal);
+
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeCreatePlaylistModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                closeCreatePlaylistModal();
+            }
+        });
+
+        form?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) {
+                showToast("Please log in to create playlists.");
+                closeCreatePlaylistModal();
+                return;
+            }
+
+            const input = document.getElementById('playlistNameInput');
+            const submitBtn = document.getElementById('submitPlaylistBtn');
+            const playlistName = input?.value?.trim();
+            if (!playlistName) return;
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span>Creating...</span>';
+            }
+
+            try {
+                const created = await createUserPlaylist(user.uid, playlistName);
+                if (created) {
+                    showToast(`Playlist "${playlistName}" created!`);
+                    closeCreatePlaylistModal();
+                } else {
+                    showToast("Failed to create playlist. Please try again.");
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<span>Create Playlist</span>';
+                    }
+                }
+            } catch (error) {
+                console.error("Error creating playlist:", error);
+                showToast("Failed to create playlist.");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>Create Playlist</span>';
+                }
+            }
+        });
+    };
+
+    setupPlaylistModalListeners();
+
     // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
     const appContainer = document.querySelector('.app-container');
     if (appContainer) {
@@ -526,13 +850,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const closeSidebar = () => {
         const sidebar = document.querySelector('.mobile-sidebar');
+        const overlay = document.querySelector('.sidebar-overlay');
         const menuButton = document.querySelector('.menu-btn');
-        if (sidebar?.contains(document.activeElement)) {
-            menuButton?.focus();
+        
+        // Remove focus from inside sidebar BEFORE setting aria-hidden
+        if (sidebar && sidebar.contains(document.activeElement)) {
+            if (menuButton && typeof menuButton.focus === 'function' && document.body.contains(menuButton)) {
+                menuButton.focus();
+            } else if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
         }
+
         sidebar?.classList.remove('is-open');
-        document.querySelector('.sidebar-overlay')?.classList.remove('is-visible');
+        overlay?.classList.remove('is-visible');
         sidebar?.setAttribute('aria-hidden', 'true');
+        sidebar?.setAttribute('inert', '');
     };
 
     const updateSidebarActiveState = (targetPage) => {
@@ -576,9 +909,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.closest('.menu-btn')) {
             const sidebar = document.querySelector('.mobile-sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
+            sidebar?.removeAttribute('inert');
             sidebar?.classList.add('is-open');
             overlay?.classList.add('is-visible');
             sidebar?.setAttribute('aria-hidden', 'false');
+            updateSidebarMusicCounts();
             return;
         }
 
@@ -587,11 +922,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const playlistMenuBtn = target.closest('.sidebar-playlist-menu');
+        if (playlistMenuBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const playlistName = playlistMenuBtn.dataset.playlistName || 'Playlist';
+            showToast(`Options for ${playlistName}`);
+            return;
+        }
+
         const sidebarItem = target.closest('[data-sidebar-target]');
         if (sidebarItem) {
             e.preventDefault();
             const targetPage = sidebarItem.dataset.sidebarTarget;
-            if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active')) {
+            const initialTab = sidebarItem.dataset.libraryInitialTab || null;
+            if (initialTab) {
+                window.__initialLibraryTab = initialTab;
+            }
+            if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active') && !initialTab) {
                 return;
             }
             if (sidebarItem.classList.contains('sidebar-nav-item')) {
@@ -601,7 +949,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.classList.toggle('active', item.dataset.target === targetPage);
             });
             closeSidebar();
-            await loadPageContent(targetPage, { pushState: true });
+
+            // If already on library page, directly switch tab with auto-scroll
+            if (targetPage.includes('library-mobile.html') && typeof window.switchToLibraryTab === 'function' && document.querySelector('.library-tabs')) {
+                window.switchToLibraryTab(initialTab || 'overview');
+                return;
+            }
+
+            await loadPageContent(targetPage, { pushState: true, initialTab });
+            return;
+        }
+
+        // Playlist creation trigger
+        if (target.closest('.sidebar-add-playlist-btn, #libraryAddBtn, #createPlaylistBtn, [data-action="add-playlist"]')) {
+            e.preventDefault();
+            openCreatePlaylistModal();
             return;
         }
 
@@ -700,6 +1062,64 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     window.playPreview(null, audioUrl, title, artist, cover, id, duration, isSameActiveSong ? null : 'search');
 };
 
+window.isSongDownloaded = (songId) => {
+    if (!songId) return false;
+    try {
+        const saved = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
+        return Array.isArray(saved) && saved.some(s => String(s.id) === String(songId));
+    } catch {
+        return false;
+    }
+};
+
+window.toggleDownloadSong = (song) => {
+    const user = auth.currentUser;
+    if (!user) {
+        showToast("Please log in to download songs for offline listening.");
+        return false;
+    }
+
+    if (!song || !song.id) {
+        showToast("Cannot download song: invalid metadata.");
+        return false;
+    }
+
+    try {
+        const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
+        let list = JSON.parse(raw);
+        if (!Array.isArray(list)) list = [];
+
+        const index = list.findIndex(s => String(s.id) === String(song.id));
+        if (index > -1) {
+            list.splice(index, 1);
+            localStorage.setItem('downloaded_songs', JSON.stringify(list));
+            updateSidebarMusicCounts();
+            showToast(`Removed "${song.name || song.title || 'Song'}" from downloads.`);
+            window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
+            return false;
+        } else {
+            list.unshift({
+                id: String(song.id),
+                name: song.name || song.title || 'Unknown Track',
+                artist: song.artist || 'Unknown Artist',
+                cover: song.cover || '',
+                audio: song.audio || '',
+                duration: song.duration || 0,
+                downloadedAt: Date.now()
+            });
+            localStorage.setItem('downloaded_songs', JSON.stringify(list));
+            updateSidebarMusicCounts();
+            showToast(`Downloaded "${song.name || song.title || 'Song'}" for offline listening.`);
+            window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
+            return true;
+        }
+    } catch (e) {
+        console.error("Error toggling download:", e);
+        showToast("Failed to update download.");
+        return false;
+    }
+};
+
     /**
      * Function to play/pause audio
      */
@@ -708,16 +1128,48 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             return;
         }
 
-        const wasSameSong = currentSongData && areSameSongs(currentSongData, { id, audio: audioUrl });
-        // If btn is null (called from Up Next/Next/Prev), try to find the button in the DOM to sync the UI
+        const songId = String(id);
+        const targetSong = {
+            id: songId,
+            audio: audioUrl,
+            name: title,
+            artist,
+            cover,
+            duration: Number(duration) || 0
+        };
+
+        const wasSameSong = Boolean(currentSongData && areSameSongs(currentSongData, targetSong));
+        const isSameSong = Boolean(wasSameSong && activeAudio && activeAudio.src);
+
+        // If btn is null (called from Up Next/Next/Prev/Library/Search), try to find the button in the DOM to sync the UI
         if (!btn) {
-            const activeEl = getSongElements({ id, audio: audioUrl }).find(element => element.classList.contains('is-active-song')) ||
-                             getSongElements({ id, audio: audioUrl })[0];
+            const activeEl = getSongElements(targetSong).find(element => element.classList.contains('is-active-song')) ||
+                             getSongElements(targetSong)[0];
             btn = activeEl?.querySelector('.play-overlay');
         }
 
-        // Only update the playlist if a context is given (New play from a specific section)
-        // If null (e.g., from Next/Prev/Repeat), use the existing currentPlaylist.
+        // Toggle Play/Pause logic for the same song FIRST (never wipe or re-shuffle queue on same song)
+        if (isSameSong) {
+            if (!activeAudio.paused) {
+                activeAudio.pause();
+            } else {
+                try {
+                    // If the song has ended, reset to the beginning before replaying (Important for Repeat)
+                    if (activeAudio.ended) activeAudio.currentTime = 0;
+                    if (btn) btn.classList.add('btn-loading');
+                    document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.add('btn-loading'));
+                    await activeAudio.play();
+                } catch (e) {
+                    console.error("Resume error:", e);
+                } finally {
+                    if (btn) btn.classList.remove('btn-loading');
+                    document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
+                }
+            }
+            return;
+        }
+
+        // Only update the playlist if a context is given and it's a NEW song
         if (context) {
             let baseQueue = [];
             if (context === 'trending' || context === 'new') {
@@ -734,59 +1186,51 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             } else if (context.startsWith('artist-')) { // [NEW] Handle artist page context
                 // Use the songs currently displayed on the artist's page
                 baseQueue = [...artistPageCurrentSongs]; // [FIX] Use artistPageCurrentSongs for 'artist-' context
+            } else if (context === 'library') {
+                const libSongs = typeof window.getLibraryPlaylist === 'function' ? window.getLibraryPlaylist() : [];
+                baseQueue = Array.isArray(libSongs) ? [...libSongs] : [];
+            }
+
+            if (baseQueue.length === 0) {
+                baseQueue = [targetSong];
             }
 
             // [NEW] Store the original, unshuffled order every time a new context is set
             unshuffledPlaylist = [...baseQueue];
 
-            const queueState = setContextPlaylist(baseQueue, id);
+            const queueState = setContextPlaylist(baseQueue, songId);
             currentPlaylist = queueState.playlist;
             currentSongIndex = queueState.currentIndex;
-            currentSongData = queueState.currentSong;
-        }
-
-        const songId = String(id);
-        const isSameSong = wasSameSong && activeAudio.src;
-
-        // Toggle Play/Pause logic for the same song
-        if (isSameSong) {
-            if (!activeAudio.paused) {
-                activeAudio.pause();
-            } else {
-                try {
-                    // If the song has ended, reset to the beginning before replaying (Important for Repeat)
-                    if (activeAudio.ended) activeAudio.currentTime = 0;
-                    await activeAudio.play();
-                } catch (e) {
-                    console.error("Resume error:", e);
-                }
+            currentSongData = queueState.currentSong || targetSong;
+        } else {
+            if (!currentPlaylist.some(s => areSameSongs(s, targetSong))) {
+                currentPlaylist = [targetSong];
+                unshuffledPlaylist = [targetSong];
+                currentSongIndex = 0;
+                currentSongData = targetSong;
+                syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
             }
-            return;
         }
 
         // Playing a New Song
-        currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration: duration };
+        currentSongData = targetSong;
+        window.__currentSongData = currentSongData;
+        recordRecentlyPlayedSong(currentSongData);
 
         // Set the song index in the newly created/shuffled playlist
         // This is very important so that the Next/Prev buttons know their relative position
-        currentSongIndex = currentPlaylist.findIndex(s => isSameAudio(s.audio, audioUrl));
+        currentSongIndex = currentPlaylist.findIndex(s => areSameSongs(s, targetSong));
+        if (currentSongIndex === -1 && currentPlaylist.length > 0) {
+            currentPlaylist.unshift(targetSong);
+            currentSongIndex = 0;
+        }
         syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
 
         // Render the list of next songs instantly (don't wait for the song to load)
         renderUpNext();
 
-        // Reset ALL song statuses (prevents visual duplicates during fast skipping)
-        document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
-            el.classList.remove('is-active-song', 'is-paused');
-        });
-
-        document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
-            el.classList.remove('btn-loading');
-            if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
-        });
-
-        // Activate the class on all elements with this ID
-        getSongElements(currentSongData).forEach(el => el.classList.add('is-active-song'));
+        // Sync active song class across all elements
+        syncActiveSongUI();
 
         // Reset Mini Progress Bar to 0 instantly before the new song loads
         document.querySelectorAll('.mobile-mini-progress-bar').forEach(thumb => thumb.style.width = '0%');
@@ -801,28 +1245,28 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         try {
             activeAudio.src = audioUrl;
 
-        // Update Document Title (Consistent with desktop)
-        document.title = `Spotiwind - Feel The Music, Ride The Wind`;
+            // Update Document Title (Consistent with desktop)
+            document.title = `Spotiwind - Feel The Music, Ride The Wind`;
 
-        // Media Session API integration
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: title,
-                artist: artist,
-                album: 'Spotiwind', // Or get from currentSongData if available
-                artwork: [
-                    { src: cover, sizes: '512x512', type: 'image/webp' }
-                ]
-            });
+            // Media Session API integration
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title,
+                    artist: artist,
+                    album: 'Spotiwind', // Or get from currentSongData if available
+                    artwork: [
+                        { src: cover, sizes: '512x512', type: 'image/webp' }
+                    ]
+                });
 
-            navigator.mediaSession.setActionHandler('play', () => activeAudio.play());
-            navigator.mediaSession.setActionHandler('pause', () => activeAudio.pause());
-            navigator.mediaSession.setActionHandler('previoustrack', () => window.playPrevious());
-            navigator.mediaSession.setActionHandler('nexttrack', () => window.playNext());
-        }
+                navigator.mediaSession.setActionHandler('play', () => activeAudio.play());
+                navigator.mediaSession.setActionHandler('pause', () => activeAudio.pause());
+                navigator.mediaSession.setActionHandler('previoustrack', () => window.playPrevious());
+                navigator.mediaSession.setActionHandler('nexttrack', () => window.playNext());
+            }
 
             syncPlayerLikeButtons(false);
-            checkLikedStatus(id);
+            checkLikedStatus(songId);
 
             // Show and update Mobile Player Bar
             const mobileBar = document.getElementById('mobilePlayerBar');
@@ -1022,7 +1466,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const safeArtist = song.artist.replace(/'/g, "\\'");
 
         return `
-        <div class="song-card ${isActive ? 'is-active-song' : ''} ${activeAudio.paused ? 'is-paused' : ''}" 
+        <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && activeAudio.paused ? 'is-paused' : ''}" 
             data-id="${song.id}" data-audio="${song.audio}">
             <div class="song-cover">
                 <img src="${song.cover}" alt="${song.name}" style="width:100%; height:100%; object-fit:cover;">
@@ -1065,16 +1509,19 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
      * This is a custom layout for the artist's popular songs.
      */
     const createArtistSongListItemHTML = (song, context) => {
-        const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+        const isActive = areSameSongs(song, currentSongData);
         const safeName = song.name.replace(/'/g, "\\'");
         const safeArtist = song.artist.replace(/'/g, "\\'");
 
         return `
-        <div class="artist-song-list-item ${isActive ? 'is-active-song' : ''} ${activeAudio.paused ? 'is-paused' : ''}" 
+        <div class="artist-song-list-item ${isActive ? 'is-active-song' : ''} ${isActive && activeAudio.paused ? 'is-paused' : ''}" 
             data-id="${song.id}" data-audio="${song.audio}"
             onclick="playPreview(null, '${song.audio}', '${safeName}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration}, '${context}')">
             <div class="item-left">
-                <img src="${song.cover}" class="item-cover" alt="${song.name}">                
+                <img src="${song.cover}" class="item-cover" alt="${song.name}">
+                <div class="artist-song-play-icon" aria-hidden="true">
+                    ${isActive && !activeAudio.paused ? PAUSE_ICON : PLAY_ICON}
+                </div>
             </div>
             <div class="item-info">
                 <h3 class="item-name">${song.name}</h3>
@@ -1120,6 +1567,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             }
             await new Promise(res => setTimeout(res, 50)); // Small delay for visual effect
         }
+        syncActiveSongUI();
     };
 
     /**
@@ -1143,6 +1591,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             grid.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding-left: var(--mobile-horizontal-padding); text-align: center; width: 100%;">${emptyMessage}</p>`;
         } else {
             grid.innerHTML = items.map(item => itemRenderer(item, context)).join('');
+            syncActiveSongUI();
         }
     };
 
@@ -1157,7 +1606,6 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
             // [FIX] Only render and return true if there is data to display.
             if (rawSongs.length === 0) {
-                console.log("fetchNewReleases: No unique songs found after filtering, retrying...");
                 return false; // Signal the retry-wrapper to try again.
             }
 
@@ -1327,10 +1775,16 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         }
 
         updateGreeting();
-
+        updateSidebarMusicCounts();
     };
 
     const initializeGuestUI = () => {
+        if (sidebarPlaylistsUnsubscribe) {
+            sidebarPlaylistsUnsubscribe();
+            sidebarPlaylistsUnsubscribe = null;
+        }
+        renderSidebarPlaylists([]);
+
         const avatarEl = document.getElementById('sidebarUserAvatar');
         if (avatarEl) {
             avatarEl.src = `https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true`;
@@ -1340,11 +1794,15 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         if (sidebarName) sidebarName.textContent = 'Guest';
         if (sidebarEmail) sidebarEmail.textContent = 'Sign in for full access';
 
+        const proBadge = document.getElementById('sidebarProBadge');
+        if (proBadge) proBadge.classList.add('hidden');
+
         greetingName = 'Guest';
         lastGreetingHour = -1;
         updateGreeting();
 
         updateLikedSongsCount([]);
+        updateSidebarMusicCounts();
 
         const notificationBadge = document.getElementById('notificationBadge');
         if (notificationBadge) notificationBadge.classList.add('hidden');
@@ -1363,16 +1821,28 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             return;
         }
 
+        if (sidebarPlaylistsUnsubscribe) {
+            sidebarPlaylistsUnsubscribe();
+            sidebarPlaylistsUnsubscribe = null;
+        }
+        sidebarPlaylistsUnsubscribe = subscribeUserPlaylists(user.uid, (playlists) => {
+            renderSidebarPlaylists(playlists);
+        });
+
         updateUserAvatar(user, document.getElementById('sidebarUserAvatar'));
 
         const sidebarName = document.getElementById('sidebarUserName');
         const sidebarEmail = document.getElementById('sidebarUserEmail');
+        const proBadge = document.getElementById('sidebarProBadge');
 
         greetingName = user.displayName || user.email?.split('@')[0] || 'User';
         lastGreetingHour = -1;
         updateGreeting();
         if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
         if (sidebarEmail) sidebarEmail.textContent = user.email || '';
+        if (proBadge) proBadge.classList.remove('hidden');
+
+        updateSidebarMusicCounts();
 
         const authBtnText = document.getElementById('sidebarAuthText');
         if (authBtnText) authBtnText.textContent = 'Log Out';
@@ -1560,14 +2030,18 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 title: 'Search | Spotiwind',
                 state: { route: 'search' }
             });
-        } else if (cleanPath === '/library') {
+        } else if (cleanPath === '/library' || cleanPath.startsWith('/library')) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryTab = urlParams.get('tab');
+            const targetTab = (state && state.initialTab) || queryTab || window.__initialLibraryTab || 'overview';
             updateSidebarActiveState('library-mobile.html');
             updateBottomNavActive('library-mobile.html');
             await loadPageContent('library-mobile.html', {
                 pushState: shouldPushState,
                 route: '/library',
                 title: 'Library | Spotiwind',
-                state: { route: 'library' }
+                initialTab: targetTab,
+                state: { route: 'library', initialTab: targetTab }
             });
         } else if (cleanPath === '/radio') {
             updateSidebarActiveState('radio-mobile.html');
@@ -1922,7 +2396,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                     const { initLibraryPage } = libraryModule;
 
                     if (typeof initLibraryPage === 'function') {
-                        await initLibraryPage();
+                        const targetTab = options.initialTab || window.__initialLibraryTab || 'overview';
+                        window.__initialLibraryTab = null;
+                        await initLibraryPage(targetTab);
                         activePageCleanup = libraryModule.cleanupLibraryPage;
                     } else {
                         console.error("initLibraryPage function not found in module.");
@@ -1957,6 +2433,13 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 
                 // [FIX] Fade the new content in.
                 contentContainer.style.opacity = '1';
+
+                // Sync active playback indicators on newly loaded page
+                setTimeout(() => {
+                    if (typeof syncActiveSongUI === 'function') {
+                        syncActiveSongUI();
+                    }
+                }, 80);
             }
         } catch (error) {
             console.error('Failed to load page content:', error);
@@ -2097,7 +2580,9 @@ window.spotiwind = {
         fetchLocalArtistSongs,
         fetchArtistSongs,
         loadPageContent,
-        initializeSkeletons
+        initializeSkeletons,
+        syncActiveSongUI,
+        getCurrentSongData: () => currentSongData
     }
 };
 

@@ -318,6 +318,13 @@ body.login-page::before {
 .forgot-link {
     text-align: right;
     text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.forgot-link:hover,
+.forgot-link:focus-visible {
+    text-decoration: underline;
 }
 
 .remember-me input,
@@ -465,14 +472,27 @@ body.login-page::before {
     color: #a1a1ad;
     font-size: 12px;
     line-height: 1.6;
+    cursor: pointer;
+}
+
+.terms-row span {
+    cursor: pointer;
 }
 
 .terms-row input {
     margin-top: 1px;
+    cursor: pointer;
 }
 
 .terms-row a {
     text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.terms-row a:hover,
+.terms-row a:focus-visible {
+    text-decoration: underline;
 }
 
 #registerForm .input-group {
