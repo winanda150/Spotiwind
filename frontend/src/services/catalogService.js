@@ -30,14 +30,22 @@ const featuredLocalSongs = [
     ['bilal-indrajaya-niscaya', 'Niscaya', 'Bilal Indrajaya', 241, 'Bilal%20Indrajaya/Niscaya']
 ];
 
+const getPublicAssetUrl = (relativePath) => {
+    if (typeof window === 'undefined') return relativePath;
+    const isGitHub = window.location.pathname.includes('/spotiwind-music');
+    const base = `${window.location.origin}${isGitHub ? '/spotiwind-music' : ''}/frontend/public/`;
+    const cleanPath = String(relativePath || '').replace(/^(\.\.\/)+public\//, '').replace(/^\/?public\//, '');
+    return `${base}${cleanPath}`;
+};
+
 export const getFeaturedLocalSongs = () => featuredLocalSongs.map(([id, name, artist, duration, path]) => ({
     id,
     name,
     artist,
     plays: '0',
     duration,
-    audio: `../../public/Elemen/${path}.mp3`,
-    cover: `../../public/Elemen/${path.replace(/\/[^/]+$/, '')}/Image%20Songs/${path.split('/').pop()}.webp`
+    audio: getPublicAssetUrl(`Elemen/${path}.mp3`),
+    cover: getPublicAssetUrl(`Elemen/${path.replace(/\/[^/]+$/, '')}/Image%20Songs/${path.split('/').pop()}.webp`)
 }));
 
 const normalizeTrack = (item, playCount = 0) => ({
@@ -80,21 +88,22 @@ export const getArtistCatalog = async (artistId, artistName) => {
     return uniqueTracks.map((item) => normalizeTrack(item, (item.stats?.rate_downloads_total || 0) * 5));
 };
 
-export const loadLocalCatalog = async (manifestUrl = '../../public/indonesian-songs-manifest.json') => {
-    const response = await fetch(manifestUrl);
+export const loadLocalCatalog = async (manifestUrl = null) => {
+    const targetUrl = manifestUrl || getPublicAssetUrl('indonesian-songs-manifest.json');
+    const response = await fetch(targetUrl);
     if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
     const data = await response.json();
     return {
         artists: (data.artists || []).map((artist) => ({
             ...artist,
-            photo: `../../public/${artist.photo}`
+            photo: getPublicAssetUrl(artist.photo)
         })),
         songs: (data.songs || []).map((song, index) => ({
             id: song.id || `local-${index}`,
             name: song.name,
             artist: song.artist,
-            cover: `../../public/${song.cover}`,
-            audio: `../../public/${song.audio}`,
+            cover: getPublicAssetUrl(song.cover),
+            audio: getPublicAssetUrl(song.audio),
             duration: song.duration || 0,
             plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
         }))

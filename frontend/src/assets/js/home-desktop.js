@@ -1379,6 +1379,11 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         // Always initialize music data and search for all users
         initializeData();
         initDesktopSearch();
+
+        const base = window.location.pathname.startsWith('/spotiwind-music') ? '/spotiwind-music' : '';
+        try {
+            window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', `${base}/`);
+        } catch (e) {}
     });
 });
 

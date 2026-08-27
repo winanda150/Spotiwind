@@ -11,6 +11,7 @@ import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/a
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUnreadNotifications } from '../../services/notificationService.js';
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
+import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 
 // Audio Controller Global (Single Instance)
@@ -600,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.classList.toggle('active', item.dataset.target === targetPage);
             });
             closeSidebar();
-            await loadPageContent(targetPage);
+            await loadPageContent(targetPage, { pushState: true });
             return;
         }
 
@@ -1255,7 +1256,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 homeScrollPosition = document.documentElement.scrollTop;
             }
             updateSidebarActiveState(targetPage);
-            await loadPageContent(targetPage);
+            await loadPageContent(targetPage, { pushState: true });
         });
     });
 
@@ -1395,11 +1396,257 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         return loaded;
     };
 
-    const loadPageContent = async (page) => {
+    const getAppBasePath = () => {
+        return window.location.pathname.startsWith('/spotiwind-music') ? '/spotiwind-music' : '';
+    };
+
+    const updateAppUrl = (path, title, state = {}, shouldPushState = true) => {
+        if (title) document.title = title;
+        const base = getAppBasePath();
+        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        const fullCleanPath = `${base}${cleanPath}`;
+        const currentState = { ...state, path: fullCleanPath };
+        
+        try {
+            if (shouldPushState) {
+                if (window.location.pathname !== fullCleanPath) {
+                    window.history.pushState(currentState, title || document.title, fullCleanPath);
+                }
+            } else {
+                window.history.replaceState(currentState, title || document.title, fullCleanPath);
+            }
+        } catch (e) {
+            console.warn("Could not update history state:", e);
+        }
+    };
+
+    const updateBottomNavActive = (targetPage) => {
+        document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.target === targetPage);
+        });
+    };
+
+    /**
+     * [AUTO-HASH] Base62 22-Character Artist ID Generator
+     * Menghasilkan ID 22 karakter Base62 secara matematis dan permanen
+     * untuk artis apa pun (baik lokal sekarang maupun ribuan artis baru di masa depan)
+     * tanpa perlu mendaftarkan nama artis secara manual di JavaScript.
+     */
+    const getArtistUniqueId = (artist) => {
+        if (!artist) return '';
+        // Jika data artis sudah memiliki ID 22 karakter Base62, gunakan langsung
+        const rawId = String(artist.id || '').trim();
+        if (/^[0-9a-zA-Z]{22}$/.test(rawId)) {
+            return rawId;
+        }
+
+        // Buat seed unik berdasarkan nama atau ID artis
+        const key = String(artist.name || artist.id || '').trim().toLowerCase();
+        if (!key) return '';
+
+        const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        
+        // FNV-1a 32-bit Hash
+        let hash = 2166136261;
+        for (let i = 0; i < key.length; i++) {
+            hash ^= key.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+
+        // Deterministic Pseudo-Random Generator (LCG) dengan unsigned 32-bit
+        let state = hash >>> 0;
+        let result = '';
+        for (let i = 0; i < 22; i++) {
+            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+            const code = key.charCodeAt(i % key.length) || 0;
+            const index = Math.abs((state + code + i) % chars.length);
+            result += chars.charAt(index % chars.length);
+        }
+        return result;
+    };
+
+    const resolveAndNavigateToArtist = async (artistIdOrSlug, shouldPushState = true) => {
+        if (!artistIdOrSlug) return;
+        const queryId = decodeURIComponent(artistIdOrSlug).trim();
+        const lowerQuery = queryId.toLowerCase();
+
+        // 1. Cari di daftar artis lokal yang sedang aktif (cocokkan Hash 22-char, ID asli, atau Nama)
+        let matchedArtist = indonesianArtistsPlaylist.find(a => {
+            const uniqueId = getArtistUniqueId(a);
+            const aId = String(a.id || '').toLowerCase();
+            const aName = (a.name || '').toLowerCase();
+            const aSlug = aName.replace(/\s+/g, '-');
+            return uniqueId === queryId || aId === lowerQuery || aSlug === lowerQuery || aName === lowerQuery;
+        });
+
+        // 2. Jika belum ketemu (misal data lokal masih loading), cari di katalog featured songs
+        if (!matchedArtist) {
+            const localFeatured = getFeaturedLocalSongs();
+            const songMatch = localFeatured.find(s => {
+                const tempArtist = { id: s.artist.toLowerCase().replace(/\s+/g, '-'), name: s.artist };
+                const uniqueId = getArtistUniqueId(tempArtist);
+                const sArtistLower = (s.artist || '').toLowerCase();
+                const sArtistSlug = sArtistLower.replace(/\s+/g, '-');
+                return uniqueId === queryId || sArtistSlug === lowerQuery || sArtistLower === lowerQuery;
+            });
+            if (songMatch) {
+                matchedArtist = {
+                    id: songMatch.artist.toLowerCase().replace(/\s+/g, '-'),
+                    name: songMatch.artist,
+                    photo: songMatch.cover
+                };
+            }
+        }
+
+        // 3. Jika artis dari Jamendo API
+        if (!matchedArtist) {
+            try {
+                if (!isNaN(parseInt(queryId))) {
+                    const tracks = await getArtistCatalog(queryId, '');
+                    if (tracks && tracks.length > 0) {
+                        matchedArtist = {
+                            id: queryId,
+                            name: tracks[0].artist || 'Artist',
+                            photo: tracks[0].cover || ''
+                        };
+                    }
+                } else {
+                    const results = await searchArtistsByName(queryId, 1);
+                    if (results && results.length > 0) {
+                        matchedArtist = {
+                            id: results[0].id,
+                            name: results[0].name,
+                            photo: results[0].image
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not resolve artist from API:", err);
+            }
+        }
+
+        // 4. Fallback object jika URL tidak ditemukan di katalog
+        if (!matchedArtist) {
+            const formattedName = queryId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            matchedArtist = {
+                id: queryId,
+                name: formattedName,
+                photo: ''
+            };
+        }
+
+        navigateToArtistPage(matchedArtist, shouldPushState);
+    };
+
+    const handleRoutePath = async (rawPath, state = null, shouldPushState = true) => {
+        let cleanPath = (rawPath || '/').replace(/^\/spotiwind-music/, '');
+        if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
+        cleanPath = cleanPath.replace(/\/(index|home-mobile|home-desktop)\.html$/, '');
+        if (!cleanPath) cleanPath = '/';
+
+        if (cleanPath.startsWith('/artist/')) {
+            const artistIdOrSlug = cleanPath.replace('/artist/', '').split(/[?#]/)[0];
+            if (state && state.artist) {
+                navigateToArtistPage(state.artist, shouldPushState);
+            } else {
+                await resolveAndNavigateToArtist(artistIdOrSlug, shouldPushState);
+            }
+        } else if (cleanPath === '/search' || cleanPath.startsWith('/search')) {
+            updateSidebarActiveState('search-mobile.html');
+            updateBottomNavActive('search-mobile.html');
+            await loadPageContent('search-mobile.html', {
+                pushState: shouldPushState,
+                route: '/search',
+                title: 'Search | Spotiwind',
+                state: { route: 'search' }
+            });
+        } else if (cleanPath === '/library') {
+            updateSidebarActiveState('library-mobile.html');
+            updateBottomNavActive('library-mobile.html');
+            await loadPageContent('library-mobile.html', {
+                pushState: shouldPushState,
+                route: '/library',
+                title: 'Library | Spotiwind',
+                state: { route: 'library' }
+            });
+        } else if (cleanPath === '/radio') {
+            updateSidebarActiveState('radio-mobile.html');
+            updateBottomNavActive('radio-mobile.html');
+            await loadPageContent('radio-mobile.html', {
+                pushState: shouldPushState,
+                route: '/radio',
+                title: 'Radio | Spotiwind',
+                state: { route: 'radio' }
+            });
+        } else if (cleanPath === '/account') {
+            updateSidebarActiveState('account-mobile.html');
+            updateBottomNavActive('account-mobile.html');
+            await loadPageContent('account-mobile.html', {
+                pushState: shouldPushState,
+                route: '/account',
+                title: 'Account | Spotiwind',
+                state: { route: 'account' }
+            });
+        } else if (cleanPath === '/notifications') {
+            navigateToNotificationPage(shouldPushState);
+        } else {
+            // Default: Home
+            updateSidebarActiveState('home-mobile.html');
+            updateBottomNavActive('home-mobile.html');
+            await loadPageContent('home-mobile.html', {
+                pushState: shouldPushState,
+                route: '/',
+                title: 'Spotiwind - Feel The Music, Ride The Wind',
+                state: { route: 'home' }
+            });
+        }
+    };
+
+    const loadPageContent = async (page, options = {}) => {
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
         const navigationId = ++pageLoadSequence;
         updateSidebarActiveState(page);
+
+        const {
+            pushState = true,
+            route = null,
+            title = null,
+            state = null
+        } = (typeof options === 'object' && options !== null) ? options : {};
+
+        // Helper to determine route & title
+        let targetRoute = route;
+        let targetTitle = title;
+        if (!targetRoute) {
+            if (page === 'home-mobile.html' || page === 'mobile.html') {
+                targetRoute = '/';
+                targetTitle = 'Spotiwind - Feel The Music, Ride The Wind';
+            } else if (page.includes('search-mobile.html')) {
+                targetRoute = '/search';
+                targetTitle = 'Search | Spotiwind';
+            } else if (page.includes('library-mobile.html')) {
+                targetRoute = '/library';
+                targetTitle = 'Library | Spotiwind';
+            } else if (page.includes('notifications-mobile.html')) {
+                targetRoute = '/notifications';
+                targetTitle = 'Notifications | Spotiwind';
+            } else if (page.includes('radio-mobile.html')) {
+                targetRoute = '/radio';
+                targetTitle = 'Radio | Spotiwind';
+            } else if (page.includes('account-mobile.html')) {
+                targetRoute = '/account';
+                targetTitle = 'Account | Spotiwind';
+            } else if (page.includes('artist-mobile.html') && artistDataForPageLoad) {
+                const artistUniqueId = getArtistUniqueId(artistDataForPageLoad);
+                targetRoute = `/artist/${artistUniqueId}`;
+                targetTitle = `${artistDataForPageLoad.name} | Spotiwind`;
+            }
+        }
+
+        if (targetRoute) {
+            updateAppUrl(targetRoute, targetTitle, state || { page, route: targetRoute }, pushState);
+        }
 
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'home-mobile.html' || page === 'mobile.html') {
@@ -1419,6 +1666,26 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 if (searchPageStyleLink && searchPageStyleLink.parentNode) {
                     searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
                     searchPageStyleLink = null;
+                }
+                if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
+                    notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
+                    notificationPageStyleLink = null;
+                }
+                if (artistPageStyleLink && artistPageStyleLink.parentNode) {
+                    artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
+                    artistPageStyleLink = null;
+                }
+                if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
+                    libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
+                    libraryPageStyleLink = null;
+                }
+                if (accountPageStyleLink && accountPageStyleLink.parentNode) {
+                    accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
+                    accountPageStyleLink = null;
+                }
+                if (radioPageStyleLink && radioPageStyleLink.parentNode) {
+                    radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
+                    radioPageStyleLink = null;
                 }
 
                 contentContainer.innerHTML = initialHomeContent;
@@ -1444,7 +1711,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // [FIX] Re-attach the notification button listener because it was lost.
                 const notificationBtn = document.getElementById('notificationBtn');
                 if (notificationBtn) { // [REFACTOR]
-                    notificationBtn.addEventListener('click', navigateToNotificationPage);
+                    notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
                 }
                 
                 contentContainer.style.opacity = '1';
@@ -1466,8 +1733,12 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
             contentContainer.style.opacity = '0';
             await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
 
-            // Muat konten halaman parsial dari path yang diberikan.
-            const response = await fetch(page);
+            // Muat konten halaman parsial dari path yang diberikan secara aman
+            const pageFileName = page.includes('/') ? page.split('/').pop() : page;
+            const isGitHub = window.location.pathname.includes('/spotiwind-music');
+            const appBase = isGitHub ? '/spotiwind-music/' : '/';
+            const pageFetchUrl = `${window.location.origin}${appBase}frontend/src/pages/${pageFileName}`;
+            const response = await fetch(pageFetchUrl);
             if (!response.ok) throw new Error(`Could not load ${page}`);
             const text = await response.text();
             
@@ -1495,36 +1766,37 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.innerHTML = newContent;
 
                 // [FIX] Re-initialize dropdown listeners first before other UI updates.
-                // [NEW] Dynamically load notification page CSS
+                // [NEW] Dynamically load notification page CSS using absolute URL
+                const cssBase = `${window.location.origin}${appBase}frontend/src/assets/css/`;
                 if (page.includes('search-mobile.html')) {
                     searchPageStyleLink = await loadStylesheet(
-                        '../assets/css/search-mobile.css',
+                        `${cssBase}search-mobile.css`,
                         searchPageStyleLink
                     );
                 } else if (page.includes('notifications-mobile.html')) {
                     notificationPageStyleLink = await loadStylesheet(
-                        '../assets/css/notifications-mobile.css',
+                        `${cssBase}notifications-mobile.css`,
                         notificationPageStyleLink
                     );
                 } else if (page.includes('artist-mobile.html')) {
                     artistPageStyleLink = await loadStylesheet(
-                        '../assets/css/artist-mobile.css',
+                        `${cssBase}artist-mobile.css`,
                         artistPageStyleLink
                     );
                 } else if (page.includes('library-mobile.html')) {
                     // [NEW] Dynamically load library page CSS
                     libraryPageStyleLink = await loadStylesheet(
-                        '../assets/css/library-mobile.css',
+                        `${cssBase}library-mobile.css`,
                         libraryPageStyleLink
                     );
                 } else if (page.includes('account-mobile.html')) {
                     accountPageStyleLink = await loadStylesheet(
-                        '../assets/css/account-mobile.css',
+                        `${cssBase}account-mobile.css`,
                         accountPageStyleLink
                     );
                 } else if (page.includes('radio-mobile.html')) {
                     radioPageStyleLink = await loadStylesheet(
-                        '../assets/css/radio-mobile.css',
+                        `${cssBase}radio-mobile.css`,
                         radioPageStyleLink
                     );
                 } else {
@@ -1717,20 +1989,36 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         });
     };
 
-    const navigateToArtistPage = (artist) => {
+    const navigateToArtistPage = (artist, shouldPushState = true) => {
+        if (!artist) return;
         homeScrollPosition = document.documentElement.scrollTop;
         artistDataForPageLoad = artist;
-        loadPageContent('artist-mobile.html');
+
+        const artistUniqueId = getArtistUniqueId(artist);
+        const cleanPath = `/artist/${artistUniqueId}`;
+        const title = `${artist.name} | Spotiwind`;
+
+        loadPageContent('artist-mobile.html', {
+            pushState: shouldPushState,
+            route: cleanPath,
+            title: title,
+            state: { route: 'artist', artist }
+        });
     };
 
     /**
      * [NEW] Loads the notification page content dynamically.
      */
-    const navigateToNotificationPage = () => {
+    const navigateToNotificationPage = (shouldPushState = true) => {
         // Store current scroll position before navigating
         homeScrollPosition = document.documentElement.scrollTop;
         // Call the main page loader
-        loadPageContent('notifications-mobile.html');
+        loadPageContent('notifications-mobile.html', {
+            pushState: shouldPushState,
+            route: '/notifications',
+            title: 'Notifications | Spotiwind',
+            state: { route: 'notifications' }
+        });
     };
 
     // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
@@ -1987,10 +2275,31 @@ window.spotiwind = {
         initializeData(); // Always load music data for both guest and authenticated users
     });
 
+        // [ROUTER] Popstate listener for browser Back / Forward buttons
+        window.addEventListener('popstate', async (event) => {
+            const currentPath = window.location.pathname;
+            await handleRoutePath(currentPath, event.state, false);
+        });
+
+        // [ROUTER] Handle initial deep link or route stored in sessionStorage
+        const pendingRoute = sessionStorage.getItem('spotiwind_target_route');
+        if (pendingRoute) {
+            sessionStorage.removeItem('spotiwind_target_route');
+            handleRoutePath(pendingRoute, null, false);
+        } else {
+            const currentPath = window.location.pathname;
+            const cleanPath = currentPath.replace(/^\/spotiwind-music/, '');
+            if (cleanPath && cleanPath !== '/' && !cleanPath.endsWith('.html')) {
+                handleRoutePath(cleanPath, null, false);
+            } else {
+                updateAppUrl('/', 'Spotiwind - Feel The Music, Ride The Wind', { route: 'home' }, false);
+            }
+        }
+
         // [FIX] Move listener attachment to the end of DOMContentLoaded
         // to ensure all functions like 'loadNotificationPage' are initialized.
         const notificationBtn = document.getElementById('notificationBtn');
         if (notificationBtn) {
-            notificationBtn.addEventListener('click', navigateToNotificationPage);
+            notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
         }
 });

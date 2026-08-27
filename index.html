@@ -6,6 +6,30 @@
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
     <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
     <link rel="stylesheet" href="frontend/src/assets/css/index.css">
+    <script>
+        // Suppress third-party/extension performance observer noise in console
+        window.addEventListener('error', function(e) {
+            if (e && e.message && (e.message.indexOf('startTime') !== -1 || e.message.indexOf('reportAllChanges') !== -1)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return true;
+            }
+        }, true);
+
+        // Check for redirect from GitHub Pages 404.html (?p=/...)
+        (function(l) {
+            if (l.search && l.search[1] === '/' ) {
+                var decoded = l.search.slice(1).split('&').map(function(s) { 
+                    return s.replace(/~and~/g, '&');
+                }).join('?');
+                var targetPath = decoded + l.hash;
+                sessionStorage.setItem('spotiwind_target_route', targetPath);
+                window.history.replaceState(null, null,
+                    l.pathname.slice(0, -1) + decoded + l.hash
+                );
+            }
+        }(window.location));
+    </script>
     <script type="module" src="frontend/src/assets/js/index.js"></script>
 </head>
 <body>

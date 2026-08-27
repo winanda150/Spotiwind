@@ -3,6 +3,25 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        // Suppress third-party/extension performance observer noise in console
+        window.addEventListener('error', function(e) {
+            if (e && e.message && (e.message.indexOf('startTime') !== -1 || e.message.indexOf('reportAllChanges') !== -1)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return true;
+            }
+        }, true);
+
+        // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
+        (function() {
+            var isGitHub = window.location.pathname.includes('/spotiwind-music');
+            var basePath = isGitHub ? '/spotiwind-music/frontend/src/pages/' : '/frontend/src/pages/';
+            var base = document.createElement('base');
+            base.href = window.location.origin + basePath;
+            document.head.appendChild(base);
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
     <meta name="description"
@@ -18,12 +37,12 @@
     <meta property="og:title" content="Spotiwind - Feel The Music, Ride The Wind">
     <meta property="og:description"
         content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
-    <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
-    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/frontend/src/pages/home-mobile.html">
+    <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/frontend/public/Elemen/Logo/Spotiwind.webp">
+    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/">
     <meta property="og:type" content="website">
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
+    <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/frontend/public/Elemen/Logo/Spotiwind.webp">
     <!-- NEW: Add Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="../assets/css/home-mobile.css">

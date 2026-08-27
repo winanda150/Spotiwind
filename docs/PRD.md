@@ -374,13 +374,13 @@ Until both are addressed, Spotiwind operates as a fully-functional **Free** expe
 
 ## 11. Competitive Landscape
 
-| Dimension | **Spotiwind** | Spotify | Apple Music | YouTube Music |
+| Dimension | **Spotiwind** | Major Streaming Platform | Apple Music | YouTube Music |
 |---|---|---|---|---|
 | Core differentiation | Flow-based, sound-reactive UI; wind/motion identity | Broad catalog, mature social features | Deep Apple ecosystem integration, lossless by default | Video + audio catalog crossover |
 | Discovery model | WindFlow continuous flow + Windmap visual exploration | Algorithmic playlists (Discover Weekly-style) | Curated editorial + algorithmic | Video-driven recommendations |
 | Visual identity | Dark-native, audio-reactive gradient system | Green accent on dark/light | Red accent, minimal | Red/white, video-first |
 | Collaborative playlists | Tailwind Playlists (real-time) | Collaborative playlists | Shared playlists | Limited |
-| Artist tooling | Dashboard + Artist Pro (Phase 3) | Spotify for Artists | Apple Music for Artists | YouTube Studio |
+| Artist tooling | Dashboard + Artist Pro (Phase 3) | Artist Dashboard | Apple Music for Artists | YouTube Studio |
 
 *This table reflects general, well-known positioning of established platforms for strategic contrast; it is not a claim about current pricing or feature specifics of competitors, which should be re-verified close to launch.*
 

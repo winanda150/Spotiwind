@@ -2,7 +2,7 @@
  * @file fuzzySearch.js
  * @description Super-smart fuzzy search engine for Spotiwind Music.
  *
- *  Techniques used (Spotify-grade):
+ *  Techniques used (Industry-grade):
  *  ────────────────────────────────
  *  1. Unicode NFD normalization (ń→n, é→e, Hivi!→hivi, .Feast→feast)
  *  2. Levenshtein edit distance (optimized single-row DP)

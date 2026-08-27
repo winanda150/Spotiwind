@@ -72,10 +72,11 @@ export const initArtistPage = (artist, previousPage) => {
         backButton.addEventListener('click', async (e) => {
             e.preventDefault();
             cleanupArtistPage();
+            const targetPage = (previousPage && !previousPage.includes('artist')) ? previousPage : 'home-mobile.html';
             document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
-            const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${previousPage}"]`);
+            const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${targetPage}"]`);
             if (targetNavItem) targetNavItem.classList.add('active');
-            await loadPageContent(previousPage);
+            await loadPageContent(targetPage, { pushState: true });
         });
     }
 
