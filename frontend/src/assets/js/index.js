@@ -4,7 +4,9 @@
  */
 const redirectToApp = () => {
     const isMobile = window.innerWidth <= 768;
-    const target = isMobile ? 'frontend/src/pages/home-mobile.html' : 'frontend/src/pages/home-desktop.html';
+    const isGitHub = window.location.pathname.startsWith('/spotiwind-music');
+    const appBase = isGitHub ? '/spotiwind-music/' : '/';
+    const target = `${appBase}frontend/src/pages/${isMobile ? 'home-mobile.html' : 'home-desktop.html'}`;
 
     // Preserve any initial route from pathname, search, or hash
     const currentPath = window.location.pathname;

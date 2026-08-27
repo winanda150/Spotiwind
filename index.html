@@ -7,6 +7,15 @@
     <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
     <link rel="stylesheet" href="frontend/src/assets/css/index.css">
     <script>
+        // Ensure relative asset URLs resolve correctly from app root on deep paths or refresh
+        (function() {
+            var isGitHub = window.location.pathname.startsWith('/spotiwind-music');
+            var basePath = isGitHub ? '/spotiwind-music/' : '/';
+            var base = document.createElement('base');
+            base.href = window.location.origin + basePath;
+            document.head.appendChild(base);
+        })();
+
         // Suppress third-party/extension performance observer noise in console
         window.addEventListener('error', function(e) {
             if (e && e.message && (e.message.indexOf('startTime') !== -1 || e.message.indexOf('reportAllChanges') !== -1)) {
