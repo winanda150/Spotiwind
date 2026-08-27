@@ -9,7 +9,7 @@
         content="Explore your music library on Spotiwind. Discover the latest songs, see your friends' activity, and enjoy playlists curated just for you.">
     <meta name="keywords"
         content="Spotiwind dashboard, music library, trending artists, friend activity, music playlist">
-    <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
+    <link rel="icon" type="image/x-icon" href="../../public/Elemen/Logo/Spotiwind.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
@@ -19,12 +19,12 @@
     <meta property="og:description"
         content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
     <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
-    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/desktop.html">
+    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/frontend/src/pages/home-desktop.html">
     <meta property="og:type" content="website">
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
-    <link rel="stylesheet" href="frontend/src/assets/css/desktop-styles.css">
+    <link rel="stylesheet" href="../assets/css/home-desktop.css">
 </head>
 
 <body class="dashboard-page is-transitioning">
@@ -35,8 +35,8 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand-logo" role="img" aria-label="Spotiwind Logo"
-                onclick="window.location.href='desktop.html'">
-                <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo">
+                onclick="window.location.href='home-desktop.html'">
+                <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo">
                 <span>Spotiwind</span>
             </div>
             <nav class="nav-menu">
@@ -127,13 +127,13 @@
             </header>
 
             <section class="greeting-section" aria-label="Greeting">
-                <span class="badge" id="greetingBadge">Good Morning, User <span aria-hidden="true">👋</span></span>
+                <span class="badge" id="greetingBadge">Good Morning, Guest <span aria-hidden="true">👋</span></span>
                 <p>Ready to feel the music today?</p>
             </section>
 
             <section class="hero-section">
                 <div class="hero-card"
-                    style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('frontend/public/Elemen/Logo/Gambar1.webp');">
+                    style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('../../public/Elemen/Logo/Gambar1.webp');">
                     <h1>Feel the <span class="theme-text">Music</span> <br> Ride the <span
                             class="theme-text">Wind</span></h1>
                     <p>Discover millions of the latest songs, curated playlists, and the best music listening experience
@@ -558,7 +558,7 @@
         </div>
     </div>
 
-    <script type="module" src="frontend/src/assets/js/desktop-script.js"></script>
+    <script type="module" src="../assets/js/home-desktop.js"></script>
 </body>
 
 </html>

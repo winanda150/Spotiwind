@@ -168,7 +168,7 @@ export const initNotificationsPage = () => {
             loadNotifications(user.uid);
         } else {
             if (container) {
-                container.innerHTML = `<p style="text-align: center; padding: 2rem var(--mobile-horizontal-padding);">Please <a href="index.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
+                container.innerHTML = `<p style="text-align: center; padding: 2rem var(--mobile-horizontal-padding);">Please <a href="auth.html" style="color: var(--accent-color);">log in</a> to see your notifications.</p>`;
             }
         }
     });

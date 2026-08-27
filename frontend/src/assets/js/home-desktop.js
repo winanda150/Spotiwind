@@ -289,14 +289,16 @@ const resetBtnUI = (btn) => {
     }
 };
 
-/**
- * Main function to toggle Like/Unlike
- */
 const toggleLike = async (e) => {
     const user = auth.currentUser;
     const btn = e.currentTarget; // The clicked button (can be from the sidebar or bottom bar)
     
-    if (!user || !currentSongData || !btn) {
+    if (!user) {
+        alert("Please log in to save your favorite songs.");
+        return;
+    }
+
+    if (!currentSongData || !btn) {
         return;
     }
 
@@ -705,7 +707,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     const logoutBtn = document.getElementById('logoutBtn');
 
     let lastGreetingHour = -1;
-    let greetingName = 'User';
+    let greetingName = 'Guest';
     const updateGreeting = () => {
         const greetingBadge = document.getElementById('greetingBadge');
         if (!greetingBadge) return;
@@ -1250,22 +1252,43 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     window.addEventListener('resize', () => {
         if (window.innerWidth <= 768 && !isNavigating) {
             isNavigating = true;
-            navigateTo('mobile.html');
+            navigateTo('home-mobile.html');
         }
     });
 
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            // Protection: If a user on a mobile device tries to access the desktop page
-            if (window.innerWidth <= 768) {
-                navigateTo('mobile.html');
-                return;
+    // Setup click on user profile card to login (if guest) or logout (if logged in)
+    const userProfileEl = document.querySelector('.user-profile');
+    if (userProfileEl) {
+        userProfileEl.style.cursor = 'pointer';
+        userProfileEl.title = 'Click to log in or manage account';
+        userProfileEl.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) {
+                window.location.href = 'auth.html';
+            } else {
+                if (confirm(`Logged in as ${user.email}. Do you want to log out?`)) {
+                    signOut(auth).catch(err => console.error("Logout error:", err));
+                }
             }
+        });
+    }
 
-            // Wait until the page resources finish loading before hiding the dark transition layer.
-            hideLoadingOverlay();
+    onAuthStateChanged(auth, async (user) => {
+        // Protection: If a user on a mobile device tries to access the desktop page
+        if (window.innerWidth <= 768) {
+            navigateTo('home-mobile.html');
+            return;
+        }
 
-            // Username display is replaced by a notification icon in HTML
+        // Wait until the page resources finish loading before hiding the dark transition layer.
+        hideLoadingOverlay();
+
+        const initializeData = () => {
+            fetchWithContinuousRetry(fetchTrendingMusic);
+            fetchWithContinuousRetry(fetchTopArtists);
+        };
+
+        if (user) {
             console.log("Logged in as:", user.email);
 
             // Update username
@@ -1277,7 +1300,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 userNameElement.textContent = user.displayName || user.email.split('@')[0];
             }
 
-            // NEW: Setup presence for the currently logged-in user
+            // Setup presence for the currently logged-in user
             setupUserPresence(user);
 
             // Run activity rendering after the user is confirmed to be logged in
@@ -1286,20 +1309,10 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             // Load the user's playlists
             loadUserPlaylists(user.uid);
 
-            // Fetch API data in parallel for faster loading
-            const initializeData = () => {
-                // [FIX] Remove Promise.all so each grid can render independently.
-                // This allows data to appear one by one as it's ready, without waiting for others.
-                fetchWithContinuousRetry(fetchTrendingMusic);
-                fetchWithContinuousRetry(fetchTopArtists);
-            };
-
-            initializeData();
-
             // Periksa dan tampilkan status premium
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
-                const premiumStatus = await isUserPremium(user.uid); // Wait for the premium check result
+                const premiumStatus = await isUserPremium(user.uid);
                 if (premiumStatus) {
                     premiumBadgeElement.classList.remove('hidden');
                 } else {
@@ -1317,41 +1330,42 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 let originalRetry = 0;
                 const maxRetries = 2;
 
-                // Use no-referrer to avoid 403 blocks from providers like Google/Facebook
                 avatarElement.referrerPolicy = "no-referrer";
 
-                // Set up an event listener to try reloading if it fails (retry logic)
                 avatarElement.onerror = function() {
-                    // Logic 1: If the original photo fails, try reloading with a cache-buster before giving up
                     if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
                         originalRetry++;
                         console.warn(`Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
                         setTimeout(() => {
                             const sep = originalPhotoURL.includes('?') ? '&' : '?';
-                            // Add a timestamp to force the browser to fetch new data from the server
                             this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
                         }, 2000);
                     } 
-                    // Logic 2: If the original photo still fails after retries, then use the default avatar
                     else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
                         console.warn("Original photo failed to load permanently, switching to default...");
                         this.src = defaultAvatar;
                     } else {
-                        // If even the default avatar fails, stop to prevent a loop
                         this.onerror = null;
                     }
                 };
 
-                // Set initial source: Prioritize photoURL if available
                 avatarElement.src = originalPhotoURL || defaultAvatar;
             }
 
-            // Initialize Desktop Search
-            initDesktopSearch();
-
         } else {
-            // If there is no user, redirect back to index.html
-            window.location.href = 'index.html';
+            // Guest mode
+            greetingName = 'Guest';
+            lastGreetingHour = -1;
+            updateGreeting();
+
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) userNameElement.textContent = 'Guest (Log In)';
+
+            const avatarElement = document.getElementById('userAvatar');
+            if (avatarElement) {
+                avatarElement.src = 'https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true';
+            }
+
             if (typeof userPresenceCleanup === 'function') userPresenceCleanup();
             activePresenceListeners.forEach(unsub => unsub());
             activePresenceListeners.clear();
@@ -1359,14 +1373,12 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 playlistUnsubscribe();
                 playlistUnsubscribe = null;
             }
-            // Bersihkan info pengguna jika logout
-            if (document.getElementById('userName')) document.getElementById('userName').textContent = ''; // Clear user info on logout
             if (document.getElementById('premiumBadge')) document.getElementById('premiumBadge').classList.add('hidden');
-            if (document.getElementById('userAvatar')) document.getElementById('userAvatar').src = '';
-            
-            // Opsional: Set status offline secara manual di RTDB saat logout jika diinginkan
-            // However, onDisconnect usually handles this well enough.
         }
+
+        // Always initialize music data and search for all users
+        initializeData();
+        initDesktopSearch();
     });
 });
 
@@ -1407,7 +1419,7 @@ const initDesktopSearch = async () => {
             html += `
                 <div class="dropdown-item dropdown-item-artist" onclick="window.playPreview(null, '', '${a.name.replace(/'/g, "\\'")}', '', '${a.photo || ''}', '${a.id}', 0, 'artist')">
                     <div class="dropdown-cover-wrapper" style="border-radius: 50%;">
-                        <img src="${a.photo || 'frontend/public/Elemen/Logo/Spotiwind.webp'}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <img src="${a.photo || '../../public/Elemen/Logo/Spotiwind.webp'}" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
                     <div class="dropdown-track-info">
                         <div class="dropdown-info-name">${a.name}</div>

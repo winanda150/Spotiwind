@@ -20,7 +20,7 @@ const getStatsRef = (type) => collection(db, SEARCH_STATS_COLLECTION, type, 'ite
 const getEntityId = (type, item) => `${type}-${String(item.id || item.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
 export const recordSearchSelection = async (type, item) => {
-    if (!auth.currentUser || !['songs', 'artists', 'albums'].includes(type) || (!item?.id && !item?.name)) return;
+    if (!['songs', 'artists', 'albums'].includes(type) || (!item?.id && !item?.name)) return;
 
     try {
         const itemRef = doc(getStatsRef(type), getEntityId(type, item));
@@ -37,10 +37,10 @@ export const subscribePopularSearches = (type, callback, resultLimit = MAX_RESUL
     const popularQuery = firestoreQuery(getStatsRef(type), orderBy('searchCount', 'desc'), limit(resultLimit));
 
     return onSnapshot(popularQuery, (snapshot) => {
-        const firestoreItems = snapshot.docs.map((item) => ({
-            id: item.id,
-            ...item.data(),
-            searchCount: Number(item.data()?.searchCount) || 0
+        const firestoreItems = snapshot.docs.map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data(),
+            searchCount: Number(docSnap.data()?.searchCount) || 0
         }));
         callback(firestoreItems);
     }, (error) => {

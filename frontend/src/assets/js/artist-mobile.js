@@ -3,7 +3,7 @@
  * Handles all logic for the artist-mobile.html page.
  */
 
-// These functions are expected to be available in the global scope from mobile-script.js
+// These functions are expected to be available in the global scope from home-mobile.js
 const {
     fetchWithContinuousRetry,
     fetchLocalArtistSongs,

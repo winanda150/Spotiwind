@@ -92,18 +92,19 @@ export const initSearchPage = ({
             const status = itemType === 'songs' ? 'Song' : itemType === 'artists' ? 'Artist' : 'Album';
             const duration = itemType === 'songs' && item.duration ? `${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2, '0')}` : '';
             const currentSong = getCurrentSongData();
-            const isActiveSong = itemType === 'songs' && currentSong && (String(item.id) === String(currentSong.id) || item.audio === currentSong.audio);
+            const cleanAudio = item.audio;
+            const isActiveSong = itemType === 'songs' && currentSong && (String(item.id) === String(currentSong.id) || (cleanAudio && cleanAudio === currentSong.audio));
             const statusLabel = isActiveSong ? 'Now playing' : status;
             const artistBadge = itemType === 'artists'
-                ? '<svg class="popular-search-verified" viewBox="0 0 256 256" aria-label="Verified"><path fill="#0095f6" d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14-3.25 1.36-8.69 1.44-13.94 1.52-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57 1.36 3.27 1.44 8.69 1.52 13.94.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52 3.56 1.47 7.63 5.37 11.57 9.14 6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14 3.27-1.36 8.69-1.44 13.94-1.52 9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94 1.47-3.56 5.37-7.63 9.14-11.57 6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18M173.66 109.66l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32Z"/></svg>'
+                ? '<svg class="popular-search-verified" viewBox="0 0 256 256" aria-label="Verified"><path fill="#0095f6" d="M225.86 102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28 23.51 138.44 16 128 16s-18.27 7.51-25.18 14.14c-3.94 3.77-8 7.67-11.57 9.14-3.25 1.36-8.69 1.44-13.94 1.52-9.76.15-20.82.31-28.51 8s-7.8 18.75-8 28.51c-.08 5.25-.16 10.67-1.52 13.94-1.47 3.56-5.37 7.63-9.14 11.57C23.51 109.72 16 117.56 16 128s7.51 18.27 14.14 25.18c3.77 3.94 7.67 8 9.14 11.57c1.36 3.27 1.44 8.69 1.52 13.94c.15 9.76.31 20.82 8 28.51s18.75 7.85 28.51 8c5.25.08 10.67.16 13.94 1.52c3.56 1.47 7.63 5.37 11.57 9.14c6.9 6.63 14.74 14.14 25.18 14.14s18.27-7.51 25.18-14.14c3.94-3.77 8-7.67 11.57-9.14c3.27-1.36 8.69-1.44 13.94-1.52c9.76-.15 20.82-.31 28.51-8s7.85-18.75 8-28.51c.08-5.25.16-10.67 1.52-13.94c1.47-3.56 5.37-7.63 9.14-11.57c6.63-6.9 14.14-14.74 14.14-25.18s-7.51-18.27-14.14-25.18M173.66 109.66l-56 56a8 8 0 0 1-11.32 0l-24-24a8 8 0 0 1 11.32-11.32L112 148.69l50.34-50.35a8 8 0 0 1 11.32 11.32Z"/></svg>'
                 : '';
             const subtitle = itemType === 'artists' ? '' : item.artist || '';
             const statusMarkup = itemType === 'songs'
                 ? `<span class="popular-search-song-status">Song${duration ? ` - <i>${duration}</i>` : ''}</span>`
                 : `<span>${statusLabel}</span>`;
-            // Badge nomor urut ranking: #1 berwarna emas, #2 perak, #3 perunggu, sisanya abu
             const rankClass = rank === 1 ? 'rank-gold' : rank === 2 ? 'rank-silver' : rank === 3 ? 'rank-bronze' : 'rank-default';
-            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(item.audio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><span class="popular-search-rank ${rankClass}">${rank}</span><img class="popular-search-cover" src="${escapeHtml(item.cover || item.photo)}" alt=""><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
+            const cleanCover = item.cover || item.photo || '';
+            return `<article class="popular-search-card ${isActiveSong ? 'is-active-song' : ''}" data-id="${escapeHtml(item.id)}" data-audio="${escapeHtml(cleanAudio)}" data-popular-type="${itemType}" data-popular-id="${escapeHtml(item.id)}"><span class="popular-search-rank ${rankClass}">${rank}</span><img class="popular-search-cover" src="${escapeHtml(cleanCover)}" alt="${escapeHtml(item.name)}"><div class="popular-search-info"><div class="popular-search-title-row"><strong>${escapeHtml(item.name)}</strong>${artistBadge}</div>${subtitle ? `<span>${escapeHtml(subtitle)}</span>` : ''}<small>${statusMarkup}</small></div><button class="popular-search-menu" type="button" aria-label="More options" title="More options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg></button></article>`;
         }).join('')
         : '<p class="popular-search-empty">No popular searches yet.</p>';
 
@@ -111,11 +112,9 @@ export const initSearchPage = ({
         return [...list].sort((left, right) => {
             const countLeft = Number(left.searchCount) || 0;
             const countRight = Number(right.searchCount) || 0;
-            // 1. Urutkan dari jumlah pencarian terbanyak ke tersedikit (descending)
             if (countRight !== countLeft) {
                 return countRight - countLeft;
             }
-            // 2. Jika jumlah pencarian sama, item yang dicapai lebih awal tetap di atas, yang baru mulai nilai 1 berada di bawah
             const timeLeft = left.updatedAt?.toMillis ? left.updatedAt.toMillis() : (typeof left.updatedAt?.seconds === 'number' ? left.updatedAt.seconds * 1000 : 0);
             const timeRight = right.updatedAt?.toMillis ? right.updatedAt.toMillis() : (typeof right.updatedAt?.seconds === 'number' ? right.updatedAt.seconds * 1000 : 0);
             return timeLeft - timeRight;
@@ -124,20 +123,18 @@ export const initSearchPage = ({
 
     const renderPopularSearches = () => {
         if (!popularSearchContent) return;
-        let items;
+        let items = [];
         if (activePopularTab === 'top') {
-            // Gabungkan semua kategori, urutkan dari searchCount terbesar ke terkecil, ambil 10 teratas
             items = sortPopularItems([
                 ...popularSearchData.songs.map((item) => ({ ...item, resultType: 'songs' })),
                 ...popularSearchData.artists.map((item) => ({ ...item, resultType: 'artists' })),
                 ...popularSearchData.albums.map((item) => ({ ...item, resultType: 'albums' }))
             ]).slice(0, 10);
         } else {
-            // Tab individual: urutkan dari searchCount terbesar ke terkecil, ambil 10 teratas
             items = sortPopularItems([...popularSearchData[activePopularTab]]).slice(0, 10);
         }
+
         // Sinkron daftar LAGU yang sedang ditampilkan ke buffer popularPlaylist
-        // agar Up Next terisi saat user memutar lagu dari Popular Searches
         const songItems = items.filter((item) => (item.resultType || activePopularTab) === 'songs');
         if (typeof setPopularPlaylist === 'function') {
             setPopularPlaylist(songItems.map((s) => ({
@@ -145,7 +142,7 @@ export const initSearchPage = ({
                 audio: s.audio,
                 name: s.name,
                 artist: s.artist || '',
-                cover: s.cover || '',
+                cover: s.cover || s.photo || '',
                 duration: s.duration || 0
             })));
         }
@@ -185,19 +182,21 @@ export const initSearchPage = ({
         movePopularSearchIndicator(document.querySelector(`[data-popular-tab="${activePopularTab}"]`));
     }, 150));
 
-    // Popular Searches cards: hanya play/navigate, TIDAK memberikan ranking
-    // Ranking hanya diberikan saat memilih dari dropdown pencarian (handleSongSearchClick, handleArtistClick, handleAlbumSearchClick)
+    // Popular Searches cards click handler (Direct from Firebase)
     popularSearchContent?.addEventListener('click', (event) => {
         if (event.target.closest('.popular-search-menu')) return;
         const card = event.target.closest('[data-popular-type]');
         if (!card) return;
-        const item = popularSearchData[card.dataset.popularType]?.find((entry) => String(entry.id) === card.dataset.popularId);
+        const pType = card.dataset.popularType;
+        const pId = card.dataset.popularId;
+        const rawList = popularSearchData[pType] || [];
+        const item = rawList.find((entry) => String(entry.id) === pId || String(entry.docId) === pId || String(entry.name) === pId);
         if (!item) return;
-        if (card.dataset.popularType === 'artists') {
+
+        if (pType === 'artists') {
             searchDropdown.classList.remove('active');
-            navigateToArtistPage({ id: item.id, name: item.name, photo: item.photo });
-        } else if (card.dataset.popularType === 'songs') {
-            // Gunakan context 'popular' agar Up Next terisi dari lagu-lagu Popular Searches
+            navigateToArtistPage({ id: item.id, name: item.name, photo: item.photo || item.cover || '' });
+        } else if (pType === 'songs') {
             const isSameActiveSong = getCurrentSongData() &&
                 String(getCurrentSongData().id) === String(item.id) &&
                 activeAudio && activeAudio.src;
@@ -211,6 +210,10 @@ export const initSearchPage = ({
                 item.duration || 0,
                 isSameActiveSong ? null : 'popular'
             );
+        } else if (pType === 'albums') {
+            searchDropdown.classList.remove('active');
+            searchInput.value = item.name;
+            submitSearch();
         }
     });
 

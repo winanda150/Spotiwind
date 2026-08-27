@@ -36,8 +36,8 @@ export const getFeaturedLocalSongs = () => featuredLocalSongs.map(([id, name, ar
     artist,
     plays: '0',
     duration,
-    audio: `frontend/public/Elemen/${path}.mp3`,
-    cover: `frontend/public/Elemen/${path.replace(/\/[^/]+$/, '')}/Image%20Songs/${path.split('/').pop()}.webp`
+    audio: `../../public/Elemen/${path}.mp3`,
+    cover: `../../public/Elemen/${path.replace(/\/[^/]+$/, '')}/Image%20Songs/${path.split('/').pop()}.webp`
 }));
 
 const normalizeTrack = (item, playCount = 0) => ({
@@ -80,21 +80,21 @@ export const getArtistCatalog = async (artistId, artistName) => {
     return uniqueTracks.map((item) => normalizeTrack(item, (item.stats?.rate_downloads_total || 0) * 5));
 };
 
-export const loadLocalCatalog = async (manifestUrl = 'frontend/public/indonesian-songs-manifest.json') => {
+export const loadLocalCatalog = async (manifestUrl = '../../public/indonesian-songs-manifest.json') => {
     const response = await fetch(manifestUrl);
     if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
     const data = await response.json();
     return {
         artists: (data.artists || []).map((artist) => ({
             ...artist,
-            photo: `frontend/public/${artist.photo}`
+            photo: `../../public/${artist.photo}`
         })),
         songs: (data.songs || []).map((song, index) => ({
             id: song.id || `local-${index}`,
             name: song.name,
             artist: song.artist,
-            cover: `frontend/public/${song.cover}`,
-            audio: `frontend/public/${song.audio}`,
+            cover: `../../public/${song.cover}`,
+            audio: `../../public/${song.audio}`,
             duration: song.duration || 0,
             plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
         }))
@@ -103,7 +103,8 @@ export const loadLocalCatalog = async (manifestUrl = 'frontend/public/indonesian
 
 export const getLocalArtistCatalog = (songs, artist) => {
     const pathParts = artist.photo?.split('/') || [];
-    const folderName = pathParts.length > 3 ? decodeURIComponent(pathParts[3]) : artist.name;
+    const elemenIdx = pathParts.indexOf('Elemen');
+    const folderName = elemenIdx !== -1 && pathParts[elemenIdx + 1] ? decodeURIComponent(pathParts[elemenIdx + 1]) : artist.name;
     return songs.filter((song) => {
         try {
             return decodeURIComponent(song.audio).includes(`/Elemen/${folderName}/`);

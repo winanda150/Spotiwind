@@ -5,14 +5,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
-    <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
+    <meta name="description"
+        content="Explore your music library on Spotiwind. Discover the latest songs, see your friends' activity, and enjoy playlists curated just for you.">
+    <meta name="keywords"
+        content="Spotiwind mobile, music streaming, indonesian songs, playlists, podcasts">
+    <link rel="icon" type="image/x-icon" href="../../public/Elemen/Logo/Spotiwind.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
+    <!-- Open Graph Meta Tags for Social Media Sharing -->
+    <meta property="og:title" content="Spotiwind - Feel The Music, Ride The Wind">
+    <meta property="og:description"
+        content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
+    <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
+    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/frontend/src/pages/home-mobile.html">
+    <meta property="og:type" content="website">
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
     <!-- NEW: Add Bootstrap Icons CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="frontend/src/assets/css/mobile-styles.css">
+    <link rel="stylesheet" href="../assets/css/home-mobile.css">
 </head>
 
 <body class="mobile-view is-transitioning">
@@ -31,7 +45,7 @@
         </button>
     </div>
     <div class="header-brand">
-        <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
+        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
         <span class="mobile-brand-name">Spotiwind</span>
     </div>
     <div class="header-right">
@@ -49,7 +63,7 @@
         <aside class="mobile-sidebar" aria-label="Main navigation" aria-hidden="true">
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="" class="sidebar-logo">
+                    <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="" class="sidebar-logo">
                     <span>Spotiwind</span>
                 </div>
                 <button class="sidebar-close-btn" type="button" aria-label="Close menu" data-sidebar-close>
@@ -71,7 +85,7 @@
                         <span class="pro-badge">PRO</span>
                     </div>
                     <span id="sidebarUserEmail" class="sidebar-profile-email">user@example.com</span>
-                    <a href="#" class="sidebar-profile-link" data-sidebar-target="frontend/src/pages/account-mobile.html">
+                    <a href="#" class="sidebar-profile-link" data-sidebar-target="account-mobile.html">
                         <span>View Profile</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round" aria-hidden="true">
@@ -81,14 +95,14 @@
                 </div>
             </div>
             <nav class="sidebar-nav" aria-label="Pages">
-                <a href="#" class="sidebar-nav-item active" data-sidebar-target="mobile.html">
+                <a href="#" class="sidebar-nav-item active" data-sidebar-target="home-mobile.html">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4v-10H9v10H5a2 2 0 0 1-2-2V9Z"></path>
                     </svg>
                     <span>Home</span>
                 </a>
-                <a href="#" class="sidebar-nav-item" data-sidebar-target="frontend/src/pages/search-mobile.html">
+                <a href="#" class="sidebar-nav-item" data-sidebar-target="search-mobile.html">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M0 0h24v24H0z" fill="none"></path>
                         <path class="search-icon-inner-circle" fill="currentColor" d="M16 11a5 5 0 1 1-10 0a5 5 0 0 1 10 0"></path>
@@ -98,14 +112,14 @@
                     </svg>
                     <span>Search</span>
                 </a>
-                <a href="#" class="sidebar-nav-item" data-sidebar-target="frontend/src/pages/library-mobile.html">
+                <a href="#" class="sidebar-nav-item" data-sidebar-target="library-mobile.html">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 20v-6M6 20V10M18 20V4"></path>
                     </svg>
                     <span>Library</span>
                 </a>
-                <a href="#" class="sidebar-nav-item" data-sidebar-target="frontend/src/pages/radio-mobile.html">
+                <a href="#" class="sidebar-nav-item" data-sidebar-target="radio-mobile.html">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="2"></circle>
@@ -114,7 +128,7 @@
                     </svg>
                     <span>Radio</span>
                 </a>
-                <a href="#" class="sidebar-nav-item" data-sidebar-target="frontend/src/pages/account-mobile.html">
+                <a href="#" class="sidebar-nav-item" data-sidebar-target="account-mobile.html">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
@@ -167,7 +181,7 @@
                 </div>
                 <div class="sidebar-playlist-list">
                     <div class="sidebar-playlist-item">
-                        <img src="frontend/public/Elemen/Radiohead/Image Songs/Creep.webp" alt="My Playlist cover">
+                        <img src="../../public/Elemen/Radiohead/Image Songs/Creep.webp" alt="My Playlist cover">
                         <span class="sidebar-playlist-info">
                             <span class="sidebar-playlist-name">My Playlist</span>
                             <span class="sidebar-playlist-count">80 Songs</span>
@@ -181,7 +195,7 @@
                         </button>
                     </div>
                     <div class="sidebar-playlist-item">
-                        <img src="frontend/public/Elemen/Hindia/Image Songs/Evaluasi.webp" alt="Chill Vibes cover">
+                        <img src="../../public/Elemen/Hindia/Image Songs/Evaluasi.webp" alt="Chill Vibes cover">
                         <span class="sidebar-playlist-info">
                             <span class="sidebar-playlist-name">Chill Vibes</span>
                             <span class="sidebar-playlist-count">42 Songs</span>
@@ -195,7 +209,7 @@
                         </button>
                     </div>
                     <div class="sidebar-playlist-item">
-                        <img src="frontend/public/Elemen/Vierra/Image Songs/Seandainya.webp" alt="Indie Favorites cover">
+                        <img src="../../public/Elemen/Vierra/Image Songs/Seandainya.webp" alt="Indie Favorites cover">
                         <span class="sidebar-playlist-info">
                             <span class="sidebar-playlist-name">Indie Favorites</span>
                             <span class="sidebar-playlist-count">36 Songs</span>
@@ -243,28 +257,28 @@
                         <path d="m9 18 6-6-6-6"></path>
                     </svg>
                 </a>
-                <button class="sidebar-secondary-item sidebar-logout-item" type="button">
+                <button class="sidebar-secondary-item sidebar-logout-item" type="button" id="sidebarAuthBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
                         <line x1="21" y1="12" x2="9" y2="12"></line>
                     </svg>
-                    <span>Log out</span>
+                    <span id="sidebarAuthText">Log Out</span>
                 </button>
             </nav>
         </aside>
 
         <!-- Greeting Section -->
         <section class="greeting-section" aria-label="Greeting">
-            <span class="badge" id="greetingBadge">Good Morning, User <span aria-hidden="true">≡ƒæï</span></span>
+            <span class="badge" id="greetingBadge">Good Morning, Guest <span aria-hidden="true">👋</span></span>
             <p>Ready to feel the music today?</p>
         </section>
 
         <!-- Hero Card Section -->
         <section class="hero-section" style="padding: 0 var(--mobile-horizontal-padding);">
             <div class="hero-card"
-                style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('frontend/public/Elemen/Logo/Gambar1.webp');">
+                style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('../../public/Elemen/Logo/Gambar1.webp');">
                 <h1>Feel the <span class="theme-text">Music</span> <br> Ride the <span class="theme-text">Wind</span>
                 </h1>
                 <p>Discover millions of the latest songs, curated playlists, and the best music listening experience for
@@ -446,7 +460,7 @@
             <!-- Magic Suggestion Box -->
             <section class="magic-box-section">
                 <div class="magic-box"
-                    style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.7)), url('frontend/public/Elemen/Logo/Gambar2.webp');">
+                    style="background-image: linear-gradient(to right, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.7)), url('../../public/Elemen/Logo/Gambar2.webp');">
                     <div class="magic-box-content">
                         <h3 class="magic-box-title">Don't know what to listen to?</h3>
                         <p class="magic-box-desc">Let Spotiwind choose the best song for you.</p>
@@ -555,7 +569,7 @@
             <div class="footer-container">
                 <div class="footer-left">
                     <div class="footer-brand">
-                        <img src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo">
+                        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo">
                         <span class="footer-brand-name">Spotiwind</span>
                     </div>
                     <p class="footer-desc">Find the best music for every moment of your life.</p>
@@ -808,14 +822,14 @@
 
     <!-- Sticky Bottom Navigation -->
     <nav class="mobile-bottom-nav">
-        <a class="nav-item active" data-target="mobile.html">
+        <a class="nav-item active" data-target="home-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4v-10H9v10H5a2 2 0 0 1-2-2V9Z" />
             </svg>
             <span>Home</span>
         </a>
-        <a class="nav-item" data-target="frontend/src/pages/search-mobile.html">
+        <a class="nav-item" data-target="search-mobile.html">
             <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0z" fill="none" />
                 <path class="search-icon-inner-circle" fill="currentColor" d="M16 11a5 5 0 1 1-10 0a5 5 0 0 1 10 0" />
@@ -825,14 +839,14 @@
             </svg>
             <span>Search</span>
         </a>
-        <a class="nav-item" data-target="frontend/src/pages/library-mobile.html">
+        <a class="nav-item" data-target="library-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M12 20v-6M6 20V10M18 20V4" />
             </svg>
             <span>Library</span>
         </a>
-        <a class="nav-item" data-target="frontend/src/pages/radio-mobile.html">
+        <a class="nav-item" data-target="radio-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" />
@@ -843,7 +857,7 @@
             </svg>
             <span>Radio</span>
         </a>
-        <a class="nav-item" data-target="frontend/src/pages/account-mobile.html">
+        <a class="nav-item" data-target="account-mobile.html">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -853,6 +867,6 @@
         </a>
     </nav>
 
-    <script type="module" src="frontend/src/assets/js/mobile-script.js"></script>
+    <script type="module" src="../assets/js/home-mobile.js"></script>
 </body>
 </html>

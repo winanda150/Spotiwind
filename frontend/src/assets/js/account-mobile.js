@@ -24,11 +24,24 @@ const updateAccountUserInfo = (user) => {
     const accountAvatar = document.getElementById('accountAvatar');
     const accountName = document.getElementById('accountName');
     const accountEmail = document.getElementById('accountEmail');
+    const logoutButton = document.getElementById('logoutBtnBottom');
 
     if (!user) {
-        if (accountName) accountName.textContent = 'Guest User';
-        if (accountEmail) accountEmail.textContent = 'guest@spotiwind.com';
-        if (accountAvatar) accountAvatar.src = defaultAvatar('Guest User');
+        if (accountName) accountName.textContent = 'Guest';
+        if (accountEmail) accountEmail.textContent = 'Sign in to access your profile & synced favorites';
+        if (accountAvatar) accountAvatar.src = 'https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true&size=128';
+        if (logoutButton) {
+            logoutButton.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                    <polyline points="10 17 15 12 10 7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                <span>Log In / Sign Up</span>`;
+            logoutButton.onclick = () => {
+                window.location.href = 'auth.html';
+            };
+        }
         return;
     }
 
@@ -43,12 +56,36 @@ const updateAccountUserInfo = (user) => {
             accountAvatar.src = defaultAvatar(displayName);
         };
     }
+
+    if (logoutButton) {
+        logoutButton.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Log Out</span>`;
+        logoutButton.onclick = async () => {
+            try {
+                await signOut(auth);
+                showPageToast('Logged out successfully');
+            } catch (error) {
+                console.error('Failed to sign out from account page:', error);
+                showPageToast('Failed to log out');
+            }
+        };
+    }
 };
 
 const bindAccountInteractions = () => {
     const editProfileBtn = document.querySelector('.edit-profile-btn');
     if (editProfileBtn) {
         editProfileBtn.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) {
+                window.location.href = 'auth.html';
+                return;
+            }
             showPageToast('Edit profile is coming soon');
         });
     }
@@ -56,6 +93,11 @@ const bindAccountInteractions = () => {
     const editAvatarBtn = document.querySelector('.edit-avatar-btn');
     if (editAvatarBtn) {
         editAvatarBtn.addEventListener('click', () => {
+            const user = auth.currentUser;
+            if (!user) {
+                window.location.href = 'auth.html';
+                return;
+            }
             showPageToast('Avatar upload is coming soon');
         });
     }
@@ -66,19 +108,6 @@ const bindAccountInteractions = () => {
             showPageToast(`${label} selected`);
         });
     });
-
-    const logoutButton = document.getElementById('logoutBtnBottom');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Failed to sign out from account page:', error);
-                showPageToast('Failed to log out');
-            }
-        });
-    }
 };
 
 export const initAccountPage = () => {

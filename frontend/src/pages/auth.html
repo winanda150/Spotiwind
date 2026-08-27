@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotiwind - Login & Register</title>
+    <meta name="description"
+        content="Spotiwind adalah platform streaming musik terbaik untuk menemukan jutaan lagu dan playlist pilihan. Nikmati pengalaman mendengarkan musik berkualitas tinggi di mana saja.">
+    <meta name="keywords"
+        content="Spotiwind, music streaming, playlist, lagu terbaik, streaming musik, login Spotiwind">
+    <link rel="icon" type="image/x-icon" href="../../public/Elemen/Logo/Spotiwind.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Open Graph Meta Tags for Social Media Sharing -->
+    <meta property="og:title" content="Spotiwind - Login & Register">
+    <meta property="og:description" 
+        content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
+    <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
+    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/frontend/src/pages/auth.html">
+    <meta property="og:type" content="website">
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/public/Elemen/Logo/Spotiwind.webp">
+    <link rel="stylesheet" href="../assets/css/auth.css">
+</head>
+
+<body class="login-page is-transitioning">
+    <!-- Loading overlay that appears when the web is first opened -->
+    <div id="pageTransition" class="page-transition-overlay is-loading" aria-live="polite" aria-busy="true">
+    </div>
+
+    <main class="main-container">
+        <div class="split-card">
+            <div class="form-side">
+                <div class="form-content">
+                    <a href="home-mobile.html" id="authBackBtn" class="auth-back-btn" title="Back to Music" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted, #94a3b8); text-decoration: none; font-size: 0.875rem; margin-bottom: 1rem; transition: color 0.2s;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m15 18-6-6 6-6"/>
+                        </svg>
+                        <span>Back to Music</span>
+                    </a>
+                    <img class="auth-logo" src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind">
+                    <div class="login-brand" aria-label="Spotiwind branding">
+                        <div class="login-brand-name">Spotiwind</div>
+                        <div class="login-brand-tagline">FEEL THE MUSIC, RIDE THE WIND</div>
+                    </div>
+                    <div class="card-header">
+                        <h1 class="title">Welcome back!</h1>
+                        <p class="subtitle">Good to see you again. Login to continue your music journey.</p>
+                    </div>
+
+                    <div class="auth-view-switch" aria-label="Account type">
+                        <button type="button" class="view-switch active" id="loginTab">Login</button>
+                        <button type="button" class="view-switch" id="registerTab">Register</button>
+                    </div>
+
+                    <form id="loginForm" class="login-form">
+                        <div class="input-group">
+                            <div class="input-wrapper">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <input id="email" name="email" type="text" autocomplete="username" required placeholder="Email or username"
+                                    class="input-field">
+                            </div>
+                            <div class="input-wrapper register-name-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Password"
+                                    class="input-field">
+                                <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-options">
+                            <div class="remember-me">
+                                <input id="remember-me" name="remember-me" type="checkbox">
+                                <label for="remember-me">Remember me</label>
+                            </div>
+                            <a href="#" class="forgot-link" id="forgotPassword">Forgot password?</a>
+                        </div>
+                        <button type="submit" class="btn-login">Login</button>
+                    </form>
+
+                    <!-- Registration Form (Hidden by Default) -->
+                    <form id="registerForm" class="login-form hidden">
+                        <div class="input-group">
+                            <div class="input-wrapper">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-name" name="firstName" type="text" autocomplete="given-name" required placeholder="First name"
+                                    class="input-field">
+                            </div>
+                            <div class="input-wrapper register-name-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-last-name" name="lastName" type="text" autocomplete="family-name" required placeholder="Last name" class="input-field">
+                            </div>
+                            <div class="input-wrapper register-wide-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-email" name="email" type="email" autocomplete="username" required placeholder="Email"
+                                    class="input-field">
+                            </div>
+                            <div class="input-wrapper register-wide-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-username" name="username" type="text" autocomplete="username" required placeholder="Username" class="input-field">
+                            </div>
+                            <div class="input-wrapper register-wide-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-password" name="password" type="password" autocomplete="new-password" required placeholder="Password"
+                                    class="input-field">
+                                <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="input-wrapper register-wide-field">
+                                <div class="input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <input id="reg-confirm-password" name="confirm-password" type="password" autocomplete="new-password" required
+                                    placeholder="Confirm Password" class="input-field">
+                                <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                    <svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M2.036 12.322a1.012 1.012 0 010-.644C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <label class="terms-row"><input type="checkbox" required> <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
+                        <button type="submit" class="btn-login">Sign Up</button>
+                    </form>
+
+                    <div id="socialContent">
+                        <div class="separator">
+                            <span class="separator-line"></span>
+                            <span class="separator-text">or continue with</span>
+                            <span class="separator-line"></span>
+                        </div>
+
+                        <div class="social-login">
+                            <button type="button" class="social-btn" id="googleBtn">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path fill="#4285F4"
+                                        d="M23.49 12.275c0-.826-.074-1.62-.21-2.384H12v4.508h6.44a5.505 5.505 0 0 1-2.389 3.614l3.864 3c2.261-2.082 3.575-5.144 3.575-8.738z" />
+                                    <path fill="#34A853"
+                                        d="M12 24c3.24 0 5.958-1.076 7.944-2.912l-3.864-3c-1.072.718-2.443 1.144-4.08 1.144-3.14 0-5.8-2.12-6.753-4.975l-3.993 3.093C3.21 21.013 7.29 24 12 24z" />
+                                    <path fill="#FBBC05"
+                                        d="M5.247 14.257c-.24-.718-.377-1.488-.377-2.257s.137-1.539.377-2.257l-3.993-3.093C.478 8.442 0 10.17 0 12c0 1.83.478 3.558 1.254 5.35l3.993-3.093z" />
+                                    <path fill="#EA4335"
+                                        d="M12 4.773c1.762 0 3.344.605 4.587 1.792l3.438-3.438C17.95 1.127 15.234 0 12 0 7.29 0 3.21 2.987 1.254 6.65l3.993 3.093c.953-2.855 3.613-4.97 6.753-4.97z" />
+                                </svg>
+                                <span>Continue with Google</span>
+                            </button>
+
+                            <button type="button" class="social-btn" id="facebookBtn">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="12" fill="#1877F2" />
+                                    <path
+                                        d="M15.12 12.355h-2.207v7.928h-3.282v-7.928H8.188V9.562h1.443V7.729c0-1.192.566-3.058 3.058-3.058l2.246.009v2.71h-1.629c-.268 0-.644.134-.644.704v1.468h2.3l-.284 2.793z"
+                                        fill="white" />
+                                </svg>
+                                <span>Continue with Facebook</span>
+                            </button>
+
+                            <button type="button" class="social-btn" id="appleBtn">
+                                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z" />
+                                </svg>
+                                <span>Continue with Apple</span>
+                            </button>
+                        </div>
+
+                    </div>
+                    <p class="account-switch login-switch">Don't have an account? <button type="button" id="registerLink">Sign up</button></p>
+                    <p class="account-switch register-switch hidden">Already have an account? <button type="button" id="loginLink">Login</button></p>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script type="module" src="../assets/js/auth.js"></script>
+</body>
+
+</html>

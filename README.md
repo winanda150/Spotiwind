@@ -61,14 +61,12 @@ Firestore menjadi sumber data utama, bukan Firebase Realtime Database. Model dat
 
 ```text
 .
-├── desktop.html                 # Entry point desktop saat ini
-├── mobile.html                  # Entry point mobile saat ini
-├── index.html                   # Entry point umum
+├── index.html                   # Router redirect otomatis berdasarkan ukuran layar
 ├── frontend/
 │   ├── public/                  # Logo, gambar, audio, dan manifest katalog
 │   └── src/
-│       ├── assets/              # CSS dan JavaScript UI
-│       ├── pages/               # Halaman mobile
+│       ├── assets/              # CSS (index.css, auth.css, home-desktop.css, home-mobile.css, dll) & JS (index.js, auth.js, home-desktop.js, home-mobile.js, dll)
+│       ├── pages/               # Halaman aplikasi (home-desktop.html, home-mobile.html, auth.html, search, radio, library, account, notifications, artist)
 │       └── services/            # Auth, catalog, player, library, dan service lain
 ├── database/
 │   ├── index.js                 # Entry point Cloud Functions
@@ -95,7 +93,7 @@ Urutan bacaan yang disarankan adalah `PRD.md` untuk scope, `DESIGN.md` untuk UI,
 
 ## Pengembangan Lokal
 
-Untuk mencoba UI saat ini, buka `index.html`, `desktop.html`, atau `mobile.html` melalui local server. Service Firebase Functions menggunakan Node.js 18 dan memiliki perintah berikut dari folder `database/`:
+Untuk mencoba UI saat ini, buka `index.html` (router otomatis) atau langsung ke `frontend/src/pages/home-desktop.html` / `frontend/src/pages/home-mobile.html` melalui local server. Service Firebase Functions menggunakan Node.js 18 dan memiliki perintah berikut dari folder `database/`:
 
 ```bash
 npm install

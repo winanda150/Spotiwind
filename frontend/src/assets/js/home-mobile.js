@@ -48,7 +48,7 @@ let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halama
 let activePageCleanup = null;
 let pageLoadSequence = 0;
 
-let previousPageUrl = 'mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
+let previousPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
 let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Map();
@@ -604,15 +604,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Logout Button
-        if (target.closest('#logoutBtn, .sidebar-logout-item')) {
+        // 2. Auth Button (Log In / Log Out)
+        if (target.closest('#logoutBtn, .sidebar-logout-item, #sidebarAuthBtn')) {
             e.preventDefault();
             e.stopPropagation();
             closeSidebar();
-            signOut(auth).catch(error => {
-                console.error("Logout Error:", error);
-                showToast("Failed to log out. Please try again.");
-            });
+            const user = auth.currentUser;
+            if (user) {
+                signOut(auth).then(() => {
+                    showToast("Logged out successfully.");
+                }).catch(error => {
+                    console.error("Logout Error:", error);
+                    showToast("Failed to log out. Please try again.");
+                });
+            } else {
+                window.location.href = 'auth.html';
+            }
             return;
         }
 
@@ -649,7 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const user = auth.currentUser;
         const btn = e.currentTarget;
 
-        if (!user || !currentSongData || !btn) {
+        if (!user) {
+            showToast("Please log in to save favorite songs.");
+            return;
+        }
+
+        if (!currentSongData || !btn) {
             return;
         }
 
@@ -933,13 +945,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         const songsGrid = document.getElementById('artistSongsGrid');
         if (!songsGrid) return false; // Indicate failure if grid not found
 
-        // Extract the artist's folder name from their photo path. This is more reliable than using the name,
-        // especially for collaborations where folder names might differ.
-        const photoPathParts = artist.photo.split('/');
-        const artistFolderName = photoPathParts.length > 3 ? decodeURIComponent(photoPathParts[3]) : artist.name; // Fallback to name
+        const photoPathParts = artist.photo ? artist.photo.split('/') : [];
+        const elemenIdx = photoPathParts.indexOf('Elemen');
+        const artistFolderName = elemenIdx !== -1 && photoPathParts[elemenIdx + 1] ? decodeURIComponent(photoPathParts[elemenIdx + 1]) : artist.name;
 
         // Filter songs by checking if their audio path is within the artist's specific folder.
-        // This is the key to solving the duplicate song issue for collaborations.
         const artistSongs = getLocalArtistCatalog(indonesianSongsPlaylist, artist);
 
         artistPageCurrentSongs = artistSongs; // Update context for playback
@@ -1287,7 +1297,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     };
 
     let lastGreetingHour = -1;
-    let greetingName = 'User';
+    let greetingName = 'Guest';
     const updateGreeting = () => {
         const greetingBadge = document.getElementById('greetingBadge');
         if (!greetingBadge) return;
@@ -1319,12 +1329,38 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
 
     };
 
+    const initializeGuestUI = () => {
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (avatarEl) {
+            avatarEl.src = `https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true`;
+        }
+        const sidebarName = document.getElementById('sidebarUserName');
+        const sidebarEmail = document.getElementById('sidebarUserEmail');
+        if (sidebarName) sidebarName.textContent = 'Guest';
+        if (sidebarEmail) sidebarEmail.textContent = 'Sign in for full access';
+
+        greetingName = 'Guest';
+        lastGreetingHour = -1;
+        updateGreeting();
+
+        updateLikedSongsCount([]);
+
+        const notificationBadge = document.getElementById('notificationBadge');
+        if (notificationBadge) notificationBadge.classList.add('hidden');
+
+        const authBtnText = document.getElementById('sidebarAuthText');
+        if (authBtnText) authBtnText.textContent = 'Log In / Sign Up';
+    };
+
     /**
      * [NEW] Updates all user-specific UI elements like avatar and name.
      * @param {object} user - The Firebase user object.
      */
     const initializeUserUI = (user) => {
-        if (!user) return;
+        if (!user) {
+            initializeGuestUI();
+            return;
+        }
 
         updateUserAvatar(user, document.getElementById('sidebarUserAvatar'));
 
@@ -1336,6 +1372,9 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         updateGreeting();
         if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
         if (sidebarEmail) sidebarEmail.textContent = user.email || '';
+
+        const authBtnText = document.getElementById('sidebarAuthText');
+        if (authBtnText) authBtnText.textContent = 'Log Out';
     };
 
     const loadStylesheet = (href, currentLink) => {
@@ -1363,7 +1402,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         updateSidebarActiveState(page);
 
         // [FIX] Logika baru untuk navigasi kembali ke Home
-        if (page === 'mobile.html') {
+        if (page === 'home-mobile.html' || page === 'mobile.html') {
             if (initialHomeContent) {
                 contentContainer.style.opacity = '0';
 
@@ -1411,7 +1450,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 contentContainer.style.opacity = '1';
             } else {
                 // Fallback jika cache kosong, lakukan reload penuh
-                window.location.href = 'mobile.html';
+                window.location.href = 'home-mobile.html';
             }
             return; // Hentikan eksekusi lebih lanjut
         }
@@ -1459,33 +1498,33 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                 // [NEW] Dynamically load notification page CSS
                 if (page.includes('search-mobile.html')) {
                     searchPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/search-mobile.css',
+                        '../assets/css/search-mobile.css',
                         searchPageStyleLink
                     );
                 } else if (page.includes('notifications-mobile.html')) {
                     notificationPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/notifications-mobile.css',
+                        '../assets/css/notifications-mobile.css',
                         notificationPageStyleLink
                     );
                 } else if (page.includes('artist-mobile.html')) {
                     artistPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/artist-mobile.css',
+                        '../assets/css/artist-mobile.css',
                         artistPageStyleLink
                     );
                 } else if (page.includes('library-mobile.html')) {
                     // [NEW] Dynamically load library page CSS
                     libraryPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/library-mobile.css',
+                        '../assets/css/library-mobile.css',
                         libraryPageStyleLink
                     );
                 } else if (page.includes('account-mobile.html')) {
                     accountPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/account-mobile.css',
+                        '../assets/css/account-mobile.css',
                         accountPageStyleLink
                     );
                 } else if (page.includes('radio-mobile.html')) {
                     radioPageStyleLink = await loadStylesheet(
-                        'frontend/src/assets/css/radio-mobile.css',
+                        '../assets/css/radio-mobile.css',
                         radioPageStyleLink
                     );
                 } else {
@@ -1592,7 +1631,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
                             targetNavItem.classList.add('active');
                         } else {
                             // Fallback to home if previous page is not in nav bar
-                            document.querySelector('.mobile-bottom-nav .nav-item[data-target="mobile.html"]')?.classList.add('active');
+                            document.querySelector('.mobile-bottom-nav .nav-item[data-target="home-mobile.html"]')?.classList.add('active');
                         }
 
                         await loadPageContent(previousPageUrl);
@@ -1681,7 +1720,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     const navigateToArtistPage = (artist) => {
         homeScrollPosition = document.documentElement.scrollTop;
         artistDataForPageLoad = artist;
-        loadPageContent('frontend/src/pages/artist-mobile.html');
+        loadPageContent('artist-mobile.html');
     };
 
     /**
@@ -1691,11 +1730,11 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
         // Store current scroll position before navigating
         homeScrollPosition = document.documentElement.scrollTop;
         // Call the main page loader
-        loadPageContent('frontend/src/pages/notifications-mobile.html');
+        loadPageContent('notifications-mobile.html');
     };
 
     // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
-    const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke desktop.html
+    const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke home-desktop.html
         const overlay = document.getElementById('pageTransition');
 
         // Immediately hide the main container to avoid a messy look during resize
@@ -1737,7 +1776,7 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768 && !isNavigating) {
             isNavigating = true;
-            navigateTo('desktop.html');
+            navigateTo('home-desktop.html');
         }
     });
 
@@ -1788,173 +1827,153 @@ window.spotiwind = {
         }
     });
 
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // Protection: If opened on Desktop, redirect back to the desktop page
-            if (window.innerWidth > 768) {
-                navigateTo('desktop.html');
-                return;
+    // Event Listeners for mobile player controls
+    const togglePlayHandler = async () => {
+        if (activeAudio.src && activeAudio.src !== "") {
+            try {
+                if (activeAudio.paused) await activeAudio.play();
+                else activeAudio.pause();
+            } catch (err) { console.error("Toggle Play error:", err); }
+        } else if (currentPlaylist.length > 0) {
+            triggerSongByIndex(0);
+        }
+    };
+
+    document.getElementById('mobileMainPlayBtn')?.addEventListener('click', togglePlayHandler);
+    document.getElementById('mobileLoveBtn')?.addEventListener('click', toggleLike);
+
+    // --- FULL SCREEN PLAYER LOGIC ---
+    const fullPlayer = document.getElementById('mobileFullPlayer');
+    const miniPlayer = document.getElementById('mobilePlayerBar');
+    const closeFullBtn = document.getElementById('closeFullPlayer');
+
+    const openFullPlayer = () => {
+        fullPlayer?.classList.add('active');
+        document.body.classList.add('full-player-open');
+    };
+
+    const closeFullPlayer = () => {
+        fullPlayer?.classList.remove('active');
+        document.body.classList.remove('full-player-open');
+    };
+
+    miniPlayer?.addEventListener('click', (e) => {
+        if (!e.target.closest('button')) {
+            openFullPlayer();
+        }
+    });
+
+    closeFullBtn?.addEventListener('click', closeFullPlayer);
+
+    // Controls in Full Player
+    document.getElementById('fullMainPlayBtn')?.addEventListener('click', togglePlayHandler);
+    document.getElementById('fullPrevBtn')?.addEventListener('click', window.playPrevious);
+    document.getElementById('fullNextBtn')?.addEventListener('click', window.playNext);
+    document.getElementById('fullLoveBtn')?.addEventListener('click', toggleLike);
+
+    document.getElementById('fullShuffleBtn')?.addEventListener('click', (e) => {
+        isShuffle = !isShuffle;
+        const btn = e.currentTarget;
+        btn.classList.add('btn-pop');
+        setTimeout(() => btn.classList.remove('btn-pop'), 400);
+        btn.classList.toggle('active', isShuffle);
+
+        if (isShuffle) {
+            isRepeat = false;
+            document.getElementById('fullRepeatBtn')?.classList.remove('active');
+
+            if (unshuffledPlaylist.length > 1 && currentSongData) {
+                const currentSong = unshuffledPlaylist.find(s => String(s.id) === String(currentSongData.id));
+                let others = unshuffledPlaylist.filter(s => String(s.id) !== String(currentSongData.id));
+                
+                for (let i = others.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [others[i], others[j]] = [others[j], others[i]];
+                }
+                
+                currentPlaylist = currentSong ? [currentSong, ...others] : others;
+                currentSongIndex = 0;
+                syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
             }
+            renderUpNext();
+        }
+        setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
+    });
 
-            hideLoadingOverlay();
+    document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {
+        isRepeat = !isRepeat;
+        if (isRepeat) isShuffle = false;
+        setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
+        const btn = e.currentTarget;
+        btn.classList.add('btn-pop');
+        setTimeout(() => btn.classList.remove('btn-pop'), 400);
+        btn.classList.toggle('active', isRepeat);
+        document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
+    });
 
-            // [FIX] Call the new initialization functions
+    // Progress bar seeking for Full Player
+    const fullProgressTrack = document.getElementById('fullProgressTrack');
+    if (fullProgressTrack) {
+        const seek = (e) => {
+            if (!activeAudio.duration || activeAudio.duration === Infinity) return;
+            const rect = fullProgressTrack.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const x = clientX - rect.left;
+            const percentage = Math.max(0, Math.min(1, x / rect.width));
+            
+            document.getElementById('fullProgressBar').style.width = `${percentage * 100}%`;
+            document.getElementById('fullCurrentTime').textContent = formatTime(percentage * activeAudio.duration);
+            
+            activeAudio.currentTime = percentage * activeAudio.duration;
+        };
+
+        const startDragging = (e) => {
+            isDragging = true;
+            document.body.classList.add('is-dragging-progress');
+            seek(e);
+        };
+
+        const moveDragging = (e) => {
+            if (isDragging) {
+                if (e.cancelable) e.preventDefault();
+                seek(e);
+            }
+        };
+
+        const stopDragging = () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.classList.remove('is-dragging-progress');
+            }
+        };
+
+        fullProgressTrack.addEventListener('touchstart', startDragging, { passive: false });
+        window.addEventListener('touchmove', moveDragging, { passive: false });
+        window.addEventListener('touchend', stopDragging);
+        
+        fullProgressTrack.addEventListener('mousedown', startDragging);
+        window.addEventListener('mousemove', moveDragging);
+        window.addEventListener('mouseup', stopDragging);
+        
+        fullProgressTrack.addEventListener('click', seek);
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        // Protection: If opened on Desktop, redirect back to desktop page
+        if (window.innerWidth > 768) {
+            navigateTo('home-desktop.html');
+            return;
+        }
+
+        hideLoadingOverlay();
+
+        if (user) {
             initializeUserUI(user);
             loadLikedSongsCount(user.uid);
-
-            // [NEW] Setup unread notification badge listener
             setupUnreadNotificationsListener(user.uid);
-
             setupUserPresence(user);
-            initializeData(); // Load API data
-            // Event Listeners for mobile player controls
-            // Listener for Hero Card Play button 
-            const togglePlayHandler = async () => {
-                // [FIX] Logic changed to directly control the global audio object,
-                // removing dependency on `currentPlayingBtn` which becomes invalid after page navigation.
-                if (activeAudio.src && activeAudio.src !== "") {
-                    try {
-                        if (activeAudio.paused) await activeAudio.play();
-                        else activeAudio.pause();
-                    } catch (err) { console.error("Toggle Play error:", err); }
-                } else if (currentPlaylist.length > 0) {
-                    // If no song is playing yet, play the first song from the current context.
-                    triggerSongByIndex(0);
-                }
-            };
-
-            document.getElementById('mobileMainPlayBtn')?.addEventListener('click', togglePlayHandler);
-            document.getElementById('mobileLoveBtn')?.addEventListener('click', toggleLike);
-
-            // --- FULL SCREEN PLAYER LOGIC ---
-            const fullPlayer = document.getElementById('mobileFullPlayer');
-            const miniPlayer = document.getElementById('mobilePlayerBar');
-            const closeFullBtn = document.getElementById('closeFullPlayer');
-
-            const openFullPlayer = () => {
-                fullPlayer.classList.add('active');
-                document.body.classList.add('full-player-open');
-            };
-
-            const closeFullPlayer = () => {
-                fullPlayer.classList.remove('active');
-                document.body.classList.remove('full-player-open');
-            };
-
-            // Open full player on mini player bar click (unless a button inside is clicked)
-            miniPlayer?.addEventListener('click', (e) => {
-                if (!e.target.closest('button')) {
-                    openFullPlayer();
-                }
-            });
-
-            closeFullBtn?.addEventListener('click', closeFullPlayer);
-
-            // Controls in Full Player
-            document.getElementById('fullMainPlayBtn')?.addEventListener('click', togglePlayHandler);
-            document.getElementById('fullPrevBtn')?.addEventListener('click', window.playPrevious);
-            document.getElementById('fullNextBtn')?.addEventListener('click', window.playNext);
-            document.getElementById('fullLoveBtn')?.addEventListener('click', toggleLike);
-
-            document.getElementById('fullShuffleBtn')?.addEventListener('click', (e) => {
-                isShuffle = !isShuffle;
-                const btn = e.currentTarget;
-                btn.classList.add('btn-pop');
-                setTimeout(() => btn.classList.remove('btn-pop'), 400);
-                btn.classList.toggle('active', isShuffle);
-
-                if (isShuffle) {
-                    // When turning shuffle ON: Shuffle the playlist and re-render the list.
-                    isRepeat = false;
-                    document.getElementById('fullRepeatBtn')?.classList.remove('active');
-
-                    if (unshuffledPlaylist.length > 1 && currentSongData) {
-                        const currentSong = unshuffledPlaylist.find(s => String(s.id) === String(currentSongData.id));
-                        let others = unshuffledPlaylist.filter(s => String(s.id) !== String(currentSongData.id));
-                        
-                        for (let i = others.length - 1; i > 0; i--) {
-                            const j = Math.floor(Math.random() * (i + 1));
-                            [others[i], others[j]] = [others[j], others[i]];
-                        }
-                        
-                        currentPlaylist = currentSong ? [currentSong, ...others] : others;
-                        currentSongIndex = 0;
-                        // [FIX] Sync urutan playlist yang sudah diacak ke playerService
-                        // agar getNextSong() saat onended menggunakan urutan shuffled yang benar
-                        syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
-                    }
-                    renderUpNext();
-                }
-                setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
-                // When turning shuffle OFF, we only toggle the button state.
-                // The playlist order remains shuffled, and we don't call renderUpNext() to prevent the "vibration".
-            });
-
-            document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {
-                isRepeat = !isRepeat;
-                if (isRepeat) isShuffle = false; // Turn off shuffle if repeat is active
-                setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
-                const btn = e.currentTarget;
-                btn.classList.add('btn-pop');
-                setTimeout(() => btn.classList.remove('btn-pop'), 400);
-                btn.classList.toggle('active', isRepeat);
-                document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
-            });
-
-            // Progress bar seeking for Full Player
-            const fullProgressTrack = document.getElementById('fullProgressTrack');
-            if (fullProgressTrack) {
-                const seek = (e) => {
-                    if (!activeAudio.duration || activeAudio.duration === Infinity) return;
-                    const rect = fullProgressTrack.getBoundingClientRect();
-                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const x = clientX - rect.left;
-                    const percentage = Math.max(0, Math.min(1, x / rect.width));
-                    
-                    // Update UI instantly when dragging
-                    document.getElementById('fullProgressBar').style.width = `${percentage * 100}%`;
-                    document.getElementById('fullCurrentTime').textContent = formatTime(percentage * activeAudio.duration);
-                    
-                    activeAudio.currentTime = percentage * activeAudio.duration;
-                };
-
-                const startDragging = (e) => {
-                    isDragging = true;
-                    document.body.classList.add('is-dragging-progress');
-                    seek(e);
-                };
-
-                const moveDragging = (e) => {
-                    if (isDragging) {
-                        if (e.cancelable) e.preventDefault();
-                        seek(e);
-                    }
-                };
-
-                const stopDragging = () => {
-                    if (isDragging) {
-                        isDragging = false;
-                        document.body.classList.remove('is-dragging-progress');
-                    }
-                };
-
-                fullProgressTrack.addEventListener('touchstart', startDragging, { passive: false });
-                window.addEventListener('touchmove', moveDragging, { passive: false });
-                window.addEventListener('touchend', stopDragging);
-                
-                // Add Mouse support for drag (important for testing on desktop/tablet)
-                fullProgressTrack.addEventListener('mousedown', startDragging);
-                window.addEventListener('mousemove', moveDragging);
-                window.addEventListener('mouseup', stopDragging);
-                
-                // Keep regular click enabled
-                fullProgressTrack.addEventListener('click', seek);
-            }
         } else {
-            // Setelah sesi berakhir, arahkan kembali ke halaman login.
-            window.location.href = 'index.html';
-
-            // [NEW] Clean up unread notification listener on logout
+            initializeGuestUI();
             if (unreadNotificationsListener) {
                 unreadNotificationsListener();
                 unreadNotificationsListener = null;
@@ -1964,6 +1983,8 @@ window.spotiwind = {
             }
             clearFriendPresenceListeners();
         }
+
+        initializeData(); // Always load music data for both guest and authenticated users
     });
 
         // [FIX] Move listener attachment to the end of DOMContentLoaded

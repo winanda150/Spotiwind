@@ -38,11 +38,9 @@ service cloud.firestore {
 
     match /search_stats/{type}/items/{itemId} {
       allow read: if true;
-      allow create: if isSignedIn()
-        && request.resource.data.type == type
+      allow create: if request.resource.data.type == type
         && request.resource.data.searchCount == 1;
-      allow update: if isSignedIn()
-        && request.resource.data.type == type
+      allow update: if request.resource.data.type == type
         && request.resource.data.searchCount == resource.data.searchCount + 1;
     }
 
