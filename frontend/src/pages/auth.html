@@ -3,6 +3,16 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
+        (function() {
+            var isGitHub = window.location.pathname.includes('/spotiwind-music');
+            var basePath = isGitHub ? '/spotiwind-music/frontend/src/pages/' : '/frontend/src/pages/';
+            var base = document.createElement('base');
+            base.href = window.location.origin + basePath;
+            document.head.appendChild(base);
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotiwind - Login & Register</title>
     <meta name="description"
