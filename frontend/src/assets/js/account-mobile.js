@@ -39,7 +39,11 @@ const updateAccountUserInfo = (user) => {
                 </svg>
                 <span>Log In / Sign Up</span>`;
             logoutButton.onclick = () => {
-                window.location.href = 'auth.html';
+                if (typeof window.navigateToAuthPage === 'function') {
+                    window.navigateToAuthPage('login');
+                } else {
+                    window.location.href = 'auth-mobile.html';
+                }
             };
         }
         return;
@@ -83,7 +87,11 @@ const bindAccountInteractions = () => {
         editProfileBtn.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) {
-                window.location.href = 'auth.html';
+                if (typeof window.navigateToAuthPage === 'function') {
+                    window.navigateToAuthPage('login');
+                } else {
+                    window.location.href = 'auth-mobile.html';
+                }
                 return;
             }
             showPageToast('Edit profile is coming soon');
@@ -95,7 +103,11 @@ const bindAccountInteractions = () => {
         editAvatarBtn.addEventListener('click', () => {
             const user = auth.currentUser;
             if (!user) {
-                window.location.href = 'auth.html';
+                if (typeof window.navigateToAuthPage === 'function') {
+                    window.navigateToAuthPage('login');
+                } else {
+                    window.location.href = 'auth-mobile.html';
+                }
                 return;
             }
             showPageToast('Avatar upload is coming soon');

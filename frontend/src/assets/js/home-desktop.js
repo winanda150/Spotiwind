@@ -1255,60 +1255,65 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         }
     });
 
-    // Setup click on user profile card to login (if guest) or logout (if logged in)
-    const userProfileEl = document.querySelector('.user-profile');
-    if (userProfileEl) {
-        userProfileEl.style.cursor = 'pointer';
-        userProfileEl.title = 'Click to log in or manage account';
-        userProfileEl.addEventListener('click', () => {
-            const user = auth.currentUser;
-            if (!user) {
-                window.location.href = 'auth.html';
-            } else {
-                if (confirm(`Logged in as ${user.email}. Do you want to log out?`)) {
-                    signOut(auth).catch(err => console.error("Logout error:", err));
-                }
+    // ==========================================================================
+    // Desktop SPA Router & Dynamic Subpage Loader
+    // ==========================================================================
+    let initialDesktopHomeContent = null;
+    let desktopAuthPageStyleLink = null;
+    let activeDesktopPageCleanup = null;
+    let desktopPageLoadSequence = 0;
+    let desktopPreviousPageUrl = 'home-desktop.html';
+    let desktopCurrentPageUrl = 'home-desktop.html';
+
+    const loadDesktopStylesheet = (href, currentLinkElement) => {
+        return new Promise((resolve) => {
+            if (currentLinkElement && currentLinkElement.parentNode) {
+                currentLinkElement.parentNode.removeChild(currentLinkElement);
             }
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            link.onload = () => resolve(link);
+            link.onerror = () => {
+                console.error(`Failed to load desktop stylesheet: ${href}`);
+                resolve(link);
+            };
+            document.head.appendChild(link);
         });
-    }
+    };
 
-    onAuthStateChanged(auth, async (user) => {
-        // Protection: If a user on a mobile device tries to access the desktop page
-        if (window.innerWidth <= 768) {
-            navigateTo('home-mobile.html');
-            return;
-        }
+    const updateDesktopAppUrl = (route, title, state = null, pushState = true) => {
+        try {
+            if (title) document.title = title;
+            if (pushState) {
+                window.history.pushState(state || { route }, title || document.title, route);
+            } else {
+                window.history.replaceState(state || { route }, title || document.title, route);
+            }
+        } catch (e) {}
+    };
 
-        // Wait until the page resources finish loading before hiding the dark transition layer.
-        hideLoadingOverlay();
+    const initializeDesktopDashboardData = () => {
+        fetchWithContinuousRetry(fetchTrendingMusic);
+        fetchWithContinuousRetry(fetchTopArtists);
+    };
 
-        const initializeData = () => {
-            fetchWithContinuousRetry(fetchTrendingMusic);
-            fetchWithContinuousRetry(fetchTopArtists);
-        };
-
+    const initializeDesktopUserUI = async (user) => {
         if (user) {
             console.log("Logged in as:", user.email);
-
-            // Update username
-            const userNameElement = document.getElementById('userName');
             greetingName = user.displayName || user.email?.split('@')[0] || 'User';
             lastGreetingHour = -1;
             updateGreeting();
+
+            const userNameElement = document.getElementById('userName');
             if (userNameElement) {
                 userNameElement.textContent = user.displayName || user.email.split('@')[0];
             }
 
-            // Setup presence for the currently logged-in user
             setupUserPresence(user);
-
-            // Run activity rendering after the user is confirmed to be logged in
             renderFriendActivity();
-
-            // Load the user's playlists
             loadUserPlaylists(user.uid);
 
-            // Periksa dan tampilkan status premium
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
                 const premiumStatus = await isUserPremium(user.uid);
@@ -1319,29 +1324,23 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 }
             }
 
-            // Update profile picture (Avatar) with a default fallback and automatic retry logic
             const avatarElement = document.getElementById('userAvatar');
             if (avatarElement) {
                 const nameForAvatar = user.displayName || user.email.split('@')[0];
                 const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
                 const originalPhotoURL = user.photoURL;
-                
                 let originalRetry = 0;
                 const maxRetries = 2;
 
                 avatarElement.referrerPolicy = "no-referrer";
-
                 avatarElement.onerror = function() {
                     if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
                         originalRetry++;
-                        console.warn(`Failed to load original photo, retrying (${originalRetry}/${maxRetries})...`);
                         setTimeout(() => {
                             const sep = originalPhotoURL.includes('?') ? '&' : '?';
                             this.src = `${originalPhotoURL}${sep}t=${Date.now()}`;
                         }, 2000);
-                    } 
-                    else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
-                        console.warn("Original photo failed to load permanently, switching to default...");
+                    } else if (this.src !== defaultAvatar && !this.src.includes('ui-avatars.com')) {
                         this.src = defaultAvatar;
                     } else {
                         this.onerror = null;
@@ -1350,9 +1349,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
 
                 avatarElement.src = originalPhotoURL || defaultAvatar;
             }
-
         } else {
-            // Guest mode
             greetingName = 'Guest';
             lastGreetingHour = -1;
             updateGreeting();
@@ -1374,14 +1371,245 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             }
             if (document.getElementById('premiumBadge')) document.getElementById('premiumBadge').classList.add('hidden');
         }
+    };
 
-        // Always initialize music data and search for all users
-        initializeData();
-        initDesktopSearch();
+    const setupDesktopSidebarEvents = () => {
+        const userProfileEl = document.querySelector('.user-profile');
+        if (userProfileEl) {
+            userProfileEl.style.cursor = 'pointer';
+            userProfileEl.title = 'Click to log in or manage account';
+            userProfileEl.onclick = () => {
+                const user = auth.currentUser;
+                if (!user) {
+                    navigateToDesktopAuthPage('login');
+                } else {
+                    if (confirm(`Logged in as ${user.email}. Do you want to log out?`)) {
+                        signOut(auth).catch(err => console.error("Logout error:", err));
+                    }
+                }
+            };
+        }
+
+        const addPlaylistBtn = document.querySelector('.add-playlist-btn');
+        if (addPlaylistBtn) {
+            addPlaylistBtn.onclick = () => {
+                const user = auth.currentUser;
+                if (!user) {
+                    navigateToDesktopAuthPage('login');
+                } else {
+                    handleCreatePlaylist();
+                }
+            };
+        }
+    };
+
+    const loadDesktopPageContent = async (page, options = {}) => {
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        if (!dashboardContainer) return;
+        const navigationId = ++desktopPageLoadSequence;
+
+        const {
+            pushState = true,
+            route = null,
+            title = null,
+            initialTab = 'login',
+            state = null
+        } = (typeof options === 'object' && options !== null) ? options : {};
+
+        let targetRoute = route;
+        let targetTitle = title;
+        if (!targetRoute) {
+            if (page === 'home-desktop.html') {
+                targetRoute = '/';
+                targetTitle = 'Spotiwind - Feel The Music, Ride The Wind';
+            } else if (page.includes('auth-desktop.html')) {
+                const isReg = initialTab === 'register';
+                targetRoute = isReg ? '/register' : '/login';
+                targetTitle = isReg ? 'Register | Spotiwind' : 'Login | Spotiwind';
+            }
+        }
+
+        if (targetRoute) {
+            updateDesktopAppUrl(targetRoute, targetTitle, state || { page, route: targetRoute }, pushState);
+        }
+
+        // Return to Home Dashboard
+        if (page === 'home-desktop.html') {
+            dashboardContainer.style.opacity = '0';
+            await new Promise(res => setTimeout(res, 200));
+
+            if (typeof activeDesktopPageCleanup === 'function') {
+                activeDesktopPageCleanup();
+                activeDesktopPageCleanup = null;
+            }
+
+            document.body.classList.remove('is-desktop-auth-view');
+
+            if (desktopAuthPageStyleLink && desktopAuthPageStyleLink.parentNode) {
+                desktopAuthPageStyleLink.parentNode.removeChild(desktopAuthPageStyleLink);
+                desktopAuthPageStyleLink = null;
+            }
+
+            if (!initialDesktopHomeContent) {
+                try {
+                    const response = await fetch(`${window.location.origin}/frontend/src/pages/home-desktop.html`);
+                    if (response.ok) {
+                        const text = await response.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(text, 'text/html');
+                        const fetchedContainer = doc.querySelector('.dashboard-container');
+                        if (fetchedContainer) {
+                            initialDesktopHomeContent = fetchedContainer.innerHTML;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch home template:", e);
+                }
+            }
+
+            if (initialDesktopHomeContent) {
+                dashboardContainer.innerHTML = initialDesktopHomeContent;
+                initializeDesktopDashboardData();
+                setupDesktopSidebarEvents();
+                initDesktopSearch();
+                initializeDesktopUserUI(auth.currentUser);
+                dashboardContainer.style.opacity = '1';
+                desktopCurrentPageUrl = 'home-desktop.html';
+            }
+            return;
+        }
+
+        // Navigating to Auth or other subpages
+        if (!initialDesktopHomeContent && dashboardContainer && (desktopPreviousPageUrl === 'home-desktop.html' || !desktopPreviousPageUrl)) {
+            initialDesktopHomeContent = dashboardContainer.innerHTML;
+        }
+
+        if (desktopCurrentPageUrl && desktopCurrentPageUrl !== page && !page.includes('auth-desktop.html')) {
+            desktopPreviousPageUrl = desktopCurrentPageUrl;
+        }
+        desktopCurrentPageUrl = page;
 
         try {
-            window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', '/');
-        } catch (e) {}
+            dashboardContainer.style.opacity = '0';
+            await new Promise(res => setTimeout(res, 200));
+
+            const pageFileName = page.includes('/') ? page.split('/').pop() : page;
+            const pageFetchUrl = `${window.location.origin}/frontend/src/pages/${pageFileName}`;
+            const response = await fetch(pageFetchUrl);
+            if (!response.ok) throw new Error(`Could not load ${page}`);
+            const text = await response.text();
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const newContent = doc.body.innerHTML;
+
+            if (newContent) {
+                if (navigationId !== desktopPageLoadSequence) return;
+
+                if (page.includes('auth-desktop.html')) {
+                    document.body.classList.add('is-desktop-auth-view');
+                    const cssBase = `${window.location.origin}/frontend/src/assets/css/`;
+                    desktopAuthPageStyleLink = await loadDesktopStylesheet(
+                        `${cssBase}auth-desktop.css`,
+                        desktopAuthPageStyleLink
+                    );
+                } else {
+                    document.body.classList.remove('is-desktop-auth-view');
+                }
+
+                dashboardContainer.innerHTML = newContent;
+                dashboardContainer.scrollTop = 0;
+
+                if (page.includes('auth-desktop.html')) {
+                    try {
+                        const authModule = await import('./auth-desktop.js');
+                        if (authModule && typeof authModule.initAuthDesktopPage === 'function') {
+                            authModule.initAuthDesktopPage({
+                                initialTab: options.initialTab || 'login',
+                                onBack: async () => {
+                                    await loadDesktopPageContent('home-desktop.html', { pushState: true });
+                                },
+                                onSuccess: async (user) => {
+                                    await initializeDesktopUserUI(user);
+                                    await loadDesktopPageContent('home-desktop.html', { pushState: true });
+                                }
+                            });
+                            activeDesktopPageCleanup = authModule.cleanupAuthDesktopPage;
+                        }
+                    } catch (e) {
+                        console.error("Error loading auth-desktop.js module:", e);
+                    }
+                }
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        dashboardContainer.style.opacity = '1';
+                    });
+                });
+            }
+        } catch (error) {
+            console.error("Error loading desktop page content:", error);
+            dashboardContainer.style.opacity = '1';
+        }
+    };
+
+    const navigateToDesktopAuthPage = (initialTab = 'login', shouldPushState = true) => {
+        const isRegister = initialTab === 'register';
+        loadDesktopPageContent('auth-desktop.html', {
+            pushState: shouldPushState,
+            route: isRegister ? '/register' : '/login',
+            title: isRegister ? 'Register | Spotiwind' : 'Login | Spotiwind',
+            initialTab,
+            state: { route: isRegister ? 'register' : 'login' }
+        });
+    };
+
+    window.navigateToDesktopAuthPage = navigateToDesktopAuthPage;
+    window.loadDesktopPageContent = loadDesktopPageContent;
+
+    // Popstate navigation listener for browser Back & Forward buttons
+    window.addEventListener('popstate', (e) => {
+        const state = e.state;
+        const path = window.location.pathname.toLowerCase();
+        if (state?.route === 'login' || state?.route === 'register' || path.endsWith('/login') || path.endsWith('/register')) {
+            const tab = (state?.route === 'register' || path.endsWith('/register')) ? 'register' : 'login';
+            navigateToDesktopAuthPage(tab, false);
+        } else {
+            loadDesktopPageContent('home-desktop.html', { pushState: false });
+        }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+        // Protection: If a user on a mobile device tries to access the desktop page
+        if (window.innerWidth <= 768) {
+            navigateTo('home-mobile.html');
+            return;
+        }
+
+        // Wait until the page resources finish loading before hiding the dark transition layer.
+        hideLoadingOverlay();
+
+        // Initialize User UI, dashboard data, and sidebar event listeners
+        await initializeDesktopUserUI(user);
+        initializeDesktopDashboardData();
+        setupDesktopSidebarEvents();
+        initDesktopSearch();
+
+        // Handle initial route if redirected from auth or direct link
+        const currentPath = window.location.pathname.toLowerCase();
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetTab = urlParams.get('tab');
+        const initialTargetRoute = sessionStorage.getItem('spotiwind_target_route');
+
+        if (currentPath.endsWith('/login') || currentPath.endsWith('/register') || targetTab || initialTargetRoute?.includes('login') || initialTargetRoute?.includes('register')) {
+            const tab = (currentPath.endsWith('/register') || targetTab === 'register' || initialTargetRoute?.includes('register')) ? 'register' : 'login';
+            sessionStorage.removeItem('spotiwind_target_route');
+            navigateToDesktopAuthPage(tab, false);
+        } else {
+            try {
+                window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', '/');
+            } catch (e) {}
+        }
     });
 });
 

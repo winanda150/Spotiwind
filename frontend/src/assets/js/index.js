@@ -17,7 +17,9 @@ const redirectToApp = () => {
 
     const normalizedRoute = cleanRoute.toLowerCase().replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
     if (normalizedRoute === 'auth' || normalizedRoute === 'login' || normalizedRoute === 'register') {
-        window.location.replace('/frontend/src/pages/auth.html');
+        const subTab = normalizedRoute === 'register' ? '?tab=register' : '?tab=login';
+        const targetAuth = `/frontend/src/pages/${isMobile ? 'home-mobile.html' : 'home-desktop.html'}${subTab}`;
+        window.location.replace(targetAuth);
         return;
     }
 

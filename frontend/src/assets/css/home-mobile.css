@@ -20,10 +20,34 @@ html {
     background-color: var(--bg-dark);
 }
 
-* {
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus,
+*:focus-visible,
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+a:focus,
+a:focus-visible {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Universal Autofill Dark Shield (Eliminates white flashes across all inputs) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgba(14, 18, 36, 0.95) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff !important;
+    transition: background-color 50000s ease-in-out 0s !important;
 }
 
 body,
@@ -138,6 +162,17 @@ body.player-active .app-container {
 .sidebar-overlay.is-visible {
     opacity: 1;
     pointer-events: auto;
+}
+
+@media (min-width: 1024px) {
+    .mobile-sidebar,
+    .sidebar-overlay {
+        display: none !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+        transform: translateX(-100%) !important;
+    }
 }
 
 .sidebar-header {
@@ -1759,6 +1794,23 @@ body.player-active .app-container {
     align-items: center;
     z-index: 1000;
     padding-bottom: env(safe-area-inset-bottom);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, visibility 0.3s;
+}
+
+/* Hide Bottom Nav & Player Bar on Auth View for Clean, Focused UI */
+body.is-auth-view .mobile-bottom-nav,
+body.is-auth-view .mobile-player-bar,
+body.is-auth-view .mobile-full-player {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(100%) !important;
+}
+
+body.is-auth-view .app-container,
+body.is-auth-view.player-active .app-container {
+    padding-bottom: 0 !important;
 }
 
 .mobile-bottom-nav .nav-item {

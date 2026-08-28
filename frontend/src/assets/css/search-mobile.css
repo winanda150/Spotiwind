@@ -537,9 +537,10 @@
     height: 45px;
     padding: 0 5rem 0 2.8rem;
     color: white;
-    outline: none;
+    outline: none !important;
     font-size: 0.8rem;
-    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     box-sizing: border-box;
 }
 

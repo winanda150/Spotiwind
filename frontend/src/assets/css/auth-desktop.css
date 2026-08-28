@@ -1,0 +1,917 @@
+/* ==========================================================================
+   Spotiwind Desktop Auth Stylesheet
+   Designed for desktop/widescreen displays with glassmorphism & rich animations
+   ========================================================================== */
+
+:root {
+    color-scheme: dark;
+    --gradient-windstream: linear-gradient(135deg, #FF2D78 0%, #9B4DFF 35%, #4C6EF5 65%, #1FE8C4 100%);
+    --primary-gradient: linear-gradient(to right, #F12E77, #B91EC9, #7D19F5);
+    --accent-magenta: #FF2D78;
+    --accent-violet: #9B4DFF;
+    --accent-blue: #4C6EF5;
+    --accent-teal: #1FE8C4;
+    --accent-color: #B91EC9;
+    
+    --bg-dark: #03030a;
+    --surface-1: rgba(15, 23, 42, 0.75);
+    --surface-2: rgba(26, 31, 56, 0.6);
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-focus: rgba(185, 30, 201, 0.6);
+    --input-bg: rgba(10, 14, 28, 0.7);
+    
+    --text-main: #ffffff;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    
+    --shadow-soft: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 40px -10px rgba(185, 30, 201, 0.35);
+    --shadow-card: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent !important;
+    outline: none !important;
+}
+
+*:focus,
+*:focus-visible,
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+a:focus,
+a:focus-visible {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+html {
+    min-height: 100%;
+    color-scheme: dark;
+    background-color: var(--bg-dark);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+body {
+    min-height: 100vh;
+    height: auto !important;
+    color: var(--text-main);
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+}
+
+button, input {
+    font: inherit;
+    outline: none !important;
+}
+
+button {
+    color: inherit;
+    cursor: pointer;
+    background: none;
+    border: none;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Ensure mobile sidebar drawer & overlay are strictly hidden on desktop auth */
+.mobile-sidebar,
+.sidebar-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transform: translateX(-100%) !important;
+}
+
+/* ==========================================================================
+   Ambient Background Glows & Elements
+   ========================================================================== */
+.ambient-backdrop {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.ambient-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.35;
+    animation: floatGlow 14s ease-in-out infinite alternate;
+}
+
+.glow-1 {
+    top: -10%;
+    left: -10%;
+    width: 480px;
+    height: 480px;
+    background: radial-gradient(circle, rgba(241, 46, 119, 0.25) 0%, rgba(185, 30, 201, 0.08) 70%, transparent 100%);
+}
+
+.glow-2 {
+    bottom: -15%;
+    right: 35%;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(76, 110, 245, 0.35) 0%, rgba(31, 232, 196, 0.1) 70%, transparent 100%);
+    animation-delay: -5s;
+}
+
+.glow-3 {
+    top: 30%;
+    right: -10%;
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(125, 25, 245, 0.3) 0%, rgba(241, 46, 119, 0.08) 70%, transparent 100%);
+    animation-delay: -9s;
+}
+
+.grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, black 40%, transparent 80%);
+}
+
+@keyframes floatGlow {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(40px, -30px) scale(1.1); }
+    100% { transform: translate(-30px, 40px) scale(0.95); }
+}
+
+/* ==========================================================================
+   Strictly Hide Persistent Bottom Player Bar on Desktop Auth
+   ========================================================================== */
+.bottom-player-bar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+body.is-desktop-auth-view .bottom-player-bar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ==========================================================================
+   Desktop Auth Container Layout (Split-Screen)
+   ========================================================================== */
+.auth-desktop-wrapper {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1.15fr 0.95fr;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1.5rem 3.5rem;
+    gap: 3.5rem;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+@media (max-width: 1180px) {
+    .auth-desktop-wrapper {
+        grid-template-columns: 1fr 1fr;
+        padding: 1.5rem 2rem;
+        gap: 2rem;
+    }
+}
+
+/* ==========================================================================
+   Left Showcase Section (Clean Brand Focus)
+   ========================================================================== */
+.showcase-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    position: relative;
+}
+
+.brand-hero-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    position: relative;
+    max-width: 460px;
+    margin: 0 auto;
+}
+
+.brand-hero-logo-container {
+    position: relative;
+    width: clamp(140px, 9vw, 130px);
+    height: clamp(140px, 9vw, 130px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-glow-backdrop {
+    display: none;
+}
+
+.brand-hero-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 0 20px rgba(185, 30, 201, 0.7));
+    animation: floatDesktopLogo 6s ease-in-out infinite alternate;
+}
+
+@keyframes floatDesktopLogo {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+    100% { transform: translateY(0px); }
+}
+
+.brand-hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.brand-hero-name {
+    font-size: clamp(2.2rem, 3.2vw, 3.2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    line-height: 1.05;
+}
+
+.brand-hero-tagline {
+    font-size: clamp(0.625rem, 0.72vw, 0.72rem);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    background: var(--gradient-windstream);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* 3 Horizontal Showcase Feature Cards (Subtle Border Highlight on Hover) */
+.showcase-features-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 440px;
+    margin-top: 1.25rem;
+    user-select: none;
+}
+
+.feature-item-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 5px;
+    padding: 12px 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: border-color 0.25s ease;
+}
+
+.feature-item-pill:hover {
+    border-color: rgba(185, 30, 201, 0.55);
+}
+
+.feature-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(241, 46, 119, 0.16) 0%, rgba(185, 30, 201, 0.22) 100%);
+    border: 1px solid rgba(185, 30, 201, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-magenta);
+    flex-shrink: 0;
+    margin-bottom: 2px;
+}
+
+.feature-item-icon svg {
+    color: #ffffff;
+    width: 16px;
+    height: 16px;
+    filter: drop-shadow(0 0 3px rgba(185, 30, 201, 0.5));
+}
+
+.feature-item-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.feature-item-desc {
+    font-size: 0.675rem;
+    color: var(--text-muted);
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   Right Auth Card Form Section
+   ========================================================================== */
+.auth-form-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.auth-glass-card {
+    width: 100%;
+    max-width: 480px;
+    height: min(650px, calc(100vh - 3.5rem));
+    height: min(650px, calc(100dvh - 3.5rem));
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(160deg, rgba(20, 24, 45, 0.88) 0%, rgba(12, 16, 32, 0.92) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    padding: 2rem 2.25rem 1.75rem;
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Pinned Header Area (Fixed at top of card) */
+.auth-card-pinned-header {
+    flex-shrink: 0;
+    width: 100%;
+    position: relative;
+    z-index: 5;
+    background: transparent;
+}
+
+/* Scrollable Form Body Area (Invisible Clean Scroll) */
+.auth-card-body-scroll {
+    flex: 1 1 auto;
+    width: 100%;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 0.75rem;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+.auth-card-body-scroll::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.card-top-glow {
+    display: none;
+}
+
+/* Floating Top-Left Back Button (Identical to Mobile Pill) */
+.floating-back-to-home-link {
+    position: fixed;
+    top: 2rem;
+    left: 2.5rem;
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 0.825rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.floating-back-to-home-link:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateX(-2px);
+}
+
+.floating-back-to-home-link:active {
+    transform: scale(0.96);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.card-title-group {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.card-title {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    text-align: center;
+}
+
+.card-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Tab Switcher (Segmented Control) */
+.auth-tabs-nav {
+    display: flex;
+    background: rgba(5, 8, 18, 0.75);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 1.35rem;
+    position: relative;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 9px 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+}
+
+.tab-btn:focus,
+.tab-btn:focus-visible,
+.tab-btn:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.tab-btn.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(241, 46, 119, 0.25) 0%, rgba(185, 30, 201, 0.25) 100%);
+    border: 1px solid rgba(185, 30, 201, 0.4);
+    box-shadow: none !important;
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--text-secondary);
+}
+
+/* Social Buttons */
+.social-auth-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.social-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.social-login-btn svg {
+    width: 21px;
+    height: 21px;
+}
+
+.social-login-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.social-login-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 1.25rem;
+}
+
+.divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+}
+
+.divider-text {
+    font-size: 0.775rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+}
+
+/* Form Groups & Inputs */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.form-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+.input-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: 0.01em;
+}
+
+.input-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-icon-left {
+    position: absolute;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    pointer-events: none;
+    transition: color 0.2s ease;
+}
+
+.input-icon-left svg {
+    width: 18px;
+    height: 18px;
+}
+
+.auth-input {
+    width: 100%;
+    height: 48px;
+    background: var(--input-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 0 2.8rem 0 2.75rem;
+    color: #fff;
+    font-size: 0.925rem;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Prevent White Flash on Browser Autofill */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgba(14, 18, 36, 0.95) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff !important;
+    transition: background-color 50000s ease-in-out 0s, border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.auth-input.no-right-icon {
+    padding-right: 1rem;
+}
+
+.auth-input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+    font-size: 0.875rem;
+}
+
+.auth-input:focus {
+    outline: none !important;
+    border-color: rgba(185, 30, 201, 0.8);
+    background: rgba(14, 18, 36, 0.9);
+    box-shadow: 0 0 0 3px rgba(185, 30, 201, 0.2);
+}
+
+.auth-input:focus + .input-icon-left,
+.input-box:focus-within .input-icon-left {
+    color: var(--accent-magenta);
+}
+
+/* Password Toggle */
+.pwd-toggle-btn {
+    position: absolute;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border-radius: 6px;
+    background: none;
+    border: none;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pwd-toggle-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.pwd-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.pwd-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Form Helper & Checkboxes */
+.form-options-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    margin-top: 2px;
+}
+
+.custom-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.custom-checkbox-label input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkbox-visual {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--glass-border);
+    background: var(--input-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+/* Hover and focus for UNCHECKED checkboxes only */
+.custom-checkbox-label:hover input:not(:checked) ~ .checkbox-visual,
+.custom-checkbox-label input[type="checkbox"]:not(:checked):focus ~ .checkbox-visual {
+    border-color: rgba(185, 30, 201, 0.8);
+    background: rgba(14, 18, 36, 0.9);
+}
+
+/* CHECKED state: instantly applies gradient when clicked, focused, or active */
+.custom-checkbox-label input[type="checkbox"]:checked ~ .checkbox-visual {
+    background: var(--primary-gradient) !important;
+    border-color: transparent !important;
+}
+
+.checkbox-visual svg {
+    width: 13px;
+    height: 13px;
+    stroke: #ffffff;
+    stroke-width: 3;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-checkbox-label input[type="checkbox"]:checked ~ .checkbox-visual svg {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.forgot-password-link {
+    color: var(--accent-magenta);
+    text-decoration: none;
+    font-weight: 500;
+    padding: 4px 0;
+    transition: opacity 0.2s ease;
+}
+
+.forgot-password-link:hover,
+.forgot-password-link:active {
+    text-decoration: underline;
+    opacity: 0.85;
+}
+
+.terms-agreement-row {
+    font-size: 0.775rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+.terms-agreement-row a {
+    color: var(--accent-magenta);
+    text-decoration: none;
+}
+
+.terms-agreement-row a:hover {
+    text-decoration: underline;
+}
+
+/* Submit Button (Identical 1:1 with Mobile) */
+.auth-submit-btn {
+    width: 100%;
+    height: 50px;
+    background: var(--primary-gradient);
+    border-radius: var(--radius-md);
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    margin-top: 0.4rem;
+    transition: transform 0.15s ease, filter 0.2s ease;
+}
+
+.auth-submit-btn:hover {
+    filter: brightness(1.06);
+}
+
+.auth-submit-btn:active {
+    transform: scale(0.98);
+    filter: brightness(0.92);
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Bottom Footer Switch */
+.auth-switch-footer {
+    text-align: center;
+    margin-top: 1.35rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.switch-inline-btn {
+    color: var(--accent-magenta);
+    font-weight: 600;
+    margin-left: 4px;
+    padding: 2px 4px;
+    background: none;
+    border: none;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.switch-inline-btn:hover {
+    color: var(--accent-magenta);
+    text-decoration: underline;
+    opacity: 0.85;
+}
+
+/* Toast Notifications */
+.auth-toast-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.auth-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-card);
+    color: #fff;
+    font-size: 0.875rem;
+    animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 380px;
+}
+
+.auth-toast.error {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(30, 10, 15, 0.95);
+}
+
+.auth-toast.success {
+    border-color: rgba(31, 232, 196, 0.5);
+    background: rgba(10, 30, 25, 0.95);
+}
+
+@keyframes toastSlideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}

@@ -426,7 +426,7 @@ function renderRecentPlaylistsOverview(playlists = [], isGuest = false) {
                 </div>
                 <h3 class="library-empty-title">Create your custom playlists</h3>
                 <p class="library-empty-desc">Log in to create, organize, and view your custom playlists.</p>
-                <a href="auth.html" class="library-empty-btn">Log In / Sign Up</a>
+                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -483,7 +483,7 @@ function renderTracksPanel(songs = [], isGuest = false) {
                 </div>
                 <h3 class="library-empty-title">Save your favorite tracks</h3>
                 <p class="library-empty-desc">Log in to like songs and access them on any device.</p>
-                <a href="auth.html" class="library-empty-btn">Log In / Sign Up</a>
+                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -550,7 +550,7 @@ function renderPlaylistsPanel(playlists = [], isGuest = false) {
                 </div>
                 <h3 class="library-empty-title">Create your custom playlists</h3>
                 <p class="library-empty-desc">Log in to create, edit, and organize your favorite music.</p>
-                <a href="auth.html" class="library-empty-btn">Log In / Sign Up</a>
+                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -606,7 +606,7 @@ function renderLikedSongsOverview(songs = [], isGuest = false) {
                 </div>
                 <h3 class="library-empty-title">Save your favorite tracks</h3>
                 <p class="library-empty-desc">Log in to like songs and access them on any device.</p>
-                <a href="auth.html" class="library-empty-btn">Log In / Sign Up</a>
+                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -643,6 +643,17 @@ function setupSongActionListeners() {
     if (!libraryContainer) return;
 
     const clickHandler = (e) => {
+        const emptyAuthBtn = e.target.closest('.library-empty-btn');
+        if (emptyAuthBtn) {
+            e.preventDefault();
+            if (typeof window.navigateToAuthPage === 'function') {
+                window.navigateToAuthPage('login');
+            } else {
+                window.location.href = 'auth-mobile.html';
+            }
+            return;
+        }
+
         const playlistMoreBtn = e.target.closest('.playlist-more-btn');
         if (playlistMoreBtn) {
             e.stopPropagation();

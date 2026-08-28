@@ -21,11 +21,16 @@
 
         // Suppress third-party/extension performance observer noise in console
         (function() {
+            var isExtensionNoise = function(text) {
+                if (!text) return false;
+                var str = String(text);
+                return str.indexOf('startTime') !== -1 || str.indexOf('reportAllChanges') !== -1;
+            };
+
             var suppress = function(e) {
                 var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
                 var stack = (e && e.error && e.error.stack) || '';
-                if (msg.indexOf('startTime') !== -1 || msg.indexOf('reportAllChanges') !== -1 ||
-                    stack.indexOf('startTime') !== -1 || stack.indexOf('reportAllChanges') !== -1) {
+                if (isExtensionNoise(msg) || isExtensionNoise(stack)) {
                     if (e.preventDefault) e.preventDefault();
                     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
                     return true;
@@ -33,17 +38,32 @@
             };
             window.addEventListener('error', suppress, true);
             window.onerror = function(msg, url, line, col, err) {
-                var text = String(msg || '') + String(err && err.stack || '');
-                if (text.indexOf('startTime') !== -1 || text.indexOf('reportAllChanges') !== -1) {
+                var text = String(msg || '') + ' ' + String(err && err.stack || '');
+                if (isExtensionNoise(text)) {
                     return true;
                 }
             };
             window.addEventListener('unhandledrejection', function(e) {
-                var reason = String(e && e.reason ? (e.reason.message || e.reason) : '');
-                if (reason.indexOf('startTime') !== -1 || reason.indexOf('reportAllChanges') !== -1) {
+                var reason = String(e && e.reason ? (e.reason.message || e.reason.stack || e.reason) : '');
+                if (isExtensionNoise(reason)) {
                     e.preventDefault();
                 }
             });
+
+            // Intercept console.error calls from injected scripts
+            if (window.console && window.console.error) {
+                var origError = window.console.error;
+                window.console.error = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    var joined = args.map(function(a) {
+                        return (a && (a.message || a.stack || String(a))) || '';
+                    }).join(' ');
+                    if (isExtensionNoise(joined)) {
+                        return;
+                    }
+                    return origError.apply(window.console, arguments);
+                };
+            }
         })();
     </script>
     <script type="module" src="frontend/src/assets/js/index.js"></script>

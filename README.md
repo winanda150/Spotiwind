@@ -65,8 +65,8 @@ Firestore menjadi sumber data utama, bukan Firebase Realtime Database. Model dat
 ├── frontend/
 │   ├── public/                  # Logo, gambar, audio, dan manifest katalog
 │   └── src/
-│       ├── assets/              # CSS (index.css, auth.css, home-desktop.css, home-mobile.css, dll) & JS (index.js, auth.js, home-desktop.js, home-mobile.js, dll)
-│       ├── pages/               # Halaman aplikasi (home-desktop.html, home-mobile.html, auth.html, search, radio, library, account, notifications, artist)
+│       ├── assets/              # CSS (index.css, auth-desktop.css, auth-mobile.css, home-desktop.css, home-mobile.css, dll) & JS (index.js, auth-desktop.js, auth-mobile.js, home-desktop.js, home-mobile.js, dll)
+│       ├── pages/               # Halaman aplikasi (home-desktop.html, home-mobile.html, auth-desktop.html, auth-mobile.html, search, radio, library, account, notifications, artist)
 │       └── services/            # Auth, catalog, player, library, dan service lain
 ├── database/
 │   ├── index.js                 # Entry point Cloud Functions

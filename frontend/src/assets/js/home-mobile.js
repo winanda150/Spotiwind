@@ -45,12 +45,14 @@ let libraryPageStyleLink = null; // [NEW] To store the dynamically added library
 let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
 let radioPageStyleLink = null; // [NEW] To store the dynamically added radio page CSS link
 let searchPageStyleLink = null;
+let authPageStyleLink = null; // [NEW] To store the dynamically added auth page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 let activePageCleanup = null;
 let pageLoadSequence = 0;
 
 let previousPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
+let currentPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman aktif saat ini
 let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Map();
@@ -868,6 +870,19 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar?.setAttribute('inert', '');
     };
 
+    // Automatically hide mobile sidebar immediately if viewport transitions/resizes to desktop width
+    const desktopBreakpointQuery = window.matchMedia('(min-width: 1024px)');
+    const handleDesktopBreakpointChange = (e) => {
+        if (e.matches) {
+            closeSidebar();
+        }
+    };
+    if (typeof desktopBreakpointQuery.addEventListener === 'function') {
+        desktopBreakpointQuery.addEventListener('change', handleDesktopBreakpointChange);
+    } else if (typeof desktopBreakpointQuery.addListener === 'function') {
+        desktopBreakpointQuery.addListener(handleDesktopBreakpointChange);
+    }
+
     const updateSidebarActiveState = (targetPage) => {
         document.querySelectorAll('.sidebar-nav-item').forEach((item) => {
             item.classList.toggle('active', item.dataset.sidebarTarget === targetPage);
@@ -981,7 +996,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast("Failed to log out. Please try again.");
                 });
             } else {
-                window.location.href = 'auth.html';
+                if (typeof window.navigateToAuthPage === 'function') {
+                    window.navigateToAuthPage('login');
+                } else {
+                    window.location.href = 'auth-mobile.html';
+                }
             }
             return;
         }
@@ -2060,6 +2079,15 @@ window.toggleDownloadSong = (song) => {
             });
         } else if (cleanPath === '/notifications') {
             navigateToNotificationPage(shouldPushState);
+        } else if (cleanPath === '/login' || cleanPath === '/register' || cleanPath === '/auth') {
+            const isRegister = cleanPath === '/register';
+            await loadPageContent('auth-mobile.html', {
+                pushState: shouldPushState,
+                route: isRegister ? '/register' : '/login',
+                title: isRegister ? 'Register | Spotiwind' : 'Login | Spotiwind',
+                initialTab: isRegister ? 'register' : 'login',
+                state: { route: isRegister ? 'register' : 'login' }
+            });
         } else {
             // Default: Home
             updateSidebarActiveState('home-mobile.html');
@@ -2108,6 +2136,10 @@ window.toggleDownloadSong = (song) => {
             } else if (page.includes('account-mobile.html')) {
                 targetRoute = '/account';
                 targetTitle = 'Account | Spotiwind';
+            } else if (page.includes('auth-mobile.html')) {
+                const initialTab = options.initialTab || 'login';
+                targetRoute = initialTab === 'register' ? '/register' : '/login';
+                targetTitle = initialTab === 'register' ? 'Register | Spotiwind' : 'Login | Spotiwind';
             } else if (page.includes('artist-mobile.html') && artistDataForPageLoad) {
                 const artistUniqueId = getArtistUniqueId(artistDataForPageLoad);
                 targetRoute = `/artist/${artistUniqueId}`;
@@ -2121,83 +2153,102 @@ window.toggleDownloadSong = (song) => {
 
         // [FIX] Logika baru untuk navigasi kembali ke Home
         if (page === 'home-mobile.html' || page === 'mobile.html') {
+            document.body.classList.remove('is-auth-view');
+            contentContainer.style.opacity = '0';
+            await new Promise(res => setTimeout(res, 200));
+
+            if (typeof activePageCleanup === 'function') {
+                activePageCleanup();
+                activePageCleanup = null;
+            }
+            if (unreadNotificationsListener) {
+                unreadNotificationsListener();
+                unreadNotificationsListener = null;
+            }
+            if (searchPageStyleLink && searchPageStyleLink.parentNode) {
+                searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
+                searchPageStyleLink = null;
+            }
+            if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
+                notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
+                notificationPageStyleLink = null;
+            }
+            if (artistPageStyleLink && artistPageStyleLink.parentNode) {
+                artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
+                artistPageStyleLink = null;
+            }
+            if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
+                libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
+                libraryPageStyleLink = null;
+            }
+            if (accountPageStyleLink && accountPageStyleLink.parentNode) {
+                accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
+                accountPageStyleLink = null;
+            }
+            if (radioPageStyleLink && radioPageStyleLink.parentNode) {
+                radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
+                radioPageStyleLink = null;
+            }
+            if (authPageStyleLink && authPageStyleLink.parentNode) {
+                authPageStyleLink.parentNode.removeChild(authPageStyleLink);
+                authPageStyleLink = null;
+            }
+
+            if (!initialHomeContent) {
+                try {
+                    const response = await fetch(`${window.location.origin}/frontend/src/pages/home-mobile.html`);
+                    if (response.ok) {
+                        const text = await response.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(text, 'text/html');
+                        const fetchedContainer = doc.querySelector('.app-container');
+                        if (fetchedContainer) {
+                            initialHomeContent = fetchedContainer.innerHTML;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch home template:", e);
+                }
+            }
+
             if (initialHomeContent) {
-                contentContainer.style.opacity = '0';
-
-                await new Promise(res => setTimeout(res, 200));
-
-                if (typeof activePageCleanup === 'function') {
-                    activePageCleanup();
-                    activePageCleanup = null;
-                }
-                if (unreadNotificationsListener) {
-                    unreadNotificationsListener();
-                    unreadNotificationsListener = null;
-                }
-                if (searchPageStyleLink && searchPageStyleLink.parentNode) {
-                    searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
-                    searchPageStyleLink = null;
-                }
-                if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
-                    notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
-                    notificationPageStyleLink = null;
-                }
-                if (artistPageStyleLink && artistPageStyleLink.parentNode) {
-                    artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
-                    artistPageStyleLink = null;
-                }
-                if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
-                    libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
-                    libraryPageStyleLink = null;
-                }
-                if (accountPageStyleLink && accountPageStyleLink.parentNode) {
-                    accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
-                    accountPageStyleLink = null;
-                }
-                if (radioPageStyleLink && radioPageStyleLink.parentNode) {
-                    radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
-                    radioPageStyleLink = null;
-                }
-
                 contentContainer.innerHTML = initialHomeContent;
-                // Restore scroll position for the home page
                 document.documentElement.scrollTop = homeScrollPosition;
 
-                // Re-inisialisasi skeleton dan fetch data lagi untuk halaman home
                 initializeSkeletons();
-                initializeData(); // Panggil fungsi yang memuat semua data API
-                initializeHomeContent(); // [FIX] Panggil ulang inisialisasi konten home (copyright, greeting)
+                initializeData();
+                initializeHomeContent();
 
-                const user = auth.currentUser; // [FIX] Dapatkan user saat ini dari auth
-
+                const user = auth.currentUser;
                 if (user) {
                     initializeUserUI(user);
-                }
-
-                // [NEW] Setup unread notification badge listener for the home page
-                if (user) {
                     setupUnreadNotificationsListener(user.uid);
                 }
 
-                // [FIX] Re-attach the notification button listener because it was lost.
                 const notificationBtn = document.getElementById('notificationBtn');
-                if (notificationBtn) { // [REFACTOR]
+                if (notificationBtn) {
                     notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
                 }
                 
                 contentContainer.style.opacity = '1';
-            } else {
-                // Fallback jika cache kosong, lakukan reload penuh
-                window.location.href = 'home-mobile.html';
+                currentPageUrl = 'home-mobile.html';
             }
-            return; // Hentikan eksekusi lebih lanjut
+            return;
+        }
+
+        if (!initialHomeContent && contentContainer && (previousPageUrl === 'home-mobile.html' || !previousPageUrl)) {
+            initialHomeContent = contentContainer.innerHTML;
         }
 
         // [FIX] Capture the current active page's URL before navigating away.
         const currentActiveNav = document.querySelector('.mobile-bottom-nav .nav-item.active');
-        if (currentActiveNav) {
+        if (currentPageUrl && currentPageUrl !== page && !page.includes('auth-mobile.html')) {
+            previousPageUrl = currentPageUrl;
+        } else if (currentActiveNav && currentActiveNav.dataset.target) {
             previousPageUrl = currentActiveNav.dataset.target;
         }
+        currentPageUrl = page;
+        closeSidebar();
 
         try {
             // [FIX] Start the fade-out transition immediately to hide old content and prevent flicker.
@@ -2232,10 +2283,8 @@ window.toggleDownloadSong = (song) => {
                     unreadNotificationsListener();
                     unreadNotificationsListener = null;
                 }
-                contentContainer.innerHTML = newContent;
 
-                // [FIX] Re-initialize dropdown listeners first before other UI updates.
-                // [NEW] Dynamically load notification page CSS using absolute URL
+                // [NEW] Dynamically load active page CSS using absolute URL BEFORE inserting HTML
                 const cssBase = `${window.location.origin}/frontend/src/assets/css/`;
                 if (page.includes('search-mobile.html')) {
                     searchPageStyleLink = await loadStylesheet(
@@ -2253,7 +2302,6 @@ window.toggleDownloadSong = (song) => {
                         artistPageStyleLink
                     );
                 } else if (page.includes('library-mobile.html')) {
-                    // [NEW] Dynamically load library page CSS
                     libraryPageStyleLink = await loadStylesheet(
                         `${cssBase}library-mobile.css`,
                         libraryPageStyleLink
@@ -2268,34 +2316,50 @@ window.toggleDownloadSong = (song) => {
                         `${cssBase}radio-mobile.css`,
                         radioPageStyleLink
                     );
+                } else if (page.includes('auth-mobile.html')) {
+                    authPageStyleLink = await loadStylesheet(
+                        `${cssBase}auth-mobile.css`,
+                        authPageStyleLink
+                    );
+                }
+
+                // [FIX] Clean up all inactive subpage stylesheets to avoid style leaking
+                if (!page.includes('search-mobile.html') && searchPageStyleLink && searchPageStyleLink.parentNode) {
+                    searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
+                    searchPageStyleLink = null;
+                }
+                if (!page.includes('notifications-mobile.html') && notificationPageStyleLink && notificationPageStyleLink.parentNode) {
+                    notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
+                    notificationPageStyleLink = null;
+                }
+                if (!page.includes('artist-mobile.html') && artistPageStyleLink && artistPageStyleLink.parentNode) {
+                    artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
+                    artistPageStyleLink = null;
+                }
+                if (!page.includes('library-mobile.html') && libraryPageStyleLink && libraryPageStyleLink.parentNode) {
+                    libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
+                    libraryPageStyleLink = null;
+                }
+                if (!page.includes('account-mobile.html') && accountPageStyleLink && accountPageStyleLink.parentNode) {
+                    accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
+                    accountPageStyleLink = null;
+                }
+                if (!page.includes('radio-mobile.html') && radioPageStyleLink && radioPageStyleLink.parentNode) {
+                    radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
+                    radioPageStyleLink = null;
+                }
+                if (!page.includes('auth-mobile.html') && authPageStyleLink && authPageStyleLink.parentNode) {
+                    authPageStyleLink.parentNode.removeChild(authPageStyleLink);
+                    authPageStyleLink = null;
+                }
+
+                contentContainer.innerHTML = newContent;
+
+                // [NEW] Seamlessly toggle bottom navigation & player bar visibility on auth page
+                if (page.includes('auth-mobile.html')) {
+                    document.body.classList.add('is-auth-view');
                 } else {
-                    if (searchPageStyleLink && searchPageStyleLink.parentNode) {
-                        searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
-                        searchPageStyleLink = null;
-                    }
-                    // Remove notification page CSS if navigating away
-                    if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
-                        notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
-                        notificationPageStyleLink = null;
-                    }
-                    // [NEW] Remove artist page CSS if navigating away
-                    if (artistPageStyleLink && artistPageStyleLink.parentNode) {
-                        artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
-                        artistPageStyleLink = null;
-                    }
-                    // [NEW] Remove library page CSS if navigating away
-                    if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
-                        libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
-                        libraryPageStyleLink = null;
-                    }
-                    if (accountPageStyleLink && accountPageStyleLink.parentNode) {
-                        accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
-                        accountPageStyleLink = null;
-                    }
-                    if (radioPageStyleLink && radioPageStyleLink.parentNode) {
-                        radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
-                        radioPageStyleLink = null;
-                    }
+                    document.body.classList.remove('is-auth-view');
                 }
                 // Now, update user-specific UI elements.
                 const user = auth.currentUser;
@@ -2417,6 +2481,32 @@ window.toggleDownloadSong = (song) => {
                     } else {
                         console.error("initRadioPage function not found in module.");
                     }
+                } else if (page.includes('auth-mobile.html')) {
+                    const authModule = await import('./auth-mobile.js').catch(err => { console.error("Failed to load auth module:", err); return {}; });
+                    const { initAuthMobilePage, cleanupAuthMobilePage } = authModule;
+                    activePageCleanup = cleanupAuthMobilePage;
+
+                    if (typeof initAuthMobilePage === 'function') {
+                        initAuthMobilePage({
+                            initialTab: options.initialTab || 'login',
+                            onBack: async () => {
+                                const target = previousPageUrl || 'home-mobile.html';
+                                updateSidebarActiveState(target);
+                                updateBottomNavActive(target);
+                                await loadPageContent(target);
+                            },
+                            onSuccess: async (user) => {
+                                initializeUserUI(user);
+                                showToast(`Welcome back, ${user.displayName || user.email?.split('@')[0] || 'User'}!`, 'success');
+                                const target = previousPageUrl || 'home-mobile.html';
+                                updateSidebarActiveState(target);
+                                updateBottomNavActive(target);
+                                await loadPageContent(target);
+                            }
+                        });
+                    } else {
+                        console.error("initAuthMobilePage function not found in module.");
+                    }
                 } else {
                     // For any other page (like account, etc. in the future)
                     // or pages that don't have special logic, load the default data.
@@ -2498,6 +2588,24 @@ window.toggleDownloadSong = (song) => {
             state: { route: 'notifications' }
         });
     };
+
+    /**
+     * [NEW] Loads the auth page content dynamically within SPA shell.
+     */
+    const navigateToAuthPage = (initialTab = 'login', shouldPushState = true) => {
+        homeScrollPosition = document.documentElement.scrollTop;
+        const isRegister = initialTab === 'register';
+        loadPageContent('auth-mobile.html', {
+            pushState: shouldPushState,
+            route: isRegister ? '/register' : '/login',
+            title: isRegister ? 'Register | Spotiwind' : 'Login | Spotiwind',
+            initialTab,
+            state: { route: isRegister ? 'register' : 'login' }
+        });
+    };
+
+    window.navigateToAuthPage = navigateToAuthPage;
+    window.loadPageContent = loadPageContent;
 
     // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
     const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke home-desktop.html

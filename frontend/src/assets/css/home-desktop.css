@@ -12,18 +12,64 @@
 }
 
 html {
+    min-height: 100%;
     color-scheme: dark;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg-dark);
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(185, 30, 201, 0.4) transparent;
 }
 
-* {
+html::-webkit-scrollbar {
+    width: 8px;
+}
+
+html::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+    background: rgba(185, 30, 201, 0.4);
+    border-radius: 4px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+    background: rgba(185, 30, 201, 0.7);
+}
+
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+*:focus,
+*:focus-visible,
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+a:focus,
+a:focus-visible {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Universal Autofill Dark Shield (Eliminates white flashes across all inputs) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px rgba(14, 18, 36, 0.95) inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff !important;
+    transition: background-color 50000s ease-in-out 0s !important;
 }
 
 body,
@@ -35,6 +81,16 @@ body:active {
     box-shadow: none;
 }
 
+/* Ensure mobile sidebar drawer & overlay are strictly hidden on desktop */
+.mobile-sidebar,
+.sidebar-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transform: translateX(-100%) !important;
+}
+
 /* Dashboard Layout */
 body.dashboard-page {
     height: 100vh;
@@ -42,9 +98,8 @@ body.dashboard-page {
     /* Fallback dark background */
     color: var(--text-main);
     font-family: 'Poppins', sans-serif;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    /* Mencegah seluruh body di-scroll */
+    overflow: hidden;
+    /* Mencegah seluruh body di-scroll saat mode dashboard music */
 }
 
 .dashboard-container {
@@ -54,6 +109,47 @@ body.dashboard-page {
     /* Memaksa kontainer setinggi layar */
     background: #0f172a;
     overflow: hidden;
+    transition: opacity 0.25s ease;
+}
+
+/* Desktop Auth View Scoping in SPA Shell */
+body.dashboard-page.is-desktop-auth-view,
+body.is-desktop-auth-view {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+html:has(body.is-desktop-auth-view) {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+html:has(body.is-desktop-auth-view)::-webkit-scrollbar,
+body.is-desktop-auth-view::-webkit-scrollbar,
+body.is-desktop-auth-view *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+body.is-desktop-auth-view .dashboard-container {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow: visible !important;
+    background: transparent !important;
+}
+
+body.is-desktop-auth-view .bottom-player-bar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .sidebar {
@@ -238,13 +334,12 @@ body.player-active .right-sidebar {
     border: 1px solid var(--glass-border);
     border-radius: 0.8rem;
     height: 45px;
-    /* Menyamakan tinggi dengan user profile */
     padding: 0 1.2rem 0 2.8rem;
-    /* Menghapus padding vertikal karena sudah diatur height */
     color: white;
     width: 400px;
-    outline: none;
-    transition: all 0.2s;
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search-box input:focus {
@@ -464,13 +559,6 @@ body.player-active .right-sidebar {
 .friend-status strong {
     color: var(--text-main);
     font-weight: 500;
-}
-
-/* Responsivitas: Sembunyikan sidebar kanan pada layar medium/kecil */
-@media (max-width: 1200px) {
-    .right-sidebar {
-        display: none;
-    }
 }
 
 /* Now Playing Card Styling */
@@ -1742,6 +1830,7 @@ body.is-dragging-volume .volume-level {
 .page-transition-overlay.fade-out {
     opacity: 0;
     visibility: hidden;
+    pointer-events: none !important;
 }
 
 @keyframes pulse {
