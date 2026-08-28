@@ -1,6 +1,7 @@
 /* Variables */
 :root {
-    --bg-main: #0b0f19;
+    color-scheme: dark;
+    --bg-main: #0f172a;
     --text-main: #ffffff;
     --text-muted: #94a3b8;
 }
@@ -9,6 +10,15 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-main);
 }
 
 html, body {

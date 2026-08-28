@@ -1,5 +1,6 @@
 /* Variables */
 :root {
+    color-scheme: dark;
     --primary-gradient: linear-gradient(to right, #F12E77, #B91EC9, #7D19F5);
     --accent-color: #B91EC9;
     --glass-border: rgba(255, 255, 255, 0.1);
@@ -8,6 +9,15 @@
     --text-muted: #9ca3af;
     --bg-dark: #0f172a;
     --mobile-horizontal-padding: 0.9375rem;
+}
+
+html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-dark);
 }
 
 * {
@@ -30,11 +40,12 @@ body.mobile-view {
     color: var(--text-main);
     font-family: 'Poppins', sans-serif;
     min-height: 100vh;
+    min-height: 100dvh;
 }
 
 /* Berikan ruang di bawah agar konten tidak tertutup bar navigasi & player */
 .app-container {
-    padding-bottom: 65px;
+    padding-bottom: calc(65px + env(safe-area-inset-bottom));
     transition: padding-bottom 0.4s ease, opacity 0.3s ease;
 }
 
@@ -47,10 +58,12 @@ body.player-active .app-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem var(--mobile-horizontal-padding);
+    padding: max(1rem, env(safe-area-inset-top)) var(--mobile-horizontal-padding) 1rem;
     position: sticky;
     top: 0;
-    background: rgba(15, 23, 42);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     z-index: 10000;
 }
 
@@ -1737,7 +1750,9 @@ body.player-active .app-container {
     left: 0;
     right: 0;
     height: calc(65px + env(safe-area-inset-bottom));
-    background: rgba(15, 23, 42, 0.98);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-around;

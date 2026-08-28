@@ -1,5 +1,6 @@
 /* Variables */
 :root {
+    color-scheme: dark;
     --primary-gradient: linear-gradient(to right, #F12E77, #B91EC9, #7D19F5);
     --accent-color: #B91EC9;
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -7,6 +8,16 @@
     --text-main: #ffffff;
     --text-muted: #9ca3af;
     --input-bg: rgba(255, 255, 255, 0.1);
+    --bg-dark: #0f172a;
+}
+
+html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--bg-dark);
 }
 
 * {
@@ -27,7 +38,7 @@ body:active {
 /* Dashboard Layout */
 body.dashboard-page {
     height: 100vh;
-    background-color: #0f172a;
+    background-color: var(--bg-dark);
     /* Fallback dark background */
     color: var(--text-main);
     font-family: 'Poppins', sans-serif;

@@ -1,5 +1,6 @@
 /* Variables */
 :root {
+    color-scheme: dark;
     --primary-gradient: linear-gradient(to right, #F12E77, #B91EC9, #7D19F5);
     --accent-color: #B91EC9;
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -18,6 +19,11 @@
 
 html {
     min-height: 100%;
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     background: #03030a;
 }
 
