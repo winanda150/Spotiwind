@@ -11,6 +11,13 @@
             var base = document.createElement('base');
             base.href = window.location.origin + basePath;
             document.head.appendChild(base);
+
+            // Rewrite URL bar cleanly to /login (or /spotiwind-music/login)
+            try {
+                var appBase = isGitHub ? '/spotiwind-music' : '';
+                var targetUrl = appBase ? (appBase + '/login') : '/login';
+                window.history.replaceState({ route: 'login' }, document.title, targetUrl);
+            } catch (e) {}
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -19,7 +26,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Spotiwind - Login & Register</title>
+    <title>Login & Register - Spotiwind</title>
     <meta name="description"
         content="Spotiwind adalah platform streaming musik terbaik untuk menemukan jutaan lagu dan playlist pilihan. Nikmati pengalaman mendengarkan musik berkualitas tinggi di mana saja.">
     <meta name="keywords"
@@ -29,7 +36,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Open Graph Meta Tags for Social Media Sharing -->
-    <meta property="og:title" content="Spotiwind - Login & Register">
+    <meta property="og:title" content="Login & Register - Spotiwind">
     <meta property="og:description" 
         content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
     <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/frontend/public/Elemen/Logo/Spotiwind.webp">

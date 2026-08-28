@@ -23,6 +23,12 @@ const redirectToApp = () => {
         sessionStorage.setItem('spotiwind_target_route', cleanRoute);
     }
 
+    const normalizedRoute = cleanRoute.toLowerCase().replace(/^\/+|\/+$/g, '').split('?')[0].split('#')[0];
+    if (normalizedRoute === 'auth' || normalizedRoute === 'login' || normalizedRoute === 'register') {
+        window.location.replace(`${appBase}frontend/src/pages/auth.html`);
+        return;
+    }
+
     window.location.replace(target);
 };
 
