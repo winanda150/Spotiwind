@@ -350,8 +350,8 @@
 .library-songs-list {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
-    padding: 0 var(--mobile-horizontal-padding) 0rem;
+    gap: 0.70rem;
+    padding: 0 var(--mobile-horizontal-padding) 0.8rem;
 }
 
 .library-song-item {

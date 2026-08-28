@@ -226,23 +226,54 @@ body.player-active .app-container {
 
 .sidebar-profile {
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
+    align-items: center;
+    gap: 0.85rem;
     padding: 1.25rem 0.35rem 0.75rem;
 }
 
+/* Sidebar Avatar (Google One / Spotiwind Premium Ring Style) */
+.sidebar-profile-avatar-wrapper {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    padding: 2.5px;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 4px 16px rgba(185, 30, 201, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.sidebar-profile-avatar-wrapper:active {
+    transform: scale(0.96);
+}
+
 .sidebar-profile-avatar {
-    width: 75px;
-    height: 75px;
+    width: 100%;
+    height: 100%;
     flex-shrink: 0;
     border-radius: 50%;
     object-fit: cover;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: #1e293b;
+    border: 3px solid var(--bg-dark, #0f172a);
+    box-sizing: border-box;
+    display: block;
 }
 
-.sidebar-profile-avatar-wrapper {
-    flex-shrink: 0;
+.sidebar-profile-avatar-wrapper .online-status {
+    bottom: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    border: 2.5px solid var(--bg-dark, #0f172a);
+    box-sizing: border-box;
+    z-index: 3;
 }
 
 .sidebar-profile-info {
@@ -745,19 +776,21 @@ body.player-active .app-container {
 
 .online-status {
     position: absolute;
-    bottom: 1px;
-    right: 8px;
+    bottom: 2px;
+    right: 2px;
     width: 15px;
     height: 15px;
     background-color: #22c55e;
     border-radius: 50%;
+    border: 2.5px solid var(--bg-dark, #0f172a);
+    box-sizing: border-box;
     z-index: 2;
     box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
-    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .online-status.offline {
-    background-color: #9ca3af;
+    background-color: #94a3b8;
     box-shadow: none;
 }
 
@@ -3026,5 +3059,161 @@ body.full-player-open {
 .playlist-btn-submit:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Avatar Fullscreen Square Preview Modal & Dark Header Mode
+   ========================================================================== */
+.avatar-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    cursor: default;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+}
+
+.avatar-preview-modal.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.avatar-preview-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+/* Top Dark Header for Photo Viewer */
+.avatar-preview-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.65rem) 1rem 0.65rem;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.5) 75%, transparent 100%);
+    cursor: default;
+    box-sizing: border-box;
+}
+
+.avatar-preview-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.preview-header-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.avatar-preview-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.preview-header-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: #ffffff;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.15s ease, color 0.2s ease;
+}
+
+.preview-header-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+.preview-header-btn:hover {
+    background: transparent;
+    opacity: 0.8;
+}
+
+.preview-header-btn:active {
+    background: transparent;
+    transform: scale(0.92);
+    opacity: 0.6;
+}
+
+.avatar-preview-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.avatar-preview-square-wrapper {
+    position: relative;
+    width: min(88vw, 360px);
+    height: min(88vw, 360px);
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transform: scale(0.85);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+}
+
+.avatar-preview-modal.is-active .avatar-preview-square-wrapper {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.avatar-preview-square-img {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    object-fit: cover;
+    background: #0f172a;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
 }
 

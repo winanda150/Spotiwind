@@ -3,72 +3,6 @@
     padding: 0 var(--mobile-horizontal-padding) 1.25rem;
 }
 
-/* Clean Header Layout: Menu on Left, Actions on Right */
-.mobile-header {
-    position: sticky;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.mobile-header .header-left {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-.mobile-header .header-right {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.25rem; /* Jarak rapat dan rapi */
-    flex-shrink: 0;
-}
-
-.mobile-header .header-right .notification-btn,
-.mobile-header .header-right .account-settings-btn {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    margin: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    border-radius: 50%;
-    position: relative;
-    color: var(--text-muted, #94a3b8);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
-}
-
-.mobile-header .header-right .notification-btn svg,
-.mobile-header .header-right .account-settings-btn svg {
-    width: 21px;
-    height: 21px;
-}
-
-.mobile-header .header-right .notification-btn:hover {
-    color: var(--text-main, #ffffff);
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.mobile-header .header-right .account-settings-btn:hover {
-    color: var(--accent-color, #b91ec9);
-    background: rgba(255, 255, 255, 0.08);
-    transform: rotate(30deg);
-}
-
-.mobile-header .header-right .notification-btn:active {
-    transform: scale(0.92);
-}
-
-.mobile-header .header-right .account-settings-btn:active {
-    transform: scale(0.92) rotate(45deg);
-}
-
 /* ==========================================================================
    Account Profile Header Section (Clean Seamless Layout - No Box)
    ========================================================================== */
@@ -87,17 +21,32 @@
     -webkit-backdrop-filter: none;
 }
 
-/* Avatar with circular gradient border and camera icon badge */
+/* Avatar with circular gradient border and camera icon badge (Google One / Premium Style Ring) */
 .account-avatar-wrapper {
     position: relative;
-    width: 105px;
-    height: 105px;
+    width: 106px;
+    height: 106px;
     border-radius: 50%;
-    padding: 3px;
+    padding: 2.5px;
     background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
-    box-shadow: 0 6px 24px rgba(185, 30, 201, 0.35);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 8px 24px rgba(185, 30, 201, 0.35);
     flex-shrink: 0;
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.account-avatar-wrapper:hover {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+                0 10px 30px rgba(185, 30, 201, 0.5);
+}
+
+.account-avatar-wrapper:active {
+    transform: scale(0.97);
 }
 
 .account-avatar {
@@ -106,19 +55,21 @@
     border-radius: 50%;
     object-fit: cover;
     background: #1e293b;
-    border: none;
+    border: 3.5px solid var(--bg-dark, #0f172a);
+    box-sizing: border-box;
     display: block;
 }
 
 .avatar-camera-badge {
     position: absolute;
-    bottom: -1px;
-    right: -1px;
+    bottom: 0px;
+    right: 0px;
     width: 32px;
     height: 32px;
     border-radius: 50%;
     background: #1e293b;
     color: var(--text-main, #ffffff);
+    border: 2px solid var(--bg-dark, #0f172a);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -127,6 +78,17 @@
     user-select: none;
     cursor: pointer;
     z-index: 2;
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.avatar-camera-badge:hover {
+    background: #334155;
+    color: #ffffff;
+    transform: scale(1.08);
+}
+
+.avatar-camera-badge:active {
+    transform: scale(0.94);
 }
 
 .avatar-camera-badge svg {
@@ -240,4 +202,160 @@
 
 .edit-profile-btn:active {
     transform: scale(0.96);
+}
+
+/* ==========================================================================
+   Avatar Fullscreen Square Preview Modal & Dark Header Mode
+   ========================================================================== */
+.avatar-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    cursor: default;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+}
+
+.avatar-preview-modal.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.avatar-preview-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+/* Top Dark Header for Photo Viewer */
+.avatar-preview-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.65rem) 1rem 0.65rem;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.5) 75%, transparent 100%);
+    cursor: default;
+    box-sizing: border-box;
+}
+
+.avatar-preview-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.preview-header-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.avatar-preview-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.preview-header-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: #ffffff;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.15s ease, color 0.2s ease;
+}
+
+.preview-header-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+.preview-header-btn:hover {
+    background: transparent;
+    opacity: 0.8;
+}
+
+.preview-header-btn:active {
+    background: transparent;
+    transform: scale(0.92);
+    opacity: 0.6;
+}
+
+.avatar-preview-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.avatar-preview-square-wrapper {
+    position: relative;
+    width: min(88vw, 360px);
+    height: min(88vw, 360px);
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transform: scale(0.85);
+    opacity: 0;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+}
+
+.avatar-preview-modal.is-active .avatar-preview-square-wrapper {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.avatar-preview-square-img {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    object-fit: cover;
+    background: #0f172a;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
 }

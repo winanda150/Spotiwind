@@ -1,4 +1,5 @@
 import {
+    auth,
     rtdb,
     ref,
     onValue,
@@ -10,13 +11,20 @@ import {
 export const setPresenceStatus = (uid, status = "online") => {
     if (!uid) return null;
 
+    // Pastikan user masih dalam kondisi terautentikasi sebelum menulis ke RTDB
+    const currentUser = auth?.currentUser;
+    if (!currentUser || currentUser.uid !== uid) {
+        return null;
+    }
+
     const userStatusRef = ref(rtdb, `presence/${uid}`);
     const payload = {
         state: status,
         last_changed: rtdbServerTimestamp()
     };
 
-    rtdbSet(userStatusRef, payload);
+    // Tangkap error secara aman agar tidak memunculkan uncaught permission warning saat logout
+    rtdbSet(userStatusRef, payload).catch(() => {});
     return payload;
 };
 
@@ -43,13 +51,16 @@ export const watchUserConnection = (uid, callbacks = {}) => {
         }
     };
 
+    let disconnectRef = null;
+
     const unsubscribe = onValue(isConnectedRef, (snapshot) => {
         if (snapshot.val() === true) {
             setOnline();
-            onDisconnect(userStatusRef).set({
+            disconnectRef = onDisconnect(userStatusRef);
+            disconnectRef.set({
                 state: "offline",
                 last_changed: rtdbServerTimestamp()
-            });
+            }).catch(() => {});
         }
     });
 
@@ -58,6 +69,9 @@ export const watchUserConnection = (uid, callbacks = {}) => {
     return () => {
         unsubscribe();
         document.removeEventListener("visibilitychange", visibilityHandler);
+        if (disconnectRef && typeof disconnectRef.cancel === "function") {
+            disconnectRef.cancel().catch(() => {});
+        }
         setOffline();
     };
 };

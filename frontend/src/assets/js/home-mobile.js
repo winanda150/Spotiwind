@@ -844,6 +844,142 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupPlaylistModalListeners();
 
+    let previousSidebarAvatarTriggerEl = null;
+
+    const getHighResPhotoUrl = (url, size = 1024) => {
+        if (!url) return '';
+        let result = String(url).trim();
+
+        if (result.includes('googleusercontent.com') || result.includes('google.com') || result.includes('ggpht.com')) {
+            if (/=s\d+([a-zA-Z0-9_-]*)/.test(result)) {
+                result = result.replace(/=s\d+([a-zA-Z0-9_-]*)/, `=s${size}-c`);
+            } else if (/([?&])sz=\d+/.test(result)) {
+                result = result.replace(/([?&])sz=\d+/, `$1sz=${size}`);
+            } else {
+                const hasQuery = result.includes('?');
+                if (hasQuery) {
+                    const parts = result.split('?');
+                    result = `${parts[0]}=s${size}-c?${parts[1]}`;
+                } else {
+                    result = `${result}=s${size}-c`;
+                }
+            }
+            return result;
+        }
+
+        if (result.includes('ui-avatars.com')) {
+            if (/size=\d+/.test(result)) {
+                result = result.replace(/size=\d+/, `size=${size}`);
+            } else {
+                const sep = result.includes('?') ? '&' : '?';
+                result = `${result}${sep}size=${size}`;
+            }
+            return result;
+        }
+
+        return result;
+    };
+
+    const openSidebarAvatarPreview = (triggerElement = null) => {
+        const modal = document.getElementById('sidebarAvatarPreviewModal');
+        const previewImg = document.getElementById('sidebarAvatarPreviewImg');
+        const avatarEl = document.getElementById('sidebarUserAvatar');
+        if (!modal || !avatarEl || !previewImg) return;
+
+        previousSidebarAvatarTriggerEl = triggerElement || document.activeElement;
+
+        previewImg.referrerPolicy = "no-referrer";
+        let imgSrc = getHighResPhotoUrl(avatarEl.src, 1024);
+        previewImg.src = imgSrc;
+
+        modal.classList.remove('hidden');
+        modal.removeAttribute('inert');
+        void modal.offsetWidth; // Force reflow for smooth animation
+        modal.classList.add('is-active');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    };
+
+    const closeSidebarAvatarPreview = () => {
+        const modal = document.getElementById('sidebarAvatarPreviewModal');
+        if (!modal || modal.classList.contains('hidden')) return;
+
+        if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
+        if (previousSidebarAvatarTriggerEl && typeof previousSidebarAvatarTriggerEl.focus === 'function' && document.body.contains(previousSidebarAvatarTriggerEl)) {
+            try {
+                previousSidebarAvatarTriggerEl.focus();
+            } catch {}
+        }
+        previousSidebarAvatarTriggerEl = null;
+
+        modal.classList.remove('is-active');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+
+        setTimeout(() => {
+            if (!modal.classList.contains('is-active')) {
+                modal.classList.add('hidden');
+                modal.setAttribute('inert', '');
+            }
+        }, 280);
+    };
+
+    const setupSidebarAvatarPreviewListeners = () => {
+        const avatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
+        const backBtn = document.getElementById('sidebarAvatarPreviewBackBtn');
+        const editBtn = document.getElementById('sidebarAvatarPreviewEditBtn');
+        const shareBtn = document.getElementById('sidebarAvatarPreviewShareBtn');
+        const modal = document.getElementById('sidebarAvatarPreviewModal');
+
+        avatarWrapper?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openSidebarAvatarPreview(avatarWrapper);
+        });
+
+        backBtn?.addEventListener('click', () => {
+            closeSidebarAvatarPreview();
+        });
+
+        editBtn?.addEventListener('click', () => {
+            showToast('Ubah foto profil akan segera hadir');
+        });
+
+        shareBtn?.addEventListener('click', async () => {
+            const previewImg = document.getElementById('sidebarAvatarPreviewImg');
+            const photoUrl = previewImg?.src || window.location.href;
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Foto Profil Spotiwind',
+                        text: 'Lihat foto profil saya di Spotiwind',
+                        url: photoUrl
+                    });
+                } catch {}
+            } else if (navigator.clipboard) {
+                try {
+                    await navigator.clipboard.writeText(photoUrl);
+                    showToast('Tautan foto profil disalin ke clipboard');
+                } catch {
+                    showToast('Bagikan foto profil');
+                }
+            } else {
+                showToast('Bagikan foto profil');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                closeSidebarAvatarPreview();
+            }
+        });
+    };
+
+    setupSidebarAvatarPreviewListeners();
+
     // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
     const appContainer = document.querySelector('.app-container');
     if (appContainer) {
@@ -989,6 +1125,10 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSidebar();
             const user = auth.currentUser;
             if (user) {
+                if (typeof userPresenceCleanup === 'function') {
+                    userPresenceCleanup();
+                    userPresenceCleanup = null;
+                }
                 signOut(auth).then(() => {
                     showToast("Logged out successfully.");
                 }).catch(error => {
@@ -1737,8 +1877,32 @@ window.toggleDownloadSong = (song) => {
         if (!user || !avatarElement) return;
 
             const nameForAvatar = user.displayName || user.email.split('@')[0];
-            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
-            const originalPhotoURL = user.photoURL;
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true&size=512`;
+            
+            // Konversi Google photoURL dari s96-c menjadi HD s512-c
+            let originalPhotoURL = user.photoURL ? String(user.photoURL).trim() : '';
+            if (originalPhotoURL && (originalPhotoURL.includes('googleusercontent.com') || originalPhotoURL.includes('google.com') || originalPhotoURL.includes('ggpht.com'))) {
+                if (/=s\d+([a-zA-Z0-9_-]*)/.test(originalPhotoURL)) {
+                    originalPhotoURL = originalPhotoURL.replace(/=s\d+([a-zA-Z0-9_-]*)/, '=s512-c');
+                } else if (/([?&])sz=\d+/.test(originalPhotoURL)) {
+                    originalPhotoURL = originalPhotoURL.replace(/([?&])sz=\d+/, '$1sz=512');
+                } else {
+                    const hasQuery = originalPhotoURL.includes('?');
+                    if (hasQuery) {
+                        const parts = originalPhotoURL.split('?');
+                        originalPhotoURL = `${parts[0]}=s512-c?${parts[1]}`;
+                    } else {
+                        originalPhotoURL = `${originalPhotoURL}=s512-c`;
+                    }
+                }
+            } else if (originalPhotoURL && originalPhotoURL.includes('ui-avatars.com')) {
+                if (/size=\d+/.test(originalPhotoURL)) {
+                    originalPhotoURL = originalPhotoURL.replace(/size=\d+/, 'size=512');
+                } else {
+                    const sep = originalPhotoURL.includes('?') ? '&' : '?';
+                    originalPhotoURL = `${originalPhotoURL}${sep}size=512`;
+                }
+            }
             
             let originalRetry = 0; 
             const maxRetries = 2; 

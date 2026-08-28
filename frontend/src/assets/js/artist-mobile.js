@@ -28,6 +28,7 @@ export const initArtistPage = (artist, previousPage) => {
 
     parallaxHandler = () => {
         const hero = document.getElementById('artistHero');
+        const heroImage = document.getElementById('artistHeroImage');
         const header = document.querySelector('.artist-page-header');
         const backButton = document.querySelector('.artist-page-header .back-btn');
         const artistPageTitle = document.getElementById('artistPageName');
@@ -38,8 +39,28 @@ export const initArtistPage = (artist, previousPage) => {
             return;
         }
 
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const heroHeight = hero.offsetHeight || 320;
+
+        // Gambar tetap diam di posisinya (stationary) saat scroll ke bawah
+        if (heroImage) {
+            if (scrollTop > 0) {
+                const fadeOpacity = Math.max(0, 1 - (scrollTop / (heroHeight * 1.25)));
+                heroImage.style.transform = 'translate3d(0, 0, 0)';
+                heroImage.style.opacity = fadeOpacity;
+            } else if (scrollTop < 0) {
+                // Efek zoom elastis saat ditarik ke bawah (overscroll)
+                const scale = 1 + Math.abs(scrollTop) / 260;
+                heroImage.style.transform = `translate3d(0, 0, 0) scale(${scale})`;
+                heroImage.style.opacity = '1';
+            } else {
+                heroImage.style.transform = 'translate3d(0, 0, 0)';
+                heroImage.style.opacity = '1';
+            }
+        }
+
         const artistNameWrapperBottom = artistNameWrapper.getBoundingClientRect().bottom;
-        const headerHeight = header.offsetHeight;
+        const headerHeight = header.offsetHeight || 50;
         const shouldShowArtistNameInHeader = artistNameWrapperBottom <= headerHeight;
 
         if (shouldShowArtistNameInHeader) {
@@ -48,7 +69,7 @@ export const initArtistPage = (artist, previousPage) => {
                 artistPageTitleVisibilityTimeout = setTimeout(() => {
                     artistPageTitle.classList.add('visible');
                     artistPageTitle.setAttribute('aria-hidden', 'false');
-                }, 50);
+                }, 40);
             }
         } else {
             clearTimeout(artistPageTitleVisibilityTimeout);
@@ -59,7 +80,7 @@ export const initArtistPage = (artist, previousPage) => {
         header.classList.toggle('scrolled', shouldShowArtistNameInHeader);
         backButton.classList.toggle('transparent-bg', shouldShowArtistNameInHeader);
 
-        const hasScrolled = document.documentElement.scrollTop > 0;
+        const hasScrolled = scrollTop > 0;
         const artistNameWrapperTop = artistNameWrapper.getBoundingClientRect().top;
         const shouldShowShadow = hasScrolled && (artistNameWrapperTop < 0 || artistNameWrapperBottom <= headerHeight);
         artistNameWrapper.classList.toggle('has-dynamic-shadow', shouldShowShadow);
@@ -83,9 +104,25 @@ export const initArtistPage = (artist, previousPage) => {
     // 2. Hero Section
     const heroImage = document.getElementById('artistHeroImage');
     if (heroImage) {
-        heroImage.src = artist.photo;
-        heroImage.alt = artist.name;
-        heroImage.onerror = () => { heroImage.src = 'https://via.placeholder.com/500?text=Image+Error'; };
+        let rawPhoto = artist.photo || artist.image || artist.cover || '';
+        if (rawPhoto && !rawPhoto.startsWith('http://') && !rawPhoto.startsWith('https://') && !rawPhoto.startsWith('data:')) {
+            const cleanPath = String(rawPhoto)
+                .replace(/^(\.\.\/)+public\//, '')
+                .replace(/^(\.\.\/)+/, '')
+                .replace(/^\/?frontend\/public\//, '')
+                .replace(/^\/?public\//, '')
+                .replace(/^\/+/, '');
+            rawPhoto = `../../public/${cleanPath}`;
+        }
+
+        heroImage.referrerPolicy = "no-referrer";
+        heroImage.alt = artist.name || 'Artist';
+
+        const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name || 'Artist')}&background=B91EC9&color=fff&bold=true&size=512`;
+        heroImage.onerror = () => {
+            heroImage.src = fallbackAvatar;
+        };
+        heroImage.src = rawPhoto || fallbackAvatar;
     }
 
     // 3. Artist Name Wrapper

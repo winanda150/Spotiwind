@@ -1,117 +1,120 @@
 /* NEW: Artist Page Specific Styles */
 .artist-page-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.8rem var(--mobile-horizontal-padding);
-    position: sticky;
-    /* Sticky is better than fixed within a scrollable container */
-    top: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 0.75rem) var(--mobile-horizontal-padding, 1rem) 0.75rem;
     background: transparent;
     z-index: 1000;
-    transition: background-color 0.3s ease;
-    /* [NEW] Tambahkan transisi untuk perubahan background yang halus */
+    box-sizing: border-box;
+    transition: background-color 0.25s ease;
 }
 
 .artist-page-header.scrolled {
-    background-color: var(--bg-dark);
-    /* [NEW] Warna background solid saat di-scroll */
+    background-color: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
 }
 
 .back-btn {
-    background: rgba(0, 0, 0, 0.3);
-    /* Background default untuk lingkaran */
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: none;
-    color: var(--text-main);
-    width: 48px;
-    /* Set fixed width */
-    height: 48px;
-    /* Set fixed height */
+    color: var(--text-main, #ffffff);
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    /* Make it a circle */
-    cursor: pointer;
-    transition: background 0.3s ease;
-    /* [NEW] Transisi untuk perubahan background */
-}
-
-.back-btn svg {
-    width: 35px;
-    height: 35px;
-}
-
-.back-btn.transparent-bg {
-    background: transparent;
-    /* [NEW] Background transparan saat di-scroll */
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.25s ease, transform 0.15s ease, color 0.2s ease;
+}
+
+.back-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+.back-btn.transparent-bg {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .back-btn:hover {
-    color: rgb(204, 197, 197);
+    color: #ffffff;
+}
+
+.back-btn:active {
+    transform: scale(0.92);
 }
 
 .artist-page-title {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
+    color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: center;
-    /* Tetap di tengah */
     opacity: 0;
-    /* [NEW] Awalnya tersembunyi */
-    transition: opacity 0.3s ease;
-    /* [NEW] Transisi fade yang halus */
+    transition: opacity 0.25s ease;
     pointer-events: none;
-    /* [NEW] Mencegah interaksi saat tersembunyi */
 }
 
 .artist-page-title.visible {
     opacity: 1;
-    /* [NEW] Muncul saat kelas visible ditambahkan */
     pointer-events: auto;
-    /* [NEW] Memungkinkan interaksi saat terlihat */
 }
 
 .artist-hero-section {
-    /* [FIX] Hapus position: sticky dan top. Ini harus menjadi elemen blok biasa. */
-    position: relative;
-    /* Tetap relative untuk konteks positioning anak-anaknya */
-
+    position: sticky;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 45vh;
-    /* Tinggi area gambar yang sticky */
     display: block;
-    /* Hanya sebagai container, bukan flexbox */
     padding: 0;
+    margin: 0;
+    z-index: 0;
+    overflow: hidden;
+    background-color: var(--bg-dark, #0f172a);
+    transform-origin: center top;
 }
 
 .artist-hero-section::after {
     content: '';
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
-    height: 45vh;
+    height: 100%;
     background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.3) 50%, rgba(15, 23, 42, 0) 100%);
     z-index: 1;
-    /* [FIX] Set z-index to 1 to be above the image */
+    pointer-events: none;
 }
 
 .artist-hero-image {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 45vh;
+    height: 100%;
     object-fit: cover;
-    /* [FIX] This ensures the image covers the container without excessive zoom */
-    object-position: top;
-    z-index: -1;
-    /* Place image behind the name and gradient */
+    object-position: center top;
+    z-index: 0;
+    display: block;
+    will-change: opacity, transform;
+    transform-origin: center top;
 }
 
 .artist-hero-name {
@@ -120,7 +123,7 @@
     letter-spacing: -0.04em;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
     color: white;
-    /* Atur warna secara eksplisit */
+    margin: 0;
 }
 
 /* [NEW] Styling for the verified badge below artist name */
@@ -128,16 +131,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    /* Jarak antara ikon dan teks */
     color: white;
-    /* Warna teks */
+    margin-top: 0.35rem;
     margin-bottom: 0.5rem;
-    /* Jarak dari nama artis */
     font-size: 0.85rem;
-    /* Ukuran font */
     font-weight: 500;
     text-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
-    /* Bayangan tipis untuk keterbacaan */
 }
 
 .artist-verified-badge svg {
@@ -150,33 +149,24 @@
 .artist-content-scroll-wrapper {
     position: relative;
     z-index: 2;
-    /* This container sits on top of the sticky hero */
-    margin-top: -56vh;
-    /* [FIX] Tarik konten ke atas sebesar tinggi hero (45vh) untuk menutupi gambar */
+    margin-top: -45vh;
     background: transparent;
-    /* This wrapper itself is transparent */
 }
 
 /* [NEW] Wrapper untuk memposisikan nama artis dan membuatnya bisa di-scroll */
 .artist-name-wrapper {
     height: 45vh;
-    /* Samakan dengan tinggi hero untuk menciptakan layout awal */
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     padding: 0rem var(--mobile-horizontal-padding);
     background: transparent;
-    /* Wrapper ini transparan, berada di atas gambar hero */
-}
-
-/* NEW: Dynamic background shadow for artist name wrapper */
-.artist-name-wrapper {
+    box-sizing: border-box;
     position: relative;
-    /* Needed for absolute positioning of pseudo-element */
-    /* Tambahkan background-color transparan agar pseudo-element tidak terhalang */
-    background-color: transparent;
+    z-index: 2;
 }
 
+/* Dynamic background shadow for artist name wrapper when scrolled */
 .artist-name-wrapper::before {
     content: '';
     position: absolute;
@@ -185,25 +175,21 @@
     width: 100%;
     height: 100%;
     background: linear-gradient(to top, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0));
-    /* Dark at bottom, transparent at top */
     z-index: -1;
-    /* Behind the text */
     opacity: 0;
-    /* Initially hidden */
     transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .artist-name-wrapper.has-dynamic-shadow::before {
     opacity: 1;
-    /* Show shadow when scrolled */
 }
 
 /* [FIX] This inner wrapper has the solid background that scrolls up */
 .artist-songs-content {
     background-color: var(--bg-dark);
-    /* The solid background starts here */
     position: relative;
-    /* To ensure it's part of the flow */
+    z-index: 3;
 }
 
 /* [NEW] Vertical list layout for artist songs */

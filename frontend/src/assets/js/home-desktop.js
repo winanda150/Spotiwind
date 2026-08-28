@@ -1327,8 +1327,33 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             const avatarElement = document.getElementById('userAvatar');
             if (avatarElement) {
                 const nameForAvatar = user.displayName || user.email.split('@')[0];
-                const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true`;
-                const originalPhotoURL = user.photoURL;
+                const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true&size=512`;
+                
+                // Konversi Google photoURL dari s96-c menjadi HD s512-c
+                let originalPhotoURL = user.photoURL ? String(user.photoURL).trim() : '';
+                if (originalPhotoURL && (originalPhotoURL.includes('googleusercontent.com') || originalPhotoURL.includes('google.com') || originalPhotoURL.includes('ggpht.com'))) {
+                    if (/=s\d+([a-zA-Z0-9_-]*)/.test(originalPhotoURL)) {
+                        originalPhotoURL = originalPhotoURL.replace(/=s\d+([a-zA-Z0-9_-]*)/, '=s512-c');
+                    } else if (/([?&])sz=\d+/.test(originalPhotoURL)) {
+                        originalPhotoURL = originalPhotoURL.replace(/([?&])sz=\d+/, '$1sz=512');
+                    } else {
+                        const hasQuery = originalPhotoURL.includes('?');
+                        if (hasQuery) {
+                            const parts = originalPhotoURL.split('?');
+                            originalPhotoURL = `${parts[0]}=s512-c?${parts[1]}`;
+                        } else {
+                            originalPhotoURL = `${originalPhotoURL}=s512-c`;
+                        }
+                    }
+                } else if (originalPhotoURL && originalPhotoURL.includes('ui-avatars.com')) {
+                    if (/size=\d+/.test(originalPhotoURL)) {
+                        originalPhotoURL = originalPhotoURL.replace(/size=\d+/, 'size=512');
+                    } else {
+                        const sep = originalPhotoURL.includes('?') ? '&' : '?';
+                        originalPhotoURL = `${originalPhotoURL}${sep}size=512`;
+                    }
+                }
+                
                 let originalRetry = 0;
                 const maxRetries = 2;
 
@@ -1384,6 +1409,10 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                     navigateToDesktopAuthPage('login');
                 } else {
                     if (confirm(`Logged in as ${user.email}. Do you want to log out?`)) {
+                        if (typeof userPresenceCleanup === 'function') {
+                            userPresenceCleanup();
+                            userPresenceCleanup = null;
+                        }
                         signOut(auth).catch(err => console.error("Logout error:", err));
                     }
                 }

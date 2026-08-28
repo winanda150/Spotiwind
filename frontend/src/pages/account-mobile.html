@@ -9,19 +9,17 @@
                 </svg>
             </button>
         </div>
+        <div class="header-brand">
+            <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
+            <span class="mobile-brand-name">Spotiwind</span>
+        </div>
         <div class="header-right">
-            <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications" title="Notifications">
+            <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
                 </svg>
                 <span id="notificationBadge" class="notification-badge hidden"></span>
-            </button>
-            <button id="accountSettingsBtn" class="account-settings-btn" type="button" aria-label="Settings" title="Settings">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
             </button>
         </div>
     </header>
@@ -30,7 +28,7 @@
         <!-- Profile Header Section -->
         <section class="account-profile-header">
             <div class="account-avatar-wrapper">
-                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User&background=B91EC9&color=fff&bold=true&size=128" alt="User Avatar" class="account-avatar">
+                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User&background=B91EC9&color=fff&bold=true&size=512" alt="User Avatar" class="account-avatar" referrerpolicy="no-referrer">
                 <div class="avatar-camera-badge" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -56,4 +54,44 @@
             </div>
         </section>
     </main>
+
+    <!-- Profile Avatar Fullscreen Square Preview -->
+    <div id="avatarPreviewModal" class="avatar-preview-modal hidden" aria-hidden="true">
+        <div class="avatar-preview-backdrop"></div>
+        
+        <!-- Header Mode Pratinjau Gelap -->
+        <header class="avatar-preview-header">
+            <div class="avatar-preview-header-left">
+                <button id="avatarPreviewBackBtn" class="preview-header-btn" type="button" aria-label="Kembali">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
+                <span class="preview-header-title">Foto profile</span>
+            </div>
+            <div class="avatar-preview-header-right">
+                <button id="avatarPreviewEditBtn" class="preview-header-btn" type="button" aria-label="Edit foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                    </svg>
+                </button>
+                <button id="avatarPreviewShareBtn" class="preview-header-btn" type="button" aria-label="Bagikan foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="avatar-preview-dialog" role="dialog" aria-modal="true" aria-label="Foto Profil">
+            <div class="avatar-preview-square-wrapper">
+                <img id="avatarPreviewImg" src="" alt="Foto Profil" class="avatar-preview-square-img">
+            </div>
+        </div>
+    </div>
 </body>

@@ -136,7 +136,7 @@
             </div>
             <div class="sidebar-profile">
                 <div class="avatar-container sidebar-profile-avatar-wrapper">
-                    <img id="sidebarUserAvatar" class="sidebar-profile-avatar" src="" alt="User Avatar">
+                    <img id="sidebarUserAvatar" class="sidebar-profile-avatar" src="" alt="User Avatar" referrerpolicy="no-referrer">
                     <span class="online-status offline"></span>
                 </div>
                 <div class="sidebar-profile-info">
@@ -917,6 +917,46 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Sidebar Avatar Fullscreen Square Preview -->
+    <div id="sidebarAvatarPreviewModal" class="avatar-preview-modal hidden" aria-hidden="true">
+        <div class="avatar-preview-backdrop"></div>
+        
+        <!-- Header Mode Pratinjau Gelap -->
+        <header class="avatar-preview-header">
+            <div class="avatar-preview-header-left">
+                <button id="sidebarAvatarPreviewBackBtn" class="preview-header-btn" type="button" aria-label="Kembali">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                </button>
+                <span class="preview-header-title">Foto profile</span>
+            </div>
+            <div class="avatar-preview-header-right">
+                <button id="sidebarAvatarPreviewEditBtn" class="preview-header-btn" type="button" aria-label="Edit foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                    </svg>
+                </button>
+                <button id="sidebarAvatarPreviewShareBtn" class="preview-header-btn" type="button" aria-label="Bagikan foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="avatar-preview-dialog" role="dialog" aria-modal="true" aria-label="Foto Profil">
+            <div class="avatar-preview-square-wrapper">
+                <img id="sidebarAvatarPreviewImg" src="" alt="Foto Profil" class="avatar-preview-square-img">
+            </div>
         </div>
     </div>
 
