@@ -1,108 +1,59 @@
-<!-- Konten ini akan disuntikkan ke dalam .app-container di home-mobile.html -->
-
 <body>
     <header class="mobile-header">
-    <div class="header-left">
-        <button class="menu-btn" type="button" aria-label="Open menu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-        </button>
-    </div>
-    <div class="header-brand">
-        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
-        <span class="mobile-brand-name">Spotiwind</span>
-    </div>
-    <div class="header-right">
-        <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
-            </svg>
-            <span id="notificationBadge" class="notification-badge hidden"></span>
-        </button>
-    </div>
-</header>
+        <div class="header-left">
+            <button class="menu-btn" type="button" aria-label="Open menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="header-right">
+            <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications" title="Notifications">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
+                </svg>
+                <span id="notificationBadge" class="notification-badge hidden"></span>
+            </button>
+            <button id="accountSettingsBtn" class="account-settings-btn" type="button" aria-label="Settings" title="Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
 
-    <!-- Konten utama halaman akun -->
-    <main class="mobile-content" style="padding: 0rem var(--mobile-horizontal-padding) 1.25rem;">
-        <div class="account-profile-card">
+    <main class="mobile-content account-page">
+        <!-- Profile Header Section -->
+        <section class="account-profile-header">
             <div class="account-avatar-wrapper">
-                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User+Name&background=B91EC9&color=fff&bold=true&size=128" alt="User Avatar" class="account-avatar">
-                <button class="edit-avatar-btn" aria-label="Edit Avatar">
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User&background=B91EC9&color=fff&bold=true&size=128" alt="User Avatar" class="account-avatar">
+                <div class="avatar-camera-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
                     </svg>
-                </button>
-            </div>
-            <div class="account-info">
-                <h1 id="accountName" class="account-name">User Name</h1>
-                <p id="accountEmail" class="account-email">user@example.com</p>
-            </div>
-            <button class="edit-profile-btn">Edit Profile</button>
-        </div>
-
-        <!-- Grup Pengaturan -->
-        <div class="settings-group">
-            <h2 class="settings-group-title">Account</h2>
-            <div class="settings-item">
-                <span class="settings-item-text">Manage Subscription</span>
-                <svg class="settings-item-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-            </div>
-            <div class="settings-item">
-                <span class="settings-item-text">Change Password</span>
-                <svg class="settings-item-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-            </div>
-        </div>
-
-        <div class="settings-group">
-            <h2 class="settings-group-title">Preferences</h2>
-            <div class="settings-item">
-                <span class="settings-item-text">Notifications</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="settings-item">
-                <span class="settings-item-text">Data Saver</span>
-                <label class="toggle-switch">
-                    <input type="checkbox">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="settings-item">
-                <span class="settings-item-text">Language</span>
-                <div class="settings-item-value">
-                    <span>English</span>
-                    <svg class="settings-item-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
                 </div>
             </div>
-        </div>
-
-        <div class="settings-group">
-            <h2 class="settings-group-title">Support</h2>
-            <div class="settings-item">
-                <span class="settings-item-text">Help Center</span>
-                <svg class="settings-item-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+            <div class="account-profile-info">
+                <div class="account-user-meta">
+                    <div class="account-name-row">
+                        <h1 id="accountName" class="account-name">User Name</h1>
+                        <span id="accountProBadge" class="pro-badge">PRO</span>
+                    </div>
+                    <p id="accountEmail" class="account-email">user@example.com</p>
+                </div>
+                <button id="editProfileBtn" class="edit-profile-btn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Edit Profile</span>
+                </button>
             </div>
-            <div class="settings-item">
-                <span class="settings-item-text">About Spotiwind</span>
-                <svg class="settings-item-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-            </div>
-        </div>
-
-        <button id="logoutBtnBottom" class="logout-btn-bottom">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            <span>Log Out</span>
-        </button>
-
+        </section>
     </main>
 </body>

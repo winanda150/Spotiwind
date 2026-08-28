@@ -2269,7 +2269,7 @@ window.toggleDownloadSong = (song) => {
             // Ini membuat fungsi lebih fleksibel untuk memuat halaman parsial.
             const newContent = doc.body.innerHTML;
 
-            if (newContent) {
+            if (typeof newContent === 'string') {
                 if (navigationId !== pageLoadSequence) return;
 
                 // Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.

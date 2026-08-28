@@ -250,8 +250,8 @@ body.is-desktop-auth-view .bottom-player-bar {
 
 .brand-hero-logo-container {
     position: relative;
-    width: clamp(140px, 9vw, 130px);
-    height: clamp(140px, 9vw, 130px);
+    width: clamp(180px, 9vw, 130px);
+    height: clamp(180px, 9vw, 130px);
     display: flex;
     align-items: center;
     justify-content: center;
