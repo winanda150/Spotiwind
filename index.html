@@ -14,10 +14,8 @@
     <script>
         // Ensure relative asset URLs resolve correctly from app root on deep paths or refresh
         (function() {
-            var isGitHub = window.location.pathname.startsWith('/spotiwind-music');
-            var basePath = isGitHub ? '/spotiwind-music/' : '/';
             var base = document.createElement('base');
-            base.href = window.location.origin + basePath;
+            base.href = window.location.origin + '/';
             document.head.appendChild(base);
         })();
 
@@ -47,20 +45,6 @@
                 }
             });
         })();
-
-        // Check for redirect from GitHub Pages 404.html (?p=/...)
-        (function(l) {
-            if (l.search && l.search[1] === '/' ) {
-                var decoded = l.search.slice(1).split('&').map(function(s) { 
-                    return s.replace(/~and~/g, '&');
-                }).join('?');
-                var targetPath = decoded + l.hash;
-                sessionStorage.setItem('spotiwind_target_route', targetPath);
-                window.history.replaceState(null, null,
-                    l.pathname.slice(0, -1) + decoded + l.hash
-                );
-            }
-        }(window.location));
     </script>
     <script type="module" src="frontend/src/assets/js/index.js"></script>
 </head>

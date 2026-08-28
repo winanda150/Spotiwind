@@ -1379,9 +1379,8 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         initializeData();
         initDesktopSearch();
 
-        const base = window.location.pathname.startsWith('/spotiwind-music') ? '/spotiwind-music' : '';
         try {
-            window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', `${base}/`);
+            window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', '/');
         } catch (e) {}
     });
 });

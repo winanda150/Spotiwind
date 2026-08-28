@@ -63,7 +63,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true
+    experimentalAutoDetectLongPolling: true
 });
 const rtdb = getDatabase(app);
 

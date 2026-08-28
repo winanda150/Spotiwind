@@ -4,19 +4,42 @@
 <head>
     <meta charset="UTF-8">
     <script>
+        // Suppress third-party/extension performance observer noise in console
+        (function() {
+            var suppress = function(e) {
+                var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
+                var stack = (e && e.error && e.error.stack) || '';
+                if (msg.indexOf('startTime') !== -1 || msg.indexOf('reportAllChanges') !== -1 ||
+                    stack.indexOf('startTime') !== -1 || stack.indexOf('reportAllChanges') !== -1) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    return true;
+                }
+            };
+            window.addEventListener('error', suppress, true);
+            window.onerror = function(msg, url, line, col, err) {
+                var text = String(msg || '') + String(err && err.stack || '');
+                if (text.indexOf('startTime') !== -1 || text.indexOf('reportAllChanges') !== -1) {
+                    return true;
+                }
+            };
+            window.addEventListener('unhandledrejection', function(e) {
+                var reason = String(e && e.reason ? (e.reason.message || e.reason) : '');
+                if (reason.indexOf('startTime') !== -1 || reason.indexOf('reportAllChanges') !== -1) {
+                    e.preventDefault();
+                }
+            });
+        })();
+
         // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
         (function() {
-            var isGitHub = window.location.pathname.includes('/spotiwind-music');
-            var basePath = isGitHub ? '/spotiwind-music/frontend/src/pages/' : '/frontend/src/pages/';
             var base = document.createElement('base');
-            base.href = window.location.origin + basePath;
+            base.href = window.location.origin + '/frontend/src/pages/';
             document.head.appendChild(base);
 
-            // Rewrite URL bar cleanly to /login (or /spotiwind-music/login)
+            // Rewrite URL bar cleanly to /login
             try {
-                var appBase = isGitHub ? '/spotiwind-music' : '';
-                var targetUrl = appBase ? (appBase + '/login') : '/login';
-                window.history.replaceState({ route: 'login' }, document.title, targetUrl);
+                window.history.replaceState({ route: 'login' }, document.title, '/login');
             } catch (e) {}
         })();
     </script>
@@ -39,12 +62,12 @@
     <meta property="og:title" content="Login & Register - Spotiwind">
     <meta property="og:description" 
         content="Discover millions of songs, curated playlists, and the best music listening experience for you.">
-    <meta property="og:image" content="https://winanda150.github.io/spotiwind-music/frontend/public/Elemen/Logo/Spotiwind.webp">
-    <meta property="og:url" content="https://winanda150.github.io/spotiwind-music/">
+    <meta property="og:image" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
+    <meta property="og:url" content="https://spotiwind-music.vercel.app/">
     <meta property="og:type" content="website">
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://winanda150.github.io/spotiwind-music/frontend/public/Elemen/Logo/Spotiwind.webp">
+    <meta name="twitter:image" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
     <link rel="stylesheet" href="../assets/css/auth.css">
 </head>
 

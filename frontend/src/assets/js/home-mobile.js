@@ -1866,15 +1866,12 @@ window.toggleDownloadSong = (song) => {
         return loaded;
     };
 
-    const getAppBasePath = () => {
-        return window.location.pathname.startsWith('/spotiwind-music') ? '/spotiwind-music' : '';
-    };
+    const getAppBasePath = () => '';
 
     const updateAppUrl = (path, title, state = {}, shouldPushState = true) => {
         if (title) document.title = title;
-        const base = getAppBasePath();
         const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        const fullCleanPath = `${base}${cleanPath}`;
+        const fullCleanPath = cleanPath;
         const currentState = { ...state, path: fullCleanPath };
         
         try {
@@ -2009,7 +2006,7 @@ window.toggleDownloadSong = (song) => {
     };
 
     const handleRoutePath = async (rawPath, state = null, shouldPushState = true) => {
-        let cleanPath = (rawPath || '/').replace(/^\/spotiwind-music/, '');
+        let cleanPath = rawPath || '/';
         if (!cleanPath.startsWith('/')) cleanPath = '/' + cleanPath;
         cleanPath = cleanPath.replace(/\/(index|home-mobile|home-desktop)\.html$/, '');
         if (!cleanPath) cleanPath = '/';
@@ -2209,9 +2206,7 @@ window.toggleDownloadSong = (song) => {
 
             // Muat konten halaman parsial dari path yang diberikan secara aman
             const pageFileName = page.includes('/') ? page.split('/').pop() : page;
-            const isGitHub = window.location.pathname.includes('/spotiwind-music');
-            const appBase = isGitHub ? '/spotiwind-music/' : '/';
-            const pageFetchUrl = `${window.location.origin}${appBase}frontend/src/pages/${pageFileName}`;
+            const pageFetchUrl = `${window.location.origin}/frontend/src/pages/${pageFileName}`;
             const response = await fetch(pageFetchUrl);
             if (!response.ok) throw new Error(`Could not load ${page}`);
             const text = await response.text();
@@ -2773,7 +2768,7 @@ window.spotiwind = {
             handleRoutePath(pendingRoute, null, false);
         } else {
             const currentPath = window.location.pathname;
-            const cleanPath = currentPath.replace(/^\/spotiwind-music/, '');
+            const cleanPath = currentPath;
             if (cleanPath && cleanPath !== '/' && !cleanPath.endsWith('.html')) {
                 handleRoutePath(cleanPath, null, false);
             } else {
