@@ -32,12 +32,27 @@ const featuredLocalSongs = [
 
 export const getPublicAssetUrl = (relativePath) => {
     if (!relativePath) return '';
-    if (typeof window === 'undefined') return relativePath;
-    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) return relativePath;
-    const isGitHub = window.location.pathname.includes('/spotiwind-music');
-    const base = `${window.location.origin}${isGitHub ? '/spotiwind-music' : ''}/frontend/public/`;
-    const cleanPath = String(relativePath).replace(/^(\.\.\/)+public\//, '').replace(/^\/?public\//, '').replace(/^\/+/, '');
-    return `${base}${cleanPath}`;
+    if (typeof relativePath !== 'string') return relativePath;
+
+    // If it's an external URL (e.g. Jamendo CDN) and NOT a local domain with /frontend/public/ or /Elemen/
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+        if (relativePath.includes('/frontend/public/')) {
+            relativePath = relativePath.split('/frontend/public/')[1];
+        } else if (relativePath.includes('/Elemen/')) {
+            relativePath = 'Elemen/' + relativePath.split('/Elemen/')[1];
+        } else {
+            return relativePath;
+        }
+    }
+
+    const cleanPath = String(relativePath)
+        .replace(/^(\.\.\/)+public\//, '')
+        .replace(/^(\.\.\/)+/, '')
+        .replace(/^\/?frontend\/public\//, '')
+        .replace(/^\/?public\//, '')
+        .replace(/^\/+/, '');
+
+    return `../../public/${cleanPath}`;
 };
 
 export const getFeaturedLocalSongs = () => featuredLocalSongs.map(([id, name, artist, duration, path]) => ({

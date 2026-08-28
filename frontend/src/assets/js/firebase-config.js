@@ -16,6 +16,7 @@ import {
     browserSessionPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
+    initializeFirestore,
     getFirestore,
     collection,
     writeBatch,
@@ -61,7 +62,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true
+});
 const rtdb = getDatabase(app);
 
 export {

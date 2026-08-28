@@ -19,14 +19,49 @@ const getStatsRef = (type) => collection(db, SEARCH_STATS_COLLECTION, type, 'ite
 
 const getEntityId = (type, item) => `${type}-${String(item.id || item.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
+export const normalizePopularityAssetUrl = (url) => {
+    if (!url || typeof url !== 'string') return '';
+
+    // If it's an absolute URL containing local asset path (from localhost, vercel, github pages, etc.)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        if (url.includes('/frontend/public/')) {
+            url = url.split('/frontend/public/')[1];
+        } else if (url.includes('/Elemen/')) {
+            url = 'Elemen/' + url.split('/Elemen/')[1];
+        } else {
+            return url; // External CDN (e.g. Jamendo)
+        }
+    }
+
+    const cleanPath = String(url)
+        .replace(/^(\.\.\/)+public\//, '')
+        .replace(/^(\.\.\/)+/, '')
+        .replace(/^\/?frontend\/public\//, '')
+        .replace(/^\/?public\//, '')
+        .replace(/^\/+/, '');
+
+    return `../../public/${cleanPath}`;
+};
+
 export const recordSearchSelection = async (type, item) => {
     if (!['songs', 'artists', 'albums'].includes(type) || (!item?.id && !item?.name)) return;
 
     try {
         const itemRef = doc(getStatsRef(type), getEntityId(type, item));
         const itemData = type === 'artists'
-            ? { id: item.id, name: item.name, photo: item.photo || item.image || '' }
-            : { id: item.id, name: item.name, artist: item.artist || item.artist_name || '', cover: item.cover || item.image || '', audio: item.audio || '', duration: Number(item.duration) || 0 };
+            ? { 
+                id: item.id, 
+                name: item.name, 
+                photo: normalizePopularityAssetUrl(item.photo || item.image || '') 
+              }
+            : { 
+                id: item.id, 
+                name: item.name, 
+                artist: item.artist || item.artist_name || '', 
+                cover: normalizePopularityAssetUrl(item.cover || item.image || ''), 
+                audio: normalizePopularityAssetUrl(item.audio || ''), 
+                duration: Number(item.duration) || 0 
+              };
         await setDoc(itemRef, { ...itemData, type, searchCount: increment(1), updatedAt: serverTimestamp() }, { merge: true });
     } catch (error) {
         console.error(`Failed to record popular ${type}:`, error);
@@ -37,11 +72,17 @@ export const subscribePopularSearches = (type, callback, resultLimit = MAX_RESUL
     const popularQuery = firestoreQuery(getStatsRef(type), orderBy('searchCount', 'desc'), limit(resultLimit));
 
     return onSnapshot(popularQuery, (snapshot) => {
-        const firestoreItems = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-            searchCount: Number(docSnap.data()?.searchCount) || 0
-        }));
+        const firestoreItems = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() || {};
+            return {
+                id: docSnap.id,
+                ...data,
+                audio: normalizePopularityAssetUrl(data.audio),
+                cover: normalizePopularityAssetUrl(data.cover),
+                photo: normalizePopularityAssetUrl(data.photo),
+                searchCount: Number(data.searchCount) || 0
+            };
+        });
         callback(firestoreItems);
     }, (error) => {
         console.error(`Failed to subscribe to popular ${type}:`, error);
