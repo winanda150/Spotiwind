@@ -2236,7 +2236,7 @@ window.toggleDownloadSong = (song) => {
 
                 // [FIX] Re-initialize dropdown listeners first before other UI updates.
                 // [NEW] Dynamically load notification page CSS using absolute URL
-                const cssBase = `${window.location.origin}${appBase}frontend/src/assets/css/`;
+                const cssBase = `${window.location.origin}/frontend/src/assets/css/`;
                 if (page.includes('search-mobile.html')) {
                     searchPageStyleLink = await loadStylesheet(
                         `${cssBase}search-mobile.css`,
