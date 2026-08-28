@@ -1,3 +1,4 @@
+import { auth } from './firebase-config.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import {
     getRecentSearches,
@@ -5,6 +6,7 @@ import {
     clearRecentSearches
 } from '../../services/recentSearchService.js';
 import { subscribePopularSearches, recordSearchSelection } from '../../services/searchPopularityService.js';
+import { findUserByCode, followUser, unfollowUser, getUserFollowing } from '../../services/userService.js';
 
 export const initSearchPage = ({
     debounce,
@@ -53,6 +55,48 @@ export const initSearchPage = ({
     window.handleAlbumSearchClick = async (id, name, artist, cover) => {
         await recordSearchSelection('albums', { id, name, artist, cover });
         searchDropdown.classList.remove('active');
+    };
+
+    window.handleUserFollowClick = async (targetUid, targetName, targetPhoto, buttonEl) => {
+        const user = auth.currentUser;
+        if (!user) {
+            if (typeof window.navigateToAuthPage === 'function') {
+                window.navigateToAuthPage('login');
+            } else if (typeof window.showToast === 'function') {
+                window.showToast('Silakan login terlebih dahulu untuk mengikuti akun');
+            }
+            return;
+        }
+
+        if (user.uid === targetUid) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('Ini adalah ID Akun Anda sendiri');
+            }
+            return;
+        }
+
+        const isCurrentlyFollowing = buttonEl?.dataset?.following === 'true';
+        if (isCurrentlyFollowing) {
+            await unfollowUser(targetUid);
+            if (buttonEl) {
+                buttonEl.dataset.following = 'false';
+                buttonEl.textContent = 'Follow';
+                buttonEl.style.background = 'linear-gradient(135deg, #F12E77, #B91EC9)';
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Berhenti mengikuti ${targetName}`);
+            }
+        } else {
+            await followUser(targetUid, { displayName: targetName, photoURL: targetPhoto });
+            if (buttonEl) {
+                buttonEl.dataset.following = 'true';
+                buttonEl.textContent = 'Following';
+                buttonEl.style.background = 'rgba(255, 255, 255, 0.16)';
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Mulai mengikuti ${targetName}!`);
+            }
+        }
     };
 
     const lastSearchQuery = getLastSearchQuery();
@@ -341,19 +385,70 @@ export const initSearchPage = ({
         searchAbortController = new AbortController();
         searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Searching...</div>';
 
+        const cleanQuery = query.trim();
+        const isCodeSearch = cleanQuery.startsWith('#') || cleanQuery.toUpperCase().startsWith('SPW-');
+
         try {
-            const catalog = await searchCatalogData(query.trim().toLowerCase(), getSongs(), getArtists(), 15);
+            const [catalog, foundUser] = await Promise.all([
+                searchCatalogData(cleanQuery.toLowerCase(), getSongs(), getArtists(), 15),
+                isCodeSearch ? findUserByCode(cleanQuery).catch(() => null) : Promise.resolve(null)
+            ]);
+
             const finalItems = [...catalog.artists, ...catalog.songs, ...catalog.albums]
                 .sort((left, right) => right.searchRank - left.searchRank)
                 .slice(0, 15);
             const fullMappedResults = finalItems.filter((item) => item.type === 'song');
 
-            if (finalItems.length > 0) {
-                setSearchPlaylist(fullMappedResults.slice(0, 30));
-                const dropdownItems = finalItems.slice(0, 8);
+            let userItemHtml = '';
+            if (foundUser) {
+                const currentUser = auth.currentUser;
+                const isSelf = currentUser && currentUser.uid === foundUser.uid;
+                let isFollowing = false;
+                if (currentUser && !isSelf) {
+                    try {
+                        const followingList = await getUserFollowing(currentUser.uid);
+                        isFollowing = followingList.some((f) => f.id === foundUser.uid || f.uid === foundUser.uid);
+                    } catch {
+                        isFollowing = false;
+                    }
+                }
+
+                const userDisplayName = escapeHtml(foundUser.displayName || 'User');
+                const userPhoto = escapeHtml(foundUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=B91EC9&color=fff&bold=true`);
+                const userCodeText = escapeHtml(foundUser.userCode);
+                const isPro = Boolean(foundUser.isPremium);
+
+                userItemHtml = `
+                    <div class="dropdown-item dropdown-item-user" data-user-uid="${escapeHtml(foundUser.uid)}" style="cursor: default;">
+                        <div class="dropdown-cover-wrapper ${isPro ? 'user-is-pro' : ''}">
+                            <img src="${userPhoto}" alt="${userDisplayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" referrerpolicy="no-referrer">
+                        </div>
+                        <div class="dropdown-track-info" style="flex: 1; min-width: 0; justify-content: center;">
+                            <div class="dropdown-info-name" style="font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
+                                <span>${userDisplayName}</span>
+                                ${isPro ? '<span class="pro-badge" style="font-size: 0.58rem; padding: 0.1rem 0.35rem;">PRO</span>' : ''}
+                            </div>
+                            <div class="dropdown-user-code-label" style="font-size: 0.74rem; color: #38bdf8; font-weight: 600; font-family: monospace;">
+                                ${userCodeText} <span style="color: var(--text-muted); font-weight: 400; font-family: inherit;">• Pengguna</span>
+                            </div>
+                        </div>
+                        ${!isSelf ? `
+                            <button class="dropdown-user-follow-btn" type="button" data-following="${isFollowing ? 'true' : 'false'}" style="${isFollowing ? 'background: rgba(255, 255, 255, 0.16);' : ''}" onclick="event.stopPropagation(); window.handleUserFollowClick('${escapeHtml(foundUser.uid)}', '${userDisplayName.replace(/'/g, "\\'")}', '${userPhoto.replace(/'/g, "\\'")}', this)">
+                                ${isFollowing ? 'Following' : 'Follow'}
+                            </button>
+                        ` : '<span style="font-size: 0.72rem; color: var(--text-muted); padding: 0.3rem 0.6rem;">Anda</span>'}
+                    </div>
+                `;
+            }
+
+            if (foundUser || finalItems.length > 0) {
+                if (fullMappedResults.length > 0) {
+                    setSearchPlaylist(fullMappedResults.slice(0, 30));
+                }
+                const dropdownItems = finalItems.slice(0, foundUser ? 6 : 8);
                 window.lastSearchResults = dropdownItems.filter((item) => item.type === 'song');
 
-                searchDropdown.innerHTML = dropdownItems.map((item) => {
+                const musicItemsHtml = dropdownItems.map((item) => {
                     if (item.type === 'artist') {
                         const safeName = item.name.replace(/'/g, "\\'");
                         const safePhoto = item.photo.replace(/'/g, "\\'");
@@ -377,6 +472,8 @@ export const initSearchPage = ({
                     return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="handleSongSearchClick('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${song.artist.replace(/'/g, "\\'")}', '${song.cover}', '${song.id}', '${song.duration || 0}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" style="width: 100%; height: 100%; object-fit: cover;"></div><div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
                 }).join('');
 
+                searchDropdown.innerHTML = `${userItemHtml}${musicItemsHtml}`;
+
                 if (typeof window.syncActiveSongUI === 'function') {
                     window.syncActiveSongUI();
                 }
@@ -396,7 +493,11 @@ export const initSearchPage = ({
                     }
                 }
             } else {
-                searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';
+                if (isCodeSearch) {
+                    searchDropdown.innerHTML = `<div style="padding: 1.25rem 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);"><span style="color: #38bdf8; font-weight: 600; font-family: monospace;">${escapeHtml(cleanQuery)}</span> tidak ditemukan.<br><span style="font-size: 0.74rem; opacity: 0.8;">Pastikan ID Akun sama persis (tanpa typo).</span></div>`;
+                } else {
+                    searchDropdown.innerHTML = '<div style="padding: 1rem; text-align: center; font-size: 0.75rem;">No results.</div>';
+                }
             }
         } catch (error) {
             if (error.name === 'AbortError') return;

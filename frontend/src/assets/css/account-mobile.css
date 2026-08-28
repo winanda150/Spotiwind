@@ -21,32 +21,41 @@
     -webkit-backdrop-filter: none;
 }
 
-/* Avatar with circular gradient border and camera icon badge (Google One / Premium Style Ring) */
+/* Avatar with camera badge (Gradient ring active only for PRO / isPremium) */
 .account-avatar-wrapper {
     position: relative;
     width: 106px;
     height: 106px;
     border-radius: 50%;
-    padding: 2.5px;
-    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
-                0 8px 24px rgba(185, 30, 201, 0.35);
+    padding: 0;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     flex-shrink: 0;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.account-avatar-wrapper:hover {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
-                0 10px 30px rgba(185, 30, 201, 0.5);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .account-avatar-wrapper:active {
     transform: scale(0.97);
+}
+
+/* When user is PRO / Subscribed */
+.account-avatar-wrapper.is-pro {
+    padding: 2.5px;
+    border: none;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 8px 24px rgba(185, 30, 201, 0.35);
+}
+
+.account-avatar-wrapper.is-pro:hover {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12),
+                0 10px 30px rgba(185, 30, 201, 0.5);
 }
 
 .account-avatar {
@@ -165,6 +174,50 @@
     text-overflow: ellipsis;
 }
 
+/* Account Unique Code Badge (ID) */
+.account-code-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.1rem 0;
+    margin-top: 0.15rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: fit-content;
+    user-select: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.account-code-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+
+.account-code-value {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.04em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.account-code-copy-icon {
+    width: 12px;
+    height: 12px;
+    color: #38bdf8;
+    margin-left: 0.1rem;
+    opacity: 0.85;
+    transition: transform 0.2s ease;
+}
+
+.account-code-wrapper:hover .account-code-copy-icon {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
 .edit-profile-btn {
     display: inline-flex;
     align-items: center;
@@ -205,6 +258,229 @@
 }
 
 /* ==========================================================================
+   Account Stats Box (Playlists, Followers, Following, Likes)
+   ========================================================================== */
+.account-stats-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.95rem 0.4rem 0.85rem;
+    margin-bottom: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.25rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    padding: 0.35rem 0.15rem;
+    border-radius: 0.75rem;
+    background: transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.stat-item:active {
+    transform: scale(0.96);
+    opacity: 0.75;
+}
+
+.stat-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    margin-bottom: 0.15rem;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.stat-item:hover .stat-icon-wrapper {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+}
+
+.stat-icon-wrapper svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+}
+
+/* Individual Stat Icon Theming */
+.stat-icon--playlists {
+    color: #c084fc; /* Ungu / Purple */
+}
+
+.stat-icon--followers {
+    color: #38bdf8; /* Cyan */
+}
+
+.stat-icon--following {
+    color: #a78bfa; /* Ungu Lavender / Violet */
+}
+
+.stat-icon--likes {
+    color: #f12e77; /* Pink Spotiwind */
+}
+
+.stat-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-muted, #94a3b8);
+    letter-spacing: 0.01em;
+    margin-top: 0.1rem;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-main, #ffffff);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.09);
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Spotiwind PRO Banner Card
+   ========================================================================== */
+.spotiwind-pro-banner {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 1.15rem 1.15rem;
+    margin-bottom: 1.5rem;
+    background: rgba(18, 20, 36, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.35rem;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.pro-banner-glow {
+    position: absolute;
+    top: -40%;
+    left: -20%;
+    width: 65%;
+    height: 180%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 80%);
+    pointer-events: none;
+}
+
+.pro-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.pro-crown-emblem {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 35% 35%, #c026d3 0%, #7c3aed 45%, #06b6d4 100%);
+    box-shadow: 0 0 22px rgba(185, 30, 201, 0.55),
+                0 0 12px rgba(6, 182, 212, 0.35),
+                inset 0 0 8px rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+}
+
+.pro-crown-icon {
+    width: 23px;
+    height: 23px;
+    color: #ffffff;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+.pro-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.pro-banner-title {
+    font-size: 1.02rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+}
+
+.pro-banner-desc {
+    font-size: 0.74rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.35;
+    font-weight: 400;
+}
+
+.pro-banner-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.62rem 1.05rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #c026d3 0%, #9333ea 30%, #06b6d4 100%);
+    border: none;
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 600;
+    font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(147, 51, 234, 0.45);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.pro-banner-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.5;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.pro-banner-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(6, 182, 212, 0.5);
+    filter: brightness(1.08);
+}
+
+.pro-banner-btn:hover svg {
+    transform: translateX(2px);
+}
+
+.pro-banner-btn:active {
+    transform: scale(0.96);
+}
+
+/* ==========================================================================
    Avatar Fullscreen Square Preview Modal & Dark Header Mode
    ========================================================================== */
 .avatar-preview-modal {
@@ -240,12 +516,10 @@
     bottom: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.94);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--bg-dark, #0f172a);
 }
 
-/* Top Dark Header for Photo Viewer */
+/* Top Header for Photo Viewer */
 .avatar-preview-header {
     position: absolute;
     top: 0;
@@ -256,7 +530,9 @@
     align-items: center;
     justify-content: space-between;
     padding: calc(env(safe-area-inset-top, 0px) + 0.65rem) 1rem 0.65rem;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.5) 75%, transparent 100%);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     cursor: default;
     box-sizing: border-box;
 }

@@ -1,7 +1,17 @@
 import { auth, onAuthStateChanged } from './firebase-config.js';
+import { subscribeUserPlaylists, subscribeLikedSongs } from '../../services/libraryService.js';
+import { subscribeUserProfile, generateUserCode } from '../../services/profileService.js';
+import { subscribeUserFollowers, subscribeUserFollowing } from '../../services/userService.js';
 
 let unsubscribeAccountAuth = null;
+let unsubscribePlaylists = null;
+let unsubscribeLikedSongs = null;
+let unsubscribeFollowers = null;
+let unsubscribeFollowing = null;
+let unsubscribeProfile = null;
 let editProfileBtnHandler = null;
+let managePlanBtnHandler = null;
+let accountCodeClickHandler = null;
 let avatarClickHandler = null;
 let previewBackBtnHandler = null;
 let previewEditBtnHandler = null;
@@ -118,16 +128,100 @@ const closeAvatarPreview = () => {
     }, 280);
 };
 
+const updateAccountStats = (user) => {
+    const statPlaylists = document.getElementById('statPlaylists');
+    const statFollowers = document.getElementById('statFollowers');
+    const statFollowing = document.getElementById('statFollowing');
+    const statLikes = document.getElementById('statLikes');
+    const accountProBadge = document.getElementById('accountProBadge');
+
+    unsubscribePlaylists?.();
+    unsubscribePlaylists = null;
+    unsubscribeLikedSongs?.();
+    unsubscribeLikedSongs = null;
+    unsubscribeFollowers?.();
+    unsubscribeFollowers = null;
+    unsubscribeFollowing?.();
+    unsubscribeFollowing = null;
+    unsubscribeProfile?.();
+    unsubscribeProfile = null;
+
+    if (!user) {
+        if (statPlaylists) statPlaylists.textContent = '0';
+        if (statFollowers) statFollowers.textContent = '0';
+        if (statFollowing) statFollowing.textContent = '0';
+        if (statLikes) statLikes.textContent = '0';
+        if (accountProBadge) accountProBadge.classList.add('hidden');
+        return;
+    }
+
+    // 1. Realtime Playlists count from Firestore subcollection
+    unsubscribePlaylists = subscribeUserPlaylists(user.uid, (playlists) => {
+        if (statPlaylists) {
+            statPlaylists.textContent = Array.isArray(playlists) ? String(playlists.length) : '0';
+        }
+    });
+
+    // 2. Realtime Liked Songs count from Firestore subcollection
+    unsubscribeLikedSongs = subscribeLikedSongs(user.uid, (songs) => {
+        if (statLikes) {
+            statLikes.textContent = Array.isArray(songs) ? String(songs.length) : '0';
+        }
+    });
+
+    // 3. Realtime Followers count from Firestore subcollection
+    unsubscribeFollowers = subscribeUserFollowers(user.uid, (followers) => {
+        if (statFollowers) {
+            statFollowers.textContent = Array.isArray(followers) ? String(followers.length) : '0';
+        }
+    });
+
+    // 4. Realtime Following count from Firestore subcollection
+    unsubscribeFollowing = subscribeUserFollowing(user.uid, (following) => {
+        if (statFollowing) {
+            statFollowing.textContent = Array.isArray(following) ? String(following.length) : '0';
+        }
+    });
+
+    // 5. Realtime Profile info (isPremium check and userCode) from Firestore
+    unsubscribeProfile = subscribeUserProfile(user.uid, (profile) => {
+        if (!profile) return;
+
+        const badge = document.getElementById('accountProBadge');
+        const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+        const accountCode = document.getElementById('accountCode');
+        
+        if (accountCode) {
+            accountCode.textContent = profile.userCode || generateUserCode(user.uid);
+        }
+
+        if (profile.isPremium === true) {
+            badge?.classList.remove('hidden');
+            avatarWrapper?.classList.add('is-pro');
+        } else {
+            badge?.classList.add('hidden');
+            avatarWrapper?.classList.remove('is-pro');
+        }
+    });
+};
+
 const updateAccountUserInfo = (user) => {
     const accountAvatar = document.getElementById('accountAvatar');
     const accountName = document.getElementById('accountName');
     const accountEmail = document.getElementById('accountEmail');
     const accountProBadge = document.getElementById('accountProBadge');
+    const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+    const accountCodeWrapper = document.getElementById('accountCodeWrapper');
+    const accountCode = document.getElementById('accountCode');
+
+    updateAccountStats(user);
 
     if (!user) {
         if (accountName) accountName.textContent = 'Guest';
         if (accountEmail) accountEmail.textContent = 'Sign in to manage your profile';
         if (accountProBadge) accountProBadge.classList.add('hidden');
+        if (accountCodeWrapper) accountCodeWrapper.classList.add('hidden');
+        if (avatarWrapper) avatarWrapper.classList.remove('is-pro');
         if (accountAvatar) {
             accountAvatar.src = 'https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true&size=512';
         }
@@ -137,7 +231,8 @@ const updateAccountUserInfo = (user) => {
     const displayName = user.displayName || user.email?.split('@')[0] || 'User';
     if (accountName) accountName.textContent = displayName;
     if (accountEmail) accountEmail.textContent = user.email || 'user@example.com';
-    if (accountProBadge) accountProBadge.classList.remove('hidden');
+    if (accountCodeWrapper) accountCodeWrapper.classList.remove('hidden');
+    if (accountCode) accountCode.textContent = generateUserCode(user.uid);
 
     if (accountAvatar) {
         accountAvatar.referrerPolicy = "no-referrer";
@@ -166,6 +261,61 @@ const bindAccountInteractions = () => {
         };
         editProfileBtn.addEventListener('click', editProfileBtnHandler);
     }
+
+    // Klik ID Akun untuk menyalin kode ke clipboard
+    const accountCodeWrapper = document.getElementById('accountCodeWrapper');
+    if (accountCodeWrapper) {
+        accountCodeClickHandler = () => {
+            const codeEl = document.getElementById('accountCode');
+            const codeText = codeEl?.textContent?.trim();
+            if (!codeText) return;
+            if (navigator?.clipboard?.writeText) {
+                navigator.clipboard.writeText(codeText).then(() => {
+                    showToast(`ID Akun ${codeText} disalin!`);
+                }).catch(() => {
+                    showToast(`ID Akun: ${codeText}`);
+                });
+            } else {
+                showToast(`ID Akun: ${codeText}`);
+            }
+        };
+        accountCodeWrapper.addEventListener('click', accountCodeClickHandler);
+    }
+
+    // Tombol Manage Plan di Banner Spotiwind PRO
+    const managePlanBtn = document.getElementById('managePlanBtn');
+    if (managePlanBtn) {
+        managePlanBtnHandler = () => {
+            const user = auth.currentUser;
+            if (!user) {
+                if (typeof window.navigateToAuthPage === 'function') {
+                    window.navigateToAuthPage('login');
+                } else {
+                    showToast('Silakan login terlebih dahulu');
+                }
+                return;
+            }
+            showToast('Paket langganan Spotiwind PRO akan segera hadir');
+        };
+        managePlanBtn.addEventListener('click', managePlanBtnHandler);
+    }
+
+    // Klik item statistik (Playlists, Followers, Following, Likes)
+    document.querySelectorAll('.account-stats-card .stat-item').forEach((item) => {
+        item.addEventListener('click', () => {
+            const statType = item.dataset.stat;
+            const label = item.querySelector('.stat-label')?.textContent || 'Statistik';
+            if (statType === 'playlists' || statType === 'likes') {
+                if (typeof window.navigateToLibraryPage === 'function') {
+                    window.navigateToLibraryPage(statType === 'playlists' ? 'playlists' : 'likes');
+                } else {
+                    showToast(`${label} dipilih`);
+                }
+            } else {
+                showToast(`${label} akan segera hadir`);
+            }
+        });
+    });
 
     // Klik avatar di halaman account untuk membuka modal preview kotak besar di tengah
     const avatarWrapper = document.querySelector('.account-avatar-wrapper');
@@ -247,11 +397,38 @@ export const cleanupAccountPage = () => {
     unsubscribeAccountAuth?.();
     unsubscribeAccountAuth = null;
 
+    unsubscribePlaylists?.();
+    unsubscribePlaylists = null;
+
+    unsubscribeLikedSongs?.();
+    unsubscribeLikedSongs = null;
+
+    unsubscribeFollowers?.();
+    unsubscribeFollowers = null;
+
+    unsubscribeFollowing?.();
+    unsubscribeFollowing = null;
+
+    unsubscribeProfile?.();
+    unsubscribeProfile = null;
+
     const editProfileBtn = document.getElementById('editProfileBtn');
     if (editProfileBtn && editProfileBtnHandler) {
         editProfileBtn.removeEventListener('click', editProfileBtnHandler);
     }
     editProfileBtnHandler = null;
+
+    const managePlanBtn = document.getElementById('managePlanBtn');
+    if (managePlanBtn && managePlanBtnHandler) {
+        managePlanBtn.removeEventListener('click', managePlanBtnHandler);
+    }
+    managePlanBtnHandler = null;
+
+    const accountCodeWrapper = document.getElementById('accountCodeWrapper');
+    if (accountCodeWrapper && accountCodeClickHandler) {
+        accountCodeWrapper.removeEventListener('click', accountCodeClickHandler);
+    }
+    accountCodeClickHandler = null;
 
     const avatarWrapper = document.querySelector('.account-avatar-wrapper');
     if (avatarWrapper && avatarClickHandler) {

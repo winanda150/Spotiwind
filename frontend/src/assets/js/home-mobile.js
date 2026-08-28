@@ -7,6 +7,7 @@ import {
 import { toggleFavorite, getFavoriteSongs } from '../../services/favoriteService.js';
 import { isFavoriteSong } from '../../services/favoriteService.js';
 import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
+import { subscribeUserProfile } from '../../services/profileService.js';
 import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
@@ -58,6 +59,7 @@ let unreadNotificationsListener = null; // [NEW] To store the unsubscribe functi
 const activePresenceListeners = new Map();
 let userPresenceCleanup = null;
 let sidebarPlaylistsUnsubscribe = null;
+let sidebarProfileUnsubscribe = null;
 
 const renderSidebarPlaylists = (playlists = []) => {
     const listContainer = document.getElementById('sidebarPlaylistList');
@@ -1966,6 +1968,10 @@ window.toggleDownloadSong = (song) => {
             sidebarPlaylistsUnsubscribe();
             sidebarPlaylistsUnsubscribe = null;
         }
+        if (sidebarProfileUnsubscribe) {
+            sidebarProfileUnsubscribe();
+            sidebarProfileUnsubscribe = null;
+        }
         renderSidebarPlaylists([]);
 
         const avatarEl = document.getElementById('sidebarUserAvatar');
@@ -1979,6 +1985,8 @@ window.toggleDownloadSong = (song) => {
 
         const proBadge = document.getElementById('sidebarProBadge');
         if (proBadge) proBadge.classList.add('hidden');
+        const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
+        if (sidebarAvatarWrapper) sidebarAvatarWrapper.classList.remove('is-pro');
 
         greetingName = 'Guest';
         lastGreetingHour = -1;
@@ -2012,18 +2020,32 @@ window.toggleDownloadSong = (song) => {
             renderSidebarPlaylists(playlists);
         });
 
+        if (sidebarProfileUnsubscribe) {
+            sidebarProfileUnsubscribe();
+            sidebarProfileUnsubscribe = null;
+        }
+        sidebarProfileUnsubscribe = subscribeUserProfile(user.uid, (profile) => {
+            const proBadge = document.getElementById('sidebarProBadge');
+            const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
+            if (profile?.isPremium === true) {
+                proBadge?.classList.remove('hidden');
+                sidebarAvatarWrapper?.classList.add('is-pro');
+            } else {
+                proBadge?.classList.add('hidden');
+                sidebarAvatarWrapper?.classList.remove('is-pro');
+            }
+        });
+
         updateUserAvatar(user, document.getElementById('sidebarUserAvatar'));
 
         const sidebarName = document.getElementById('sidebarUserName');
         const sidebarEmail = document.getElementById('sidebarUserEmail');
-        const proBadge = document.getElementById('sidebarProBadge');
 
         greetingName = user.displayName || user.email?.split('@')[0] || 'User';
         lastGreetingHour = -1;
         updateGreeting();
         if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
         if (sidebarEmail) sidebarEmail.textContent = user.email || '';
-        if (proBadge) proBadge.classList.remove('hidden');
 
         updateSidebarMusicCounts();
 

@@ -42,6 +42,28 @@ const saveLocalRecentSearches = (searches) => {
 };
 
 /**
+ * Deletes any older search documents in Firestore beyond the MAX_RECENT_SEARCHES limit (6).
+ * Ensures Firestore only stores the 6 latest searches and saves database storage.
+ */
+export const pruneOldRecentSearches = async (uid) => {
+    if (!uid) return;
+
+    try {
+        const q = firestoreQuery(
+            getRecentSearchesRef(uid),
+            orderBy('createdAt', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        if (snapshot.docs.length > MAX_RECENT_SEARCHES) {
+            const staleDocs = snapshot.docs.slice(MAX_RECENT_SEARCHES);
+            await Promise.all(staleDocs.map((docSnap) => deleteDoc(docSnap.ref)));
+        }
+    } catch (error) {
+        console.error('Failed to prune old recent searches in Firestore:', error);
+    }
+};
+
+/**
  * Migrates any guest recent searches stored in localStorage to Firebase Firestore upon login,
  * then cleans up the localStorage key so subsequent operations purely rely on Firebase.
  */
@@ -63,6 +85,7 @@ export const migrateGuestSearchesToCloud = async (uid) => {
 
         // Clean up guest local storage so it is never re-uploaded or mixed with cloud data
         localStorage.removeItem(LOCAL_STORAGE_KEY);
+        await pruneOldRecentSearches(uid);
     } catch (error) {
         console.error('Failed to migrate guest searches to cloud:', error);
     }
@@ -99,6 +122,10 @@ export const getRecentSearches = async () => {
         const cloudSearches = snapshot.docs
             .map((item) => item.data()?.query)
             .filter((queryText) => typeof queryText === 'string' && queryText.trim());
+        
+        // Asynchronously clean up any excess old queries that are currently accumulated in Firestore
+        pruneOldRecentSearches(uid).catch(() => {});
+
         return cloudSearches;
     } catch (error) {
         console.error('Failed to load recent searches from Firebase:', error);
@@ -121,12 +148,15 @@ export const saveRecentSearch = async (queryText) => {
         return;
     }
 
-    // LOGGED IN USER: save exclusively to Firebase Firestore
+    // LOGGED IN USER: save exclusively to Firebase Firestore and prune older docs
     try {
         await setDoc(doc(getRecentSearchesRef(uid), getQueryId(normalizedQuery.toLowerCase())), {
             query: normalizedQuery,
             createdAt: Date.now()
         });
+
+        // Automatically delete older search documents in Firestore beyond the 6 latest
+        await pruneOldRecentSearches(uid);
     } catch (error) {
         console.error('Failed to save recent search to Firebase:', error);
     }

@@ -18,21 +18,68 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['song', 'name', 'timestamp', 'avatar'])
         && request.resource.data.song is string && request.resource.data.song.size() <= 100
         && request.resource.data.name is string && request.resource.data.name.size() <= 50
-        && request.resource.data.avatar is string
+        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 1500
         && request.resource.data.timestamp == request.time;
         
       allow delete: if isOwner(userId);
     }
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isSignedIn();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.isPremium == false
+        && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60
+        && (!('userCode' in request.resource.data) || (request.resource.data.userCode is string && request.resource.data.userCode.size() <= 20));
+
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.isPremium == resource.data.isPremium
+        && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60))
+        && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1500));
+
+      allow delete: if isOwner(userId);
+
+      match /followers/{followerId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.auth.uid == followerId
+          && request.resource.data.uid == followerId
+          && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60;
+        allow delete: if isSignedIn() && (request.auth.uid == followerId || isOwner(userId));
+      }
+
+      match /following/{followingId} {
+        allow read: if isSignedIn();
+        allow create, update: if isOwner(userId)
+          && request.resource.data.uid == followingId
+          && request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60;
+        allow delete: if isOwner(userId);
+      }
+
+      match /liked_songs/{songId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /playlists/{playlistId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /recent_searches/{searchId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /usernames/{username} {
       allow read: if true;
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.email is string;
+        && request.resource.data.email is string && request.resource.data.email.size() <= 100;
       allow update, delete: if isOwner(resource.data.uid);
     }
 
@@ -42,10 +89,6 @@ service cloud.firestore {
         && request.resource.data.searchCount == 1;
       allow update: if request.resource.data.type == type
         && request.resource.data.searchCount == resource.data.searchCount + 1;
-    }
-
-    match /users/{userId}/{allSubcollections=**} {
-      allow read, write: if isOwner(userId);
     }
   }
 }

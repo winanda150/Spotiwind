@@ -673,6 +673,52 @@
     color: var(--text-muted);
 }
 
+/* User / Friend Search Result Item */
+.search-results-dropdown .dropdown-item-user {
+    background: rgba(56, 189, 248, 0.04);
+    border-left: 3px solid #38bdf8;
+    transition: background 0.2s ease;
+}
+
+.search-results-dropdown .dropdown-item-user:hover {
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.search-results-dropdown .dropdown-item-user .dropdown-cover-wrapper {
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+}
+
+.search-results-dropdown .dropdown-item-user .dropdown-cover-wrapper.user-is-pro {
+    padding: 2px;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    box-shadow: 0 0 12px rgba(185, 30, 201, 0.4);
+}
+
+.search-results-dropdown .dropdown-user-follow-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    background: linear-gradient(135deg, #F12E77, #B91EC9);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.search-results-dropdown .dropdown-user-follow-btn:active {
+    transform: scale(0.95);
+    opacity: 0.85;
+}
+
 .dropdown-info-name .verified-badge-icon {
     flex-shrink: 0;
     margin-left: 5px;

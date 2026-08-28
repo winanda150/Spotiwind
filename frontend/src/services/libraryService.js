@@ -113,3 +113,17 @@ export const createUserPlaylist = async (uid, playlistName) => {
         return null;
     }
 };
+
+export const subscribeLikedSongs = (uid, callback) => {
+    if (!uid || typeof callback !== "function") return () => {};
+
+    try {
+        return onSnapshot(getLikedSongsRef(uid), (snapshot) => {
+            const songs = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+            callback(songs);
+        });
+    } catch (error) {
+        console.error("Failed to subscribe liked songs:", error);
+        return () => {};
+    }
+};

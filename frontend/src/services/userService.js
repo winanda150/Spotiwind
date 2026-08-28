@@ -2,12 +2,19 @@ import {
     auth,
     db,
     doc,
+    collection,
+    query,
+    where,
     getDoc,
+    getDocs,
     setDoc,
-    deleteDoc
+    deleteDoc,
+    onSnapshot
 } from "../assets/js/firebase-config.js";
 
 const getUserRef = (uid) => doc(db, "users", uid);
+export const getUserFollowersRef = (uid) => collection(db, "users", uid, "followers");
+export const getUserFollowingRef = (uid) => collection(db, "users", uid, "following");
 
 export const getUserProfile = async (uid) => {
     if (!uid) return null;
@@ -48,13 +55,92 @@ export const updateUserProfile = async (uid, updates = {}) => {
     }
 };
 
-export const followUser = async (targetUid) => {
-    const currentUid = auth.currentUser?.uid;
+/**
+ * Realtime subscription to user's followers subcollection
+ */
+export const subscribeUserFollowers = (uid, callback) => {
+    if (!uid || typeof callback !== "function") return () => {};
+
+    try {
+        return onSnapshot(getUserFollowersRef(uid), (snapshot) => {
+            const followers = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+            callback(followers);
+        }, (error) => {
+            console.error("Failed to subscribe user followers:", error);
+            callback([]);
+        });
+    } catch (error) {
+        console.error("Failed to subscribe user followers:", error);
+        return () => {};
+    }
+};
+
+/**
+ * Realtime subscription to user's following subcollection
+ */
+export const subscribeUserFollowing = (uid, callback) => {
+    if (!uid || typeof callback !== "function") return () => {};
+
+    try {
+        return onSnapshot(getUserFollowingRef(uid), (snapshot) => {
+            const following = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+            callback(following);
+        }, (error) => {
+            console.error("Failed to subscribe user following:", error);
+            callback([]);
+        });
+    } catch (error) {
+        console.error("Failed to subscribe user following:", error);
+        return () => {};
+    }
+};
+
+export const getUserFollowers = async (uid) => {
+    if (!uid) return [];
+    try {
+        const snapshot = await getDocs(getUserFollowersRef(uid));
+        return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    } catch (error) {
+        console.error("Failed to get user followers:", error);
+        return [];
+    }
+};
+
+export const getUserFollowing = async (uid) => {
+    if (!uid) return [];
+    try {
+        const snapshot = await getDocs(getUserFollowingRef(uid));
+        return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+    } catch (error) {
+        console.error("Failed to get user following:", error);
+        return [];
+    }
+};
+
+export const followUser = async (targetUid, targetUserData = {}) => {
+    const currentUser = auth.currentUser;
+    const currentUid = currentUser?.uid;
     if (!currentUid || !targetUid || currentUid === targetUid) return null;
 
     try {
+        const now = Date.now();
+        // 1. Add to current user's "following" subcollection
         const followingRef = doc(db, "users", currentUid, "following", targetUid);
-        await setDoc(followingRef, { uid: targetUid, createdAt: Date.now() });
+        await setDoc(followingRef, {
+            uid: targetUid,
+            displayName: targetUserData.displayName || "User",
+            photoURL: targetUserData.photoURL || "",
+            followedAt: now
+        }, { merge: true });
+
+        // 2. Add to target user's "followers" subcollection
+        const followerRef = doc(db, "users", targetUid, "followers", currentUid);
+        await setDoc(followerRef, {
+            uid: currentUid,
+            displayName: currentUser.displayName || currentUser.email?.split("@")[0] || "User",
+            photoURL: currentUser.photoURL || "",
+            followedAt: now
+        }, { merge: true });
 
         return { currentUid, targetUid };
     } catch (error) {
@@ -68,12 +154,47 @@ export const unfollowUser = async (targetUid) => {
     if (!currentUid || !targetUid || currentUid === targetUid) return null;
 
     try {
+        // 1. Remove from current user's "following" subcollection
         const followingRef = doc(db, "users", currentUid, "following", targetUid);
         await deleteDoc(followingRef);
+
+        // 2. Remove from target user's "followers" subcollection
+        const followerRef = doc(db, "users", targetUid, "followers", currentUid);
+        await deleteDoc(followerRef);
 
         return { currentUid, targetUid };
     } catch (error) {
         console.error("Failed to unfollow user:", error);
+        return null;
+    }
+};
+
+/**
+ * Searches for a user by their exact unique userCode (e.g. "#SPW-849201") in Firestore.
+ * Requires an exact match without any typos.
+ */
+export const findUserByCode = async (code) => {
+    if (!code || typeof code !== 'string') return null;
+    let cleanCode = code.trim().toUpperCase();
+    if (!cleanCode.startsWith('#')) {
+        cleanCode = `#${cleanCode}`;
+    }
+
+    try {
+        const q = query(
+            collection(db, "users"),
+            where("userCode", "==", cleanCode)
+        );
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return null;
+        const userDoc = snapshot.docs[0];
+        return {
+            id: userDoc.id,
+            uid: userDoc.id,
+            ...userDoc.data()
+        };
+    } catch (error) {
+        console.error("Failed to find user by code:", error);
         return null;
     }
 };
