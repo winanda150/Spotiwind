@@ -23,6 +23,7 @@ let closeSubModalBtnHandler = null;
 let closeManageModalBtnHandler = null;
 let activateTrialBtnHandler = null;
 let cancelSubBtnHandler = null;
+let isModalGestureActive = false;
 let planCardClickHandlers = [];
 let subModalBackdropHandler = null;
 let manageModalBackdropHandler = null;
@@ -153,19 +154,14 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     if (!modalEl) return () => {};
 
     const sheet = modalEl.querySelector('.pro-modal-sheet');
-    const handleBar = modalEl.querySelector('.pro-modal-handle-bar');
-    const header = modalEl.querySelector('.pro-modal-header');
-
     if (!sheet) return () => {};
 
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
-    let isTouchOnHandleOrHeader = false;
     let startTime = 0;
     let startScrollTop = 0;
     let initialSheetHeight = 0;
-    let canExpandToFullscreen = false;
     let isListeningWindow = false;
 
     const resetDragStyles = () => {
@@ -175,6 +171,7 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         sheet.style.height = '';
         sheet.style.maxHeight = '';
         removeWindowListeners();
+        setTimeout(() => { isModalGestureActive = false; }, 60);
     };
 
     const removeWindowListeners = () => {
@@ -186,7 +183,6 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     };
 
     const onPointerMove = (e) => {
-        // Safety check: jika mouse sudah dilepas (buttons === 0)
         if (e.pointerType === 'mouse' && e.buttons === 0) {
             onPointerUp(e);
             return;
@@ -195,22 +191,18 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         currentY = e.clientY;
         const deltaY = e.clientY - startY;
 
-        // Jika user sedang scroll konten di dalam sheet (scrollTop > 0) dan tidak memegang handle/header
-        if (!isTouchOnHandleOrHeader && sheet.scrollTop > 0) {
-            if (isDragging) {
-                resetDragStyles();
-            }
-            return;
+        if (Math.abs(deltaY) > 8) {
+            isModalGestureActive = true;
         }
 
         const isFullscreen = sheet.classList.contains('is-fullscreen');
 
-        // Gesture 1: Tarik ke ATAS (deltaY < 0)
+        // Gesture 1: Tarik ke ATAS (deltaY < 0) - Bisa ditarik di seluruh area modal
         if (deltaY < -4) {
             if (isFullscreen) {
                 const rubberBand = deltaY * 0.12;
                 sheet.style.transform = `translateY(${rubberBand}px)`;
-            } else if (canExpandToFullscreen) {
+            } else {
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
@@ -218,18 +210,14 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
                 const pullDistance = Math.abs(deltaY);
                 const targetHeight = Math.min(window.innerHeight, initialSheetHeight + pullDistance);
                 sheet.style.transform = 'translateY(0)';
-                sheet.style.maxHeight = '100vh';
+                sheet.style.maxHeight = '100dvh';
                 sheet.style.height = `${targetHeight}px`;
                 if (e.cancelable) e.preventDefault();
-            } else {
-                // Konten ringkas: rubber-band lembut
-                const rubberBand = Math.max(-28, deltaY * 0.1);
-                sheet.style.transform = `translateY(${rubberBand}px)`;
             }
         }
-        // Gesture 2: Tarik ke BAWAH (deltaY > 0)
+        // Gesture 2: Tarik ke BAWAH (deltaY > 0) - Bisa ditarik di seluruh area modal saat scrollTop <= 0
         else if (deltaY > 4) {
-            if (isTouchOnHandleOrHeader || sheet.scrollTop <= 0) {
+            if (sheet.scrollTop <= 0) {
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
@@ -262,27 +250,30 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         sheet.style.height = '';
         sheet.style.maxHeight = '';
 
-        // Kasus 1: Tarik ke ATAS (Swipe up threshold)
-        if (deltaY < -35 || velocityY < -0.3) {
-            if (!isFullscreen && canExpandToFullscreen) {
+        // Kasus 1: Tarik ke ATAS -> Masuk Fullscreen
+        if (deltaY < -35 || velocityY < -0.28) {
+            if (!isFullscreen) {
                 sheet.classList.add('is-fullscreen');
             }
+            setTimeout(() => { isModalGestureActive = false; }, 80);
             return;
         }
 
-        // Kasus 2: Tarik ke BAWAH (Swipe down threshold)
+        // Kasus 2: Tarik ke BAWAH -> Keluar Fullscreen atau Tutup Modal
         if (isFullscreen) {
-            if (deltaY > 55 || velocityY > 0.3) {
+            if (deltaY > 50 || velocityY > 0.28) {
                 sheet.classList.remove('is-fullscreen');
                 sheet.scrollTop = 0;
             }
         } else {
-            if (deltaY > 65 || velocityY > 0.3) {
+            if (deltaY > 60 || velocityY > 0.28) {
                 if (typeof onCloseCallback === 'function') {
                     onCloseCallback();
                 }
             }
         }
+
+        setTimeout(() => { isModalGestureActive = false; }, 80);
     };
 
     const onPointerCancel = () => {
@@ -290,32 +281,22 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     };
 
     const onPointerDown = (e) => {
-        // Hanya proses klik kiri / sentuhan utama
         if (e.button !== undefined && e.button !== 0) return;
-        if (e.target.closest('button, a, .pro-plan-card')) return;
+        // Hanya abaikan tombol aksi eksplisit (close btn & submit btn)
+        if (e.target.closest('#closeSubscriptionModalBtn, #closeManageModalBtn, #activateProTrialBtn, #cancelSubscriptionBtn')) return;
 
         startY = e.clientY;
         currentY = e.clientY;
         startTime = Date.now();
         startScrollTop = sheet.scrollTop;
         initialSheetHeight = sheet.offsetHeight;
+        isModalGestureActive = false;
 
-        const isContentScrollable = (sheet.scrollHeight - sheet.clientHeight) > 15;
-        const isCurrentlyFullscreen = sheet.classList.contains('is-fullscreen');
-        canExpandToFullscreen = isContentScrollable || isCurrentlyFullscreen;
-
-        isTouchOnHandleOrHeader = Boolean(
-            (handleBar && handleBar.contains(e.target)) || 
-            (header && header.contains(e.target) && !e.target.closest('button, a'))
-        );
-
-        if (isTouchOnHandleOrHeader || startScrollTop <= 0) {
-            if (!isListeningWindow) {
-                isListeningWindow = true;
-                window.addEventListener('pointermove', onPointerMove, { passive: false });
-                window.addEventListener('pointerup', onPointerUp);
-                window.addEventListener('pointercancel', onPointerCancel);
-            }
+        if (!isListeningWindow) {
+            isListeningWindow = true;
+            window.addEventListener('pointermove', onPointerMove, { passive: false });
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerCancel);
         }
     };
 
@@ -714,6 +695,7 @@ const bindAccountInteractions = () => {
     planCardClickHandlers = [];
     planCards.forEach((card) => {
         const handler = () => {
+            if (isModalGestureActive) return;
             planCards.forEach((c) => {
                 c.classList.remove('is-selected');
                 c.setAttribute('aria-checked', 'false');
