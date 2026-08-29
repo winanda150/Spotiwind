@@ -223,15 +223,29 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
             // Jika konten sudah muat semua (canExpandToFullscreen === false): Diam di tempat, tidak ada lonjakan sama sekali!
         }
         // Gesture 2: Tarik ke BAWAH (deltaY > 0)
-        else if (deltaY > 6) {
-            if (isTouchOnHandleOrHeader || sheet.scrollTop <= 0) {
+        else if (deltaY > 0) {
+            if (isTouchOnHandleOrHeader) {
+                // Tarik langsung dari handle bar / header: respon instan
+                if (deltaY > 4) {
+                    if (!isDragging) {
+                        isDragging = true;
+                        sheet.classList.add('is-dragging');
+                    }
+                    sheet.style.height = '';
+                    sheet.style.maxHeight = '';
+                    sheet.style.transform = `translateY(${deltaY}px)`;
+                    if (e.cancelable) e.preventDefault();
+                }
+            } else if (sheet.scrollTop <= 0 && deltaY > 28) {
+                // Sentuhan di area konten saat posisi sudah di puncak paling atas:
+                // Butuh tarikan sengaja (> 28px) agar scroll balik ke atas tidak membuat modal turun lalu membal naik!
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
                 }
                 sheet.style.height = '';
                 sheet.style.maxHeight = '';
-                sheet.style.transform = `translateY(${deltaY}px)`;
+                sheet.style.transform = `translateY(${deltaY - 28}px)`;
                 if (e.cancelable) e.preventDefault();
             }
         }
@@ -272,7 +286,8 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
                 sheet.scrollTop = 0;
             }
         } else {
-            if (deltaY > 60 || velocityY > 0.28) {
+            const dismissThreshold = isTouchOnHandleOrHeader ? 50 : 80;
+            if (deltaY > dismissThreshold || (isTouchOnHandleOrHeader && velocityY > 0.28)) {
                 if (typeof onCloseCallback === 'function') {
                     onCloseCallback();
                 }
