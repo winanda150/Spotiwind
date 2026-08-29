@@ -200,6 +200,25 @@ export const updateProfileInfo = async (uid, payload = {}) => {
     }
 };
 
+export const setUserPremiumStatus = async (uid, isPremium, planDetails = {}) => {
+    if (!uid) return null;
+
+    try {
+        const profileRef = doc(db, "users", uid);
+        const payload = {
+            isPremium: Boolean(isPremium),
+            premiumPlan: isPremium ? (planDetails.planName || 'Individual Monthly') : null,
+            premiumSince: isPremium ? (planDetails.since || Date.now()) : null,
+            premiumExpiresAt: isPremium ? (planDetails.expiresAt || (Date.now() + 30 * 24 * 60 * 60 * 1000)) : null
+        };
+        await updateDoc(profileRef, payload);
+        return { uid, ...payload };
+    } catch (error) {
+        console.error("Failed to set user premium status:", error);
+        return null;
+    }
+};
+
 export const syncProfileFromAuthUser = async (firebaseUser) => {
     if (!firebaseUser) return null;
 

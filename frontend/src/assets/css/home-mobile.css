@@ -978,7 +978,7 @@ body.player-active .app-container {
 }
 
 .section-title {
-    font-size: 1rem;
+    font-size: 0.92rem;
     /* Consistent with mobile header titles */
     font-weight: 600;
     margin-bottom: 0;
@@ -989,7 +989,7 @@ body.player-active .app-container {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     color: var(--accent-color);
     text-decoration: none;
     font-weight: 600;

@@ -1113,6 +1113,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Library header search button
+        if (target.closest('#librarySearchBtn')) {
+            e.preventDefault();
+            updateSidebarActiveState('search-mobile.html');
+            updateBottomNavActive('search-mobile.html');
+            await loadPageContent('search-mobile.html', { pushState: true });
+            return;
+        }
+
         // Playlist creation trigger
         if (target.closest('.sidebar-add-playlist-btn, #libraryAddBtn, #createPlaylistBtn, [data-action="add-playlist"]')) {
             e.preventDefault();
@@ -2093,8 +2102,28 @@ window.toggleDownloadSong = (song) => {
     };
 
     const updateBottomNavActive = (targetPage) => {
+        if (!targetPage) return;
+        const normalizedTarget = String(targetPage).replace(/^.*\//, '');
+        if (normalizedTarget.includes('artist') || normalizedTarget.includes('notifications') || normalizedTarget.includes('auth')) {
+            return;
+        }
         document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.target === targetPage);
+            const itemTarget = (item.dataset.target || '').replace(/^.*\//, '');
+            let isActive = false;
+            if (normalizedTarget.includes('search')) {
+                isActive = itemTarget.includes('search');
+            } else if (normalizedTarget.includes('library')) {
+                isActive = itemTarget.includes('library');
+            } else if (normalizedTarget.includes('radio')) {
+                isActive = itemTarget.includes('radio');
+            } else if (normalizedTarget.includes('account')) {
+                isActive = itemTarget.includes('account');
+            } else if (normalizedTarget.includes('home') || normalizedTarget === 'mobile.html' || normalizedTarget === '/' || normalizedTarget === '') {
+                isActive = itemTarget.includes('home');
+            } else {
+                isActive = itemTarget === normalizedTarget;
+            }
+            item.classList.toggle('active', isActive);
         });
     };
 
@@ -2292,6 +2321,7 @@ window.toggleDownloadSong = (song) => {
         if (!contentContainer) return;
         const navigationId = ++pageLoadSequence;
         updateSidebarActiveState(page);
+        updateBottomNavActive(page);
 
         const {
             pushState = true,
@@ -2653,7 +2683,7 @@ window.toggleDownloadSong = (song) => {
                     const { initAccountPage } = accountModule;
 
                     if (typeof initAccountPage === 'function') {
-                        initAccountPage();
+                        await initAccountPage();
                         activePageCleanup = accountModule.cleanupAccountPage;
                     } else {
                         console.error("initAccountPage function not found in module.");

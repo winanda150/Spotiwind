@@ -46,7 +46,7 @@
 .recent-searches-header h2 {
     margin: 0;
     color: var(--text-main);
-    font-size: 0.8rem;
+    font-size: 0.92rem;
     font-weight: 600;
 }
 
@@ -57,7 +57,7 @@
     border: 0;
     cursor: pointer;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
 }
@@ -136,7 +136,7 @@
 .popular-search-section h2 {
     margin: 0 0 0.85rem;
     color: var(--text-main);
-    font-size: 0.8rem;
+    font-size: 0.92rem;
     font-weight: 600;
 }
 
@@ -405,17 +405,23 @@
 .search-mood-header h2 {
     margin: 0;
     color: var(--text-main);
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 600;
     letter-spacing: -0.02em;
 }
 
 .search-mood-see-all {
     color: var(--accent-color);
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
     transition: color 0.2s;
+}
+
+.search-mood-see-all:hover,
+.search-mood-see-all:focus-visible {
+    color: var(--text-main);
+    outline: none;
 }
 
 .search-mood-grid {

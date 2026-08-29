@@ -566,7 +566,7 @@ function renderPlaylistsPanel(playlists = [], isGuest = false) {
                 </div>
                 <h3 class="library-empty-title">No playlists created</h3>
                 <p class="library-empty-desc">Create custom playlists to organize your favorite music.</p>
-                <button class="library-empty-btn" id="createPlaylistBtn" type="button" data-action="add-playlist">+ Create Playlist</button>
+                <button class="library-empty-btn" type="button" data-action="add-playlist">+ Create Playlist</button>
             </div>
         `;
         return;
@@ -643,13 +643,22 @@ function setupSongActionListeners() {
     if (!libraryContainer) return;
 
     const clickHandler = (e) => {
-        const emptyAuthBtn = e.target.closest('.library-empty-btn');
+        const emptyAuthBtn = e.target.closest('a.library-empty-btn, a[href*="auth"]');
         if (emptyAuthBtn) {
             e.preventDefault();
             if (typeof window.navigateToAuthPage === 'function') {
                 window.navigateToAuthPage('login');
             } else {
                 window.location.href = 'auth-mobile.html';
+            }
+            return;
+        }
+
+        const createPlaylistBtn = e.target.closest('#createPlaylistBtn, [data-action="add-playlist"], .library-create-btn');
+        if (createPlaylistBtn) {
+            e.preventDefault();
+            if (typeof window.openCreatePlaylistModal === 'function') {
+                window.openCreatePlaylistModal(createPlaylistBtn);
             }
             return;
         }

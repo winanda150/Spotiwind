@@ -35,7 +35,7 @@ service cloud.firestore {
 
       allow update: if isOwner(userId)
         && request.resource.data.uid == userId
-        && request.resource.data.isPremium == resource.data.isPremium
+        && (!('isPremium' in request.resource.data) || request.resource.data.isPremium is bool)
         && (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 60))
         && (!('photoURL' in request.resource.data) || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1500));
 

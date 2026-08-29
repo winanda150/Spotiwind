@@ -1,6 +1,6 @@
 import { auth, onAuthStateChanged } from './firebase-config.js';
 import { subscribeUserPlaylists, subscribeLikedSongs } from '../../services/libraryService.js';
-import { subscribeUserProfile, generateUserCode } from '../../services/profileService.js';
+import { subscribeUserProfile, getProfileByUid, generateUserCode, setUserPremiumStatus } from '../../services/profileService.js';
 import { subscribeUserFollowers, subscribeUserFollowing } from '../../services/userService.js';
 
 let unsubscribeAccountAuth = null;
@@ -17,6 +17,24 @@ let previewBackBtnHandler = null;
 let previewEditBtnHandler = null;
 let previewShareBtnHandler = null;
 let keydownHandler = null;
+
+// Subscription Modal Handlers
+let closeSubModalBtnHandler = null;
+let closeManageModalBtnHandler = null;
+let activateTrialBtnHandler = null;
+let cancelSubBtnHandler = null;
+let planCardClickHandlers = [];
+let subModalBackdropHandler = null;
+let manageModalBackdropHandler = null;
+let cleanupSubSheetDrag = null;
+let cleanupManageSheetDrag = null;
+
+let currentProfileData = null;
+let selectedPlanData = {
+    id: 'individual',
+    name: 'Individual Monthly',
+    price: 'Rp 29.000'
+};
 
 const defaultAvatar = (name = 'User') => `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=B91EC9&color=fff&bold=true&size=512`;
 
@@ -72,7 +90,7 @@ const showToast = (message) => {
     toast.textContent = message;
     container.appendChild(toast);
 
-    setTimeout(() => toast.remove(), 2200);
+    setTimeout(() => toast.remove(), 2400);
 };
 
 const openAvatarPreview = () => {
@@ -85,14 +103,12 @@ const openAvatarPreview = () => {
     previousActiveElement = document.activeElement;
 
     previewImg.referrerPolicy = "no-referrer";
-    // Minta resolusi Ultra-HD (1024px) untuk preview besar di tengah
     let imgSrc = getHighResAvatarUrl(accountAvatar.src, 1024);
-
     previewImg.src = imgSrc;
 
     modal.classList.remove('hidden');
     modal.removeAttribute('inert');
-    void modal.offsetWidth; // Trigger reflow for smooth animation
+    void modal.offsetWidth;
     modal.classList.add('is-active');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -102,12 +118,10 @@ const closeAvatarPreview = () => {
     const modal = document.getElementById('avatarPreviewModal');
     if (!modal || modal.classList.contains('hidden')) return;
 
-    // 1. Lepaskan fokus dari elemen tombol dalam modal sebelum mengatur aria-hidden
     if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
         document.activeElement.blur();
     }
 
-    // 2. Kembalikan fokus ke elemen pemicu jika valid
     if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
         try {
             previousActiveElement.focus();
@@ -126,6 +140,355 @@ const closeAvatarPreview = () => {
             modal.classList.add('hidden');
         }
     }, 280);
+};
+
+// ==========================================================================
+// Spotiwind PRO Modals (Subscription & Management)
+// ==========================================================================
+
+/**
+ * Setup swipe-up (fullscreen) & swipe-down (collapse / dismiss) gesture for bottom sheet modal
+ */
+const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
+    if (!modalEl) return () => {};
+
+    const sheet = modalEl.querySelector('.pro-modal-sheet');
+    const handleBar = modalEl.querySelector('.pro-modal-handle-bar');
+    const header = modalEl.querySelector('.pro-modal-header');
+
+    if (!sheet) return () => {};
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let activePointerId = null;
+    let isTouchOnHandleOrHeader = false;
+    let startTime = 0;
+    let startScrollTop = 0;
+    let initialSheetHeight = 0;
+    let canExpandToFullscreen = false;
+
+    const resetDragStyles = () => {
+        isDragging = false;
+        activePointerId = null;
+        sheet.classList.remove('is-dragging');
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+    };
+
+    const onPointerDown = (e) => {
+        // Hanya proses klik kiri / pointer utama
+        if (e.button !== undefined && e.button !== 0) return;
+        if (e.target.closest('button') || e.target.closest('.pro-plan-card') || e.target.closest('a')) return;
+
+        startY = e.clientY;
+        currentY = e.clientY;
+        startTime = Date.now();
+        startScrollTop = sheet.scrollTop;
+        initialSheetHeight = sheet.offsetHeight;
+        activePointerId = e.pointerId;
+
+        // Cek apakah konten modal memang panjang/bisa discroll ke bawah
+        const isContentScrollable = (sheet.scrollHeight - sheet.clientHeight) > 12;
+        const isCurrentlyFullscreen = sheet.classList.contains('is-fullscreen');
+        canExpandToFullscreen = isContentScrollable || isCurrentlyFullscreen;
+
+        isTouchOnHandleOrHeader = Boolean(
+            (handleBar && handleBar.contains(e.target)) || 
+            (header && header.contains(e.target))
+        );
+
+        if (isTouchOnHandleOrHeader || startScrollTop <= 0) {
+            isDragging = true;
+            try {
+                sheet.setPointerCapture(e.pointerId);
+            } catch {
+                // Ignore if not supported
+            }
+        }
+    };
+
+    const onPointerMove = (e) => {
+        if (!isDragging) return;
+
+        // Safety check: jika mouse sudah tidak ditekan (buttons === 0), batalkan drag segera
+        if (e.pointerType === 'mouse' && e.buttons === 0) {
+            onPointerUp(e);
+            return;
+        }
+
+        currentY = e.clientY;
+        const deltaY = e.clientY - startY;
+
+        // Jika user scroll konten saat scrollTop > 0 dan tidak memegang handle/header, lepaskan drag
+        if (!isTouchOnHandleOrHeader && sheet.scrollTop > 0) {
+            resetDragStyles();
+            return;
+        }
+
+        const isFullscreen = sheet.classList.contains('is-fullscreen');
+
+        // Dragging UP (deltaY < 0)
+        if (deltaY < 0) {
+            if (isFullscreen) {
+                const rubberBand = deltaY * 0.15;
+                sheet.style.transform = `translateY(${rubberBand}px)`;
+            } else if (canExpandToFullscreen) {
+                sheet.classList.add('is-dragging');
+                const pullDistance = Math.abs(deltaY);
+                const targetHeight = Math.min(window.innerHeight, initialSheetHeight + pullDistance);
+                sheet.style.transform = 'translateY(0)';
+                sheet.style.maxHeight = '100vh';
+                sheet.style.height = `${targetHeight}px`;
+            } else {
+                // Konten ringkas / tidak butuh scroll: tahan dengan rubber-band lembut
+                const rubberBand = Math.max(-36, deltaY * 0.1);
+                sheet.style.transform = `translateY(${rubberBand}px)`;
+            }
+        } 
+        // Dragging DOWN (deltaY > 0)
+        else if (deltaY > 0) {
+            if (!isTouchOnHandleOrHeader && sheet.scrollTop > 0) {
+                return;
+            }
+            sheet.classList.add('is-dragging');
+            sheet.style.height = '';
+            sheet.style.maxHeight = '';
+            sheet.style.transform = `translateY(${deltaY}px)`;
+            if (e.cancelable && (isTouchOnHandleOrHeader || deltaY > 10)) {
+                e.preventDefault();
+            }
+        }
+    };
+
+    const onPointerUp = (e) => {
+        if (!isDragging) return;
+
+        if (activePointerId !== null) {
+            try {
+                sheet.releasePointerCapture(activePointerId);
+            } catch {
+                // Ignore
+            }
+        }
+
+        isDragging = false;
+        activePointerId = null;
+        sheet.classList.remove('is-dragging');
+
+        const deltaY = (e ? e.clientY : currentY) - startY;
+        const deltaTime = Math.max(1, Date.now() - startTime);
+        const velocityY = deltaY / deltaTime;
+        const isFullscreen = sheet.classList.contains('is-fullscreen');
+
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+
+        // Case 1: Swiped UP (deltaY < -40 or upward flick velocity)
+        if (deltaY < -40 || velocityY < -0.35) {
+            if (!isFullscreen && canExpandToFullscreen) {
+                sheet.classList.add('is-fullscreen');
+            }
+            return;
+        }
+
+        // Case 2: Swiped DOWN
+        if (isFullscreen) {
+            if (deltaY > 60 || velocityY > 0.35) {
+                sheet.classList.remove('is-fullscreen');
+                sheet.scrollTop = 0;
+            }
+        } else {
+            if (deltaY > 85 || velocityY > 0.38) {
+                if (typeof onCloseCallback === 'function') {
+                    onCloseCallback();
+                }
+            }
+        }
+    };
+
+    const onPointerCancel = () => {
+        resetDragStyles();
+    };
+
+    sheet.addEventListener('pointerdown', onPointerDown);
+    sheet.addEventListener('pointermove', onPointerMove);
+    sheet.addEventListener('pointerup', onPointerUp);
+    sheet.addEventListener('pointercancel', onPointerCancel);
+    sheet.addEventListener('lostpointercapture', onPointerCancel);
+
+    return () => {
+        sheet.removeEventListener('pointerdown', onPointerDown);
+        sheet.removeEventListener('pointermove', onPointerMove);
+        sheet.removeEventListener('pointerup', onPointerUp);
+        sheet.removeEventListener('pointercancel', onPointerCancel);
+        sheet.removeEventListener('lostpointercapture', onPointerCancel);
+        resetDragStyles();
+    };
+};
+
+const openSubscriptionModal = () => {
+    const modal = document.getElementById('proSubscriptionModal');
+    if (!modal) return;
+
+    previousActiveElement = document.activeElement;
+
+    const sheet = modal.querySelector('.pro-modal-sheet');
+    if (sheet) {
+        sheet.classList.remove('is-fullscreen');
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+    }
+
+    document.body.classList.add('pro-modal-open');
+    modal.classList.remove('hidden');
+    modal.removeAttribute('inert');
+    void modal.offsetWidth;
+    modal.classList.add('is-active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+};
+
+const closeSubscriptionModal = () => {
+    const modal = document.getElementById('proSubscriptionModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    // 1. Lepaskan fokus dari elemen tombol dalam modal sebelum mengatur aria-hidden
+    if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
+
+    // 2. Kembalikan fokus ke elemen pemicu jika valid
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+        try {
+            previousActiveElement.focus();
+        } catch {
+            // Ignored
+        }
+    }
+    previousActiveElement = null;
+
+    const sheet = modal.querySelector('.pro-modal-sheet');
+    if (sheet) {
+        sheet.classList.remove('is-fullscreen');
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+    }
+
+    document.body.classList.remove('pro-modal-open');
+    modal.classList.remove('is-active');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('inert', '');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+        if (!modal.classList.contains('is-active')) {
+            modal.classList.add('hidden');
+        }
+    }, 320);
+};
+
+const openManageModal = () => {
+    const modal = document.getElementById('proManageModal');
+    if (!modal) return;
+
+    previousActiveElement = document.activeElement;
+
+    const sheet = modal.querySelector('.pro-modal-sheet');
+    if (sheet) {
+        sheet.classList.remove('is-fullscreen');
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+    }
+
+    const planNameEl = document.getElementById('managePlanName');
+    const planExpiryEl = document.getElementById('managePlanExpiry');
+
+    if (planNameEl) {
+        planNameEl.textContent = currentProfileData?.premiumPlan || 'Spotiwind PRO Individual';
+    }
+
+    if (planExpiryEl) {
+        if (currentProfileData?.premiumExpiresAt) {
+            const diffMs = currentProfileData.premiumExpiresAt - Date.now();
+            const daysRemaining = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+            planExpiryEl.textContent = `${daysRemaining} Hari tersisa`;
+        } else {
+            planExpiryEl.textContent = '30 Hari tersisa';
+        }
+    }
+
+    document.body.classList.add('pro-modal-open');
+    modal.classList.remove('hidden');
+    modal.removeAttribute('inert');
+    void modal.offsetWidth;
+    modal.classList.add('is-active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+};
+
+const closeManageModal = () => {
+    const modal = document.getElementById('proManageModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    // 1. Lepaskan fokus dari elemen tombol dalam modal sebelum mengatur aria-hidden
+    if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
+
+    // 2. Kembalikan fokus ke elemen pemicu jika valid
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+        try {
+            previousActiveElement.focus();
+        } catch {
+            // Ignored
+        }
+    }
+    previousActiveElement = null;
+
+    const sheet = modal.querySelector('.pro-modal-sheet');
+    if (sheet) {
+        sheet.classList.remove('is-fullscreen');
+        sheet.style.transform = '';
+        sheet.style.height = '';
+        sheet.style.maxHeight = '';
+    }
+
+    document.body.classList.remove('pro-modal-open');
+    modal.classList.remove('is-active');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('inert', '');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+        if (!modal.classList.contains('is-active')) {
+            modal.classList.add('hidden');
+        }
+    }, 320);
+};
+
+const updateProBannerUI = (isPro) => {
+    const proTitle = document.querySelector('.pro-banner-title');
+    const proDesc = document.querySelector('.pro-banner-desc');
+    const managePlanBtn = document.getElementById('managePlanBtn');
+    const managePlanBtnText = managePlanBtn?.querySelector('span');
+
+    if (isPro) {
+        if (proTitle) proTitle.textContent = 'Spotiwind PRO Active';
+        if (proDesc) proDesc.textContent = 'Status langganan aktif. Nikmati seluruh fitur eksklusif.';
+        if (managePlanBtnText) managePlanBtnText.textContent = 'Manage plan';
+        if (managePlanBtn) managePlanBtn.setAttribute('aria-label', 'Manage plan');
+    } else {
+        if (proTitle) proTitle.textContent = 'Spotiwind PRO';
+        if (proDesc) proDesc.textContent = 'Enjoy ad-free music, unlimited skips, and offline downloads.';
+        if (managePlanBtnText) managePlanBtnText.textContent = 'Upgrade to PRO';
+        if (managePlanBtn) managePlanBtn.setAttribute('aria-label', 'Upgrade to PRO');
+    }
 };
 
 const updateAccountStats = (user) => {
@@ -152,6 +515,7 @@ const updateAccountStats = (user) => {
         if (statFollowing) statFollowing.textContent = '0';
         if (statLikes) statLikes.textContent = '0';
         if (accountProBadge) accountProBadge.classList.add('hidden');
+        updateProBannerUI(false);
         return;
     }
 
@@ -186,6 +550,7 @@ const updateAccountStats = (user) => {
     // 5. Realtime Profile info (isPremium check and userCode) from Firestore
     unsubscribeProfile = subscribeUserProfile(user.uid, (profile) => {
         if (!profile) return;
+        currentProfileData = profile;
 
         const badge = document.getElementById('accountProBadge');
         const avatarWrapper = document.querySelector('.account-avatar-wrapper');
@@ -195,7 +560,10 @@ const updateAccountStats = (user) => {
             accountCode.textContent = profile.userCode || generateUserCode(user.uid);
         }
 
-        if (profile.isPremium === true) {
+        const isPro = profile.isPremium === true;
+        updateProBannerUI(isPro);
+
+        if (isPro) {
             badge?.classList.remove('hidden');
             avatarWrapper?.classList.add('is-pro');
         } else {
@@ -217,6 +585,7 @@ const updateAccountUserInfo = (user) => {
     updateAccountStats(user);
 
     if (!user) {
+        currentProfileData = null;
         if (accountName) accountName.textContent = 'Guest';
         if (accountEmail) accountEmail.textContent = 'Sign in to manage your profile';
         if (accountProBadge) accountProBadge.classList.add('hidden');
@@ -282,7 +651,7 @@ const bindAccountInteractions = () => {
         accountCodeWrapper.addEventListener('click', accountCodeClickHandler);
     }
 
-    // Tombol Manage Plan di Banner Spotiwind PRO
+    // Tombol Aksi di Banner Spotiwind PRO (Upgrade to PRO / Manage Plan)
     const managePlanBtn = document.getElementById('managePlanBtn');
     if (managePlanBtn) {
         managePlanBtnHandler = () => {
@@ -295,9 +664,139 @@ const bindAccountInteractions = () => {
                 }
                 return;
             }
-            showToast('Paket langganan Spotiwind PRO akan segera hadir');
+
+            if (currentProfileData?.isPremium === true) {
+                openManageModal();
+            } else {
+                openSubscriptionModal();
+            }
         };
         managePlanBtn.addEventListener('click', managePlanBtnHandler);
+    }
+
+    // Modal Close Buttons & Backdrops
+    const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
+    if (closeSubModalBtn) {
+        closeSubModalBtnHandler = () => closeSubscriptionModal();
+        closeSubModalBtn.addEventListener('click', closeSubModalBtnHandler);
+    }
+
+    const subBackdrop = document.querySelector('#proSubscriptionModal .pro-modal-backdrop');
+    if (subBackdrop) {
+        subModalBackdropHandler = () => closeSubscriptionModal();
+        subBackdrop.addEventListener('click', subModalBackdropHandler);
+    }
+
+    const closeManageModalBtn = document.getElementById('closeManageModalBtn');
+    if (closeManageModalBtn) {
+        closeManageModalBtnHandler = () => closeManageModal();
+        closeManageModalBtn.addEventListener('click', closeManageModalBtnHandler);
+    }
+
+    const manageBackdrop = document.querySelector('#proManageModal .pro-modal-backdrop');
+    if (manageBackdrop) {
+        manageModalBackdropHandler = () => closeManageModal();
+        manageBackdrop.addEventListener('click', manageModalBackdropHandler);
+    }
+
+    // Setup Drag / Swipe Gestures on Bottom Sheets
+    const subModal = document.getElementById('proSubscriptionModal');
+    if (subModal) {
+        cleanupSubSheetDrag = setupBottomSheetDrag(subModal, () => closeSubscriptionModal());
+    }
+
+    const manageModal = document.getElementById('proManageModal');
+    if (manageModal) {
+        cleanupManageSheetDrag = setupBottomSheetDrag(manageModal, () => closeManageModal());
+    }
+
+    // Plan Selection Radio Cards
+    const planCards = document.querySelectorAll('.pro-plan-card');
+    planCardClickHandlers = [];
+    planCards.forEach((card) => {
+        const handler = () => {
+            planCards.forEach((c) => {
+                c.classList.remove('is-selected');
+                c.setAttribute('aria-checked', 'false');
+            });
+            card.classList.add('is-selected');
+            card.setAttribute('aria-checked', 'true');
+
+            selectedPlanData = {
+                id: card.dataset.planId || 'individual',
+                name: card.dataset.planName || 'Individual Monthly',
+                price: card.dataset.planPrice || 'Rp 29.000'
+            };
+        };
+        card.addEventListener('click', handler);
+        planCardClickHandlers.push({ el: card, fn: handler });
+    });
+
+    // Activate PRO Subscription (7-Day Trial)
+    const activateProTrialBtn = document.getElementById('activateProTrialBtn');
+    if (activateProTrialBtn) {
+        activateTrialBtnHandler = async () => {
+            const user = auth.currentUser;
+            if (!user) {
+                showToast('Silakan login terlebih dahulu');
+                return;
+            }
+
+            try {
+                activateProTrialBtn.disabled = true;
+                activateProTrialBtn.innerHTML = '<span>Mengaktifkan PRO...</span>';
+
+                await setUserPremiumStatus(user.uid, true, {
+                    planName: `Spotiwind PRO ${selectedPlanData.name}`,
+                    price: selectedPlanData.price,
+                    since: Date.now(),
+                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+                });
+
+                closeSubscriptionModal();
+                showToast(`Selamat! Akun Anda kini aktif sebagai Spotiwind PRO 👑`);
+            } catch (err) {
+                console.error("Failed to activate PRO:", err);
+                showToast('Gagal mengaktifkan paket, coba lagi');
+            } finally {
+                activateProTrialBtn.disabled = false;
+                activateProTrialBtn.innerHTML = `
+                    <span>Mulai Uji Coba Gratis 7 Hari</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                `;
+            }
+        };
+        activateProTrialBtn.addEventListener('click', activateTrialBtnHandler);
+    }
+
+    // Cancel PRO Subscription
+    const cancelSubscriptionBtn = document.getElementById('cancelSubscriptionBtn');
+    if (cancelSubscriptionBtn) {
+        cancelSubBtnHandler = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const confirmCancel = window.confirm("Apakah Anda yakin ingin membatalkan langganan Spotiwind PRO?");
+            if (!confirmCancel) return;
+
+            try {
+                cancelSubscriptionBtn.disabled = true;
+                cancelSubscriptionBtn.textContent = 'Membatalkan...';
+
+                await setUserPremiumStatus(user.uid, false);
+                closeManageModal();
+                showToast('Langganan Spotiwind PRO telah dinonaktifkan.');
+            } catch (err) {
+                console.error("Failed to cancel PRO:", err);
+                showToast('Gagal membatalkan langganan');
+            } finally {
+                cancelSubscriptionBtn.disabled = false;
+                cancelSubscriptionBtn.textContent = 'Batalkan Langganan PRO';
+            }
+        };
+        cancelSubscriptionBtn.addEventListener('click', cancelSubBtnHandler);
     }
 
     // Klik item statistik (Playlists, Followers, Following, Likes)
@@ -379,15 +878,56 @@ const bindAccountInteractions = () => {
     keydownHandler = (e) => {
         if (e.key === 'Escape') {
             closeAvatarPreview();
+            closeSubscriptionModal();
+            closeManageModal();
         }
     };
     document.addEventListener('keydown', keydownHandler);
 };
 
-export const initAccountPage = () => {
-    if (auth.currentUser) {
-        updateAccountUserInfo(auth.currentUser);
+export const initAccountPage = async () => {
+    let user = auth.currentUser;
+    if (!user && typeof auth.authStateReady === 'function') {
+        try {
+            await Promise.race([
+                auth.authStateReady(),
+                new Promise((resolve) => setTimeout(resolve, 350))
+            ]);
+            user = auth.currentUser;
+        } catch {
+            // Ignored
+        }
     }
+
+    if (user) {
+        // Pre-fetch profile & PRO status immediately before dark transition screen fades out
+        try {
+            const profile = await Promise.race([
+                getProfileByUid(user.uid),
+                new Promise((resolve) => setTimeout(() => resolve(null), 800))
+            ]);
+            if (profile) {
+                currentProfileData = profile;
+                const isPro = profile.isPremium === true;
+                updateProBannerUI(isPro);
+                const badge = document.getElementById('accountProBadge');
+                const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+                if (isPro) {
+                    badge?.classList.remove('hidden');
+                    avatarWrapper?.classList.add('is-pro');
+                } else {
+                    badge?.classList.add('hidden');
+                    avatarWrapper?.classList.remove('is-pro');
+                }
+            }
+        } catch (err) {
+            console.warn("Preloading user profile on account page:", err);
+        }
+        updateAccountUserInfo(user);
+    } else {
+        updateAccountUserInfo(null);
+    }
+
     unsubscribeAccountAuth?.();
     unsubscribeAccountAuth = onAuthStateChanged(auth, updateAccountUserInfo);
     bindAccountInteractions();
@@ -454,11 +994,62 @@ export const cleanupAccountPage = () => {
     }
     previewShareBtnHandler = null;
 
+    const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
+    if (closeSubModalBtn && closeSubModalBtnHandler) {
+        closeSubModalBtn.removeEventListener('click', closeSubModalBtnHandler);
+    }
+    closeSubModalBtnHandler = null;
+
+    const subBackdrop = document.querySelector('#proSubscriptionModal .pro-modal-backdrop');
+    if (subBackdrop && subModalBackdropHandler) {
+        subBackdrop.removeEventListener('click', subModalBackdropHandler);
+    }
+    subModalBackdropHandler = null;
+
+    const closeManageModalBtn = document.getElementById('closeManageModalBtn');
+    if (closeManageModalBtn && closeManageModalBtnHandler) {
+        closeManageModalBtn.removeEventListener('click', closeManageModalBtnHandler);
+    }
+    closeManageModalBtnHandler = null;
+
+    const manageBackdrop = document.querySelector('#proManageModal .pro-modal-backdrop');
+    if (manageBackdrop && manageModalBackdropHandler) {
+        manageBackdrop.removeEventListener('click', manageModalBackdropHandler);
+    }
+    manageModalBackdropHandler = null;
+
+    if (cleanupSubSheetDrag) {
+        cleanupSubSheetDrag();
+        cleanupSubSheetDrag = null;
+    }
+    if (cleanupManageSheetDrag) {
+        cleanupManageSheetDrag();
+        cleanupManageSheetDrag = null;
+    }
+
+    planCardClickHandlers.forEach(({ el, fn }) => {
+        el.removeEventListener('click', fn);
+    });
+    planCardClickHandlers = [];
+
+    const activateProTrialBtn = document.getElementById('activateProTrialBtn');
+    if (activateProTrialBtn && activateTrialBtnHandler) {
+        activateProTrialBtn.removeEventListener('click', activateTrialBtnHandler);
+    }
+    activateTrialBtnHandler = null;
+
+    const cancelSubscriptionBtn = document.getElementById('cancelSubscriptionBtn');
+    if (cancelSubscriptionBtn && cancelSubBtnHandler) {
+        cancelSubscriptionBtn.removeEventListener('click', cancelSubBtnHandler);
+    }
+    cancelSubBtnHandler = null;
+
     if (keydownHandler) {
         document.removeEventListener('keydown', keydownHandler);
     }
     keydownHandler = null;
     previousActiveElement = null;
-
+    currentProfileData = null;
+    document.body.classList.remove('pro-modal-open');
     document.body.style.overflow = '';
 };

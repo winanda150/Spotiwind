@@ -363,67 +363,34 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.85rem;
-    padding: 1.15rem 1.15rem;
+    gap: 1.15rem;
+    padding: 1.3rem 1.25rem;
     margin-bottom: 1.5rem;
-    background: rgba(18, 20, 36, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, #42103e 0%, #2a1147 50%, #151638 100%);
+    border: 1px solid rgba(241, 46, 119, 0.35);
     border-radius: 1.35rem;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .pro-banner-glow {
-    position: absolute;
-    top: -40%;
-    left: -20%;
-    width: 65%;
-    height: 180%;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 80%);
-    pointer-events: none;
+    display: none;
 }
 
-.pro-banner-left {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    flex: 1;
-    min-width: 0;
-}
-
-.pro-crown-emblem {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 35% 35%, #c026d3 0%, #7c3aed 45%, #06b6d4 100%);
-    box-shadow: 0 0 22px rgba(185, 30, 201, 0.55),
-                0 0 12px rgba(6, 182, 212, 0.35),
-                inset 0 0 8px rgba(255, 255, 255, 0.3);
-    flex-shrink: 0;
-}
-
-.pro-crown-icon {
-    width: 23px;
-    height: 23px;
-    color: #ffffff;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
-}
-
-.pro-banner-text {
+.pro-banner-info {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    align-items: flex-start;
+    gap: 0.3rem;
+    flex: 1;
     min-width: 0;
+    z-index: 1;
 }
 
 .pro-banner-title {
-    font-size: 1.02rem;
-    font-weight: 600;
+    font-size: 1.12rem;
+    font-weight: 700;
     color: #ffffff;
     margin: 0;
     line-height: 1.2;
@@ -431,53 +398,67 @@
 }
 
 .pro-banner-desc {
-    font-size: 0.74rem;
-    color: #94a3b8;
-    margin: 0;
-    line-height: 1.35;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0 0 0.45rem 0;
+    line-height: 1.4;
     font-weight: 400;
+    max-width: 95%;
 }
 
 .pro-banner-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem;
-    padding: 0.62rem 1.05rem;
+    padding: 0.52rem 1.15rem;
     border-radius: 999px;
-    background: linear-gradient(135deg, #c026d3 0%, #9333ea 30%, #06b6d4 100%);
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77 0%, #B91EC9 50%, #7D19F5 100%));
     border: none;
     color: #ffffff;
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     font-weight: 600;
     font-family: inherit;
     white-space: nowrap;
-    flex-shrink: 0;
     cursor: pointer;
-    box-shadow: 0 4px 18px rgba(147, 51, 234, 0.45);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-}
-
-.pro-banner-btn svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2.5;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, filter 0.2s ease;
 }
 
 .pro-banner-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(6, 182, 212, 0.5);
     filter: brightness(1.08);
-}
-
-.pro-banner-btn:hover svg {
-    transform: translateX(2px);
 }
 
 .pro-banner-btn:active {
     transform: scale(0.96);
+}
+
+.pro-banner-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.pro-crown-emblem {
+    width: 54px;
+    height: 54px;
+    min-width: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77 0%, #B91EC9 50%, #7D19F5 100%));
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+}
+
+.pro-crown-icon {
+    width: 26px;
+    height: 26px;
+    color: #ffffff;
 }
 
 /* ==========================================================================
@@ -634,4 +615,410 @@
     display: block;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+/* ==========================================================================
+   Spotiwind PRO Subscription & Plan Management Modals
+   ========================================================================== */
+.pro-subscription-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.pro-subscription-modal.is-active {
+    visibility: visible;
+    opacity: 1;
+}
+
+.pro-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.pro-modal-sheet {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    max-height: 82vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem 1.25rem 1.75rem 1.25rem;
+    background: linear-gradient(180deg, rgba(32, 16, 42, 0.96) 0%, rgba(16, 14, 26, 0.98) 100%);
+    border: 1px solid rgba(241, 46, 119, 0.28);
+    border-bottom: none;
+    border-radius: 1.75rem 1.75rem 0 0;
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.75);
+    box-sizing: border-box;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.25s ease;
+    touch-action: pan-y;
+    will-change: transform, height, max-height;
+}
+
+.pro-modal-sheet.is-dragging {
+    transition: none !important;
+    user-select: none;
+}
+
+.pro-modal-sheet.is-fullscreen {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border-top: none;
+    padding-top: max(1.25rem, env(safe-area-inset-top));
+}
+
+.pro-subscription-modal.is-active .pro-modal-sheet:not(.is-dragging) {
+    transform: translateY(0);
+}
+
+.pro-modal-handle-bar {
+    width: 44px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.26);
+    border-radius: 999px;
+    margin: 0 auto 1.1rem auto;
+    cursor: grab;
+    touch-action: none;
+    transition: background 0.2s ease, width 0.2s ease, transform 0.2s ease;
+}
+
+.pro-modal-handle-bar:hover {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.pro-modal-handle-bar:active,
+.pro-modal-sheet.is-dragging .pro-modal-handle-bar {
+    background: linear-gradient(135deg, #F12E77, #e879f9);
+    width: 52px;
+    cursor: grabbing;
+}
+
+.pro-modal-header {
+    position: relative;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.2rem;
+}
+
+.pro-modal-crown {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(185, 30, 201, 0.45);
+    margin-bottom: 0.65rem;
+}
+
+.pro-modal-crown svg {
+    width: 25px;
+    height: 25px;
+    color: #ffffff;
+}
+
+.pro-modal-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.01em;
+}
+
+.pro-modal-subtitle {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+    max-width: 88%;
+}
+
+.pro-modal-close-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.pro-modal-close-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.pro-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.pro-modal-close-btn:active {
+    transform: scale(0.92);
+}
+
+/* Benefits List */
+.pro-benefits-list {
+    list-style: none;
+    margin: 0 0 1.25rem 0;
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pro-benefit-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.pro-check-icon {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F12E77, #B91EC9);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Plans Container */
+.pro-plans-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+}
+
+.pro-plan-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.05rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid rgba(255, 255, 255, 0.09);
+    border-radius: 1.1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pro-plan-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(241, 46, 119, 0.4);
+}
+
+.pro-plan-card.is-selected {
+    background: linear-gradient(135deg, rgba(241, 46, 119, 0.12), rgba(185, 30, 201, 0.16));
+    border-color: #e879f9;
+    box-shadow: 0 0 20px rgba(185, 30, 201, 0.2);
+}
+
+.pro-plan-badge {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #F12E77, #B91EC9);
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.pro-plan-badge.badge-student {
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+}
+
+.pro-plan-badge.badge-annual {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.pro-plan-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.pro-plan-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+}
+
+.pro-plan-desc {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.pro-plan-pricing {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.pro-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.pro-period {
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+
+/* Footer & Buttons */
+.pro-modal-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.pro-modal-subscribe-btn {
+    width: 100%;
+    padding: 0.78rem 1.25rem;
+    border-radius: 999px;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    border: none;
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(241, 46, 119, 0.45);
+    transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pro-modal-subscribe-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.5;
+}
+
+.pro-modal-subscribe-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.pro-modal-subscribe-btn:active {
+    transform: scale(0.97);
+}
+
+.pro-footer-note {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin: 0;
+    text-align: center;
+    line-height: 1.35;
+}
+
+/* Manage Active Modal Elements */
+.pro-active-status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-top: 0.35rem;
+}
+
+.manage-details-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.manage-detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+}
+
+.manage-detail-row .detail-label {
+    color: #94a3b8;
+}
+
+.manage-detail-row .detail-value {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.manage-detail-row .detail-value.text-green {
+    color: #4ade80;
+}
+
+.pro-cancel-btn {
+    width: 100%;
+    padding: 0.72rem 1.1rem;
+    border-radius: 999px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    color: #f87171;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.pro-cancel-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.pro-cancel-btn:active {
+    transform: scale(0.97);
 }
