@@ -154,11 +154,15 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     if (!modalEl) return () => {};
 
     const sheet = modalEl.querySelector('.pro-modal-sheet');
+    const handleBar = modalEl.querySelector('.pro-modal-handle-bar');
+    const header = modalEl.querySelector('.pro-modal-header');
+
     if (!sheet) return () => {};
 
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
+    let isTouchOnHandleOrHeader = false;
     let startTime = 0;
     let startScrollTop = 0;
     let initialSheetHeight = 0;
@@ -197,12 +201,13 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
 
         const isFullscreen = sheet.classList.contains('is-fullscreen');
 
-        // Gesture 1: Tarik ke ATAS (deltaY < 0) - Bisa ditarik di seluruh area modal
-        if (deltaY < -4) {
+        // Gesture 1: Tarik ke ATAS (deltaY < 0)
+        if (deltaY < -6) {
             if (isFullscreen) {
-                const rubberBand = deltaY * 0.12;
+                const rubberBand = deltaY * 0.1;
                 sheet.style.transform = `translateY(${rubberBand}px)`;
-            } else {
+            } else if (isTouchOnHandleOrHeader) {
+                // Tarik langsung dari handle bar / header -> respon ekspansi instan
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
@@ -214,10 +219,11 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
                 sheet.style.height = `${targetHeight}px`;
                 if (e.cancelable) e.preventDefault();
             }
+            // Jika sentuh area konten dan scroll normal, biarkan scroll konten bekerja alami tanpa glitch lompat
         }
-        // Gesture 2: Tarik ke BAWAH (deltaY > 0) - Bisa ditarik di seluruh area modal saat scrollTop <= 0
-        else if (deltaY > 4) {
-            if (sheet.scrollTop <= 0) {
+        // Gesture 2: Tarik ke BAWAH (deltaY > 0)
+        else if (deltaY > 6) {
+            if (isTouchOnHandleOrHeader || sheet.scrollTop <= 0) {
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
@@ -233,25 +239,24 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     const onPointerUp = (e) => {
         removeWindowListeners();
 
-        if (!isDragging) {
+        const deltaY = (e ? e.clientY : currentY) - startY;
+        const deltaTime = Math.max(1, Date.now() - startTime);
+        const velocityY = deltaY / deltaTime;
+        const isFullscreen = sheet.classList.contains('is-fullscreen');
+
+        if (!isDragging && Math.abs(deltaY) < 10) {
             resetDragStyles();
             return;
         }
 
         isDragging = false;
         sheet.classList.remove('is-dragging');
-
-        const deltaY = (e ? e.clientY : currentY) - startY;
-        const deltaTime = Math.max(1, Date.now() - startTime);
-        const velocityY = deltaY / deltaTime;
-        const isFullscreen = sheet.classList.contains('is-fullscreen');
-
         sheet.style.transform = '';
         sheet.style.height = '';
         sheet.style.maxHeight = '';
 
-        // Kasus 1: Tarik ke ATAS -> Masuk Fullscreen
-        if (deltaY < -35 || velocityY < -0.28) {
+        // Kasus 1: Tarik ke ATAS (Swipe up threshold atau flick cepat ke atas dari mana saja)
+        if (deltaY < -35 || velocityY < -0.3) {
             if (!isFullscreen) {
                 sheet.classList.add('is-fullscreen');
             }
@@ -259,7 +264,7 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
             return;
         }
 
-        // Kasus 2: Tarik ke BAWAH -> Keluar Fullscreen atau Tutup Modal
+        // Kasus 2: Tarik ke BAWAH (Swipe down threshold)
         if (isFullscreen) {
             if (deltaY > 50 || velocityY > 0.28) {
                 sheet.classList.remove('is-fullscreen');
@@ -282,7 +287,7 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
 
     const onPointerDown = (e) => {
         if (e.button !== undefined && e.button !== 0) return;
-        // Hanya abaikan tombol aksi eksplisit (close btn & submit btn)
+        // Abaikan tombol close & submit
         if (e.target.closest('#closeSubscriptionModalBtn, #closeManageModalBtn, #activateProTrialBtn, #cancelSubscriptionBtn')) return;
 
         startY = e.clientY;
@@ -291,6 +296,11 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         startScrollTop = sheet.scrollTop;
         initialSheetHeight = sheet.offsetHeight;
         isModalGestureActive = false;
+
+        isTouchOnHandleOrHeader = Boolean(
+            (handleBar && handleBar.contains(e.target)) || 
+            (header && header.contains(e.target) && !e.target.closest('button, a'))
+        );
 
         if (!isListeningWindow) {
             isListeningWindow = true;
