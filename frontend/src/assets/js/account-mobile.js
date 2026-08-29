@@ -161,58 +161,32 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
-    let activePointerId = null;
     let isTouchOnHandleOrHeader = false;
     let startTime = 0;
     let startScrollTop = 0;
     let initialSheetHeight = 0;
     let canExpandToFullscreen = false;
+    let isListeningWindow = false;
 
     const resetDragStyles = () => {
         isDragging = false;
-        activePointerId = null;
         sheet.classList.remove('is-dragging');
         sheet.style.transform = '';
         sheet.style.height = '';
         sheet.style.maxHeight = '';
+        removeWindowListeners();
     };
 
-    const onPointerDown = (e) => {
-        // Hanya proses klik kiri / pointer utama
-        if (e.button !== undefined && e.button !== 0) return;
-        if (e.target.closest('button') || e.target.closest('.pro-plan-card') || e.target.closest('a')) return;
-
-        startY = e.clientY;
-        currentY = e.clientY;
-        startTime = Date.now();
-        startScrollTop = sheet.scrollTop;
-        initialSheetHeight = sheet.offsetHeight;
-        activePointerId = e.pointerId;
-
-        // Cek apakah konten modal memang panjang/bisa discroll ke bawah
-        const isContentScrollable = (sheet.scrollHeight - sheet.clientHeight) > 12;
-        const isCurrentlyFullscreen = sheet.classList.contains('is-fullscreen');
-        canExpandToFullscreen = isContentScrollable || isCurrentlyFullscreen;
-
-        isTouchOnHandleOrHeader = Boolean(
-            (handleBar && handleBar.contains(e.target)) || 
-            (header && header.contains(e.target))
-        );
-
-        if (isTouchOnHandleOrHeader || startScrollTop <= 0) {
-            isDragging = true;
-            try {
-                sheet.setPointerCapture(e.pointerId);
-            } catch {
-                // Ignore if not supported
-            }
-        }
+    const removeWindowListeners = () => {
+        if (!isListeningWindow) return;
+        isListeningWindow = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerCancel);
     };
 
     const onPointerMove = (e) => {
-        if (!isDragging) return;
-
-        // Safety check: jika mouse sudah tidak ditekan (buttons === 0), batalkan drag segera
+        // Safety check: jika mouse sudah dilepas (buttons === 0)
         if (e.pointerType === 'mouse' && e.buttons === 0) {
             onPointerUp(e);
             return;
@@ -221,60 +195,62 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         currentY = e.clientY;
         const deltaY = e.clientY - startY;
 
-        // Jika user scroll konten saat scrollTop > 0 dan tidak memegang handle/header, lepaskan drag
+        // Jika user sedang scroll konten di dalam sheet (scrollTop > 0) dan tidak memegang handle/header
         if (!isTouchOnHandleOrHeader && sheet.scrollTop > 0) {
-            resetDragStyles();
+            if (isDragging) {
+                resetDragStyles();
+            }
             return;
         }
 
         const isFullscreen = sheet.classList.contains('is-fullscreen');
 
-        // Dragging UP (deltaY < 0)
-        if (deltaY < 0) {
+        // Gesture 1: Tarik ke ATAS (deltaY < 0)
+        if (deltaY < -4) {
             if (isFullscreen) {
-                const rubberBand = deltaY * 0.15;
+                const rubberBand = deltaY * 0.12;
                 sheet.style.transform = `translateY(${rubberBand}px)`;
             } else if (canExpandToFullscreen) {
-                sheet.classList.add('is-dragging');
+                if (!isDragging) {
+                    isDragging = true;
+                    sheet.classList.add('is-dragging');
+                }
                 const pullDistance = Math.abs(deltaY);
                 const targetHeight = Math.min(window.innerHeight, initialSheetHeight + pullDistance);
                 sheet.style.transform = 'translateY(0)';
                 sheet.style.maxHeight = '100vh';
                 sheet.style.height = `${targetHeight}px`;
+                if (e.cancelable) e.preventDefault();
             } else {
-                // Konten ringkas / tidak butuh scroll: tahan dengan rubber-band lembut
-                const rubberBand = Math.max(-36, deltaY * 0.1);
+                // Konten ringkas: rubber-band lembut
+                const rubberBand = Math.max(-28, deltaY * 0.1);
                 sheet.style.transform = `translateY(${rubberBand}px)`;
             }
-        } 
-        // Dragging DOWN (deltaY > 0)
-        else if (deltaY > 0) {
-            if (!isTouchOnHandleOrHeader && sheet.scrollTop > 0) {
-                return;
-            }
-            sheet.classList.add('is-dragging');
-            sheet.style.height = '';
-            sheet.style.maxHeight = '';
-            sheet.style.transform = `translateY(${deltaY}px)`;
-            if (e.cancelable && (isTouchOnHandleOrHeader || deltaY > 10)) {
-                e.preventDefault();
+        }
+        // Gesture 2: Tarik ke BAWAH (deltaY > 0)
+        else if (deltaY > 4) {
+            if (isTouchOnHandleOrHeader || sheet.scrollTop <= 0) {
+                if (!isDragging) {
+                    isDragging = true;
+                    sheet.classList.add('is-dragging');
+                }
+                sheet.style.height = '';
+                sheet.style.maxHeight = '';
+                sheet.style.transform = `translateY(${deltaY}px)`;
+                if (e.cancelable) e.preventDefault();
             }
         }
     };
 
     const onPointerUp = (e) => {
-        if (!isDragging) return;
+        removeWindowListeners();
 
-        if (activePointerId !== null) {
-            try {
-                sheet.releasePointerCapture(activePointerId);
-            } catch {
-                // Ignore
-            }
+        if (!isDragging) {
+            resetDragStyles();
+            return;
         }
 
         isDragging = false;
-        activePointerId = null;
         sheet.classList.remove('is-dragging');
 
         const deltaY = (e ? e.clientY : currentY) - startY;
@@ -286,22 +262,22 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         sheet.style.height = '';
         sheet.style.maxHeight = '';
 
-        // Case 1: Swiped UP (deltaY < -40 or upward flick velocity)
-        if (deltaY < -40 || velocityY < -0.35) {
+        // Kasus 1: Tarik ke ATAS (Swipe up threshold)
+        if (deltaY < -35 || velocityY < -0.3) {
             if (!isFullscreen && canExpandToFullscreen) {
                 sheet.classList.add('is-fullscreen');
             }
             return;
         }
 
-        // Case 2: Swiped DOWN
+        // Kasus 2: Tarik ke BAWAH (Swipe down threshold)
         if (isFullscreen) {
-            if (deltaY > 60 || velocityY > 0.35) {
+            if (deltaY > 55 || velocityY > 0.3) {
                 sheet.classList.remove('is-fullscreen');
                 sheet.scrollTop = 0;
             }
         } else {
-            if (deltaY > 85 || velocityY > 0.38) {
+            if (deltaY > 65 || velocityY > 0.3) {
                 if (typeof onCloseCallback === 'function') {
                     onCloseCallback();
                 }
@@ -313,18 +289,41 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         resetDragStyles();
     };
 
+    const onPointerDown = (e) => {
+        // Hanya proses klik kiri / sentuhan utama
+        if (e.button !== undefined && e.button !== 0) return;
+        if (e.target.closest('button, a, .pro-plan-card')) return;
+
+        startY = e.clientY;
+        currentY = e.clientY;
+        startTime = Date.now();
+        startScrollTop = sheet.scrollTop;
+        initialSheetHeight = sheet.offsetHeight;
+
+        const isContentScrollable = (sheet.scrollHeight - sheet.clientHeight) > 15;
+        const isCurrentlyFullscreen = sheet.classList.contains('is-fullscreen');
+        canExpandToFullscreen = isContentScrollable || isCurrentlyFullscreen;
+
+        isTouchOnHandleOrHeader = Boolean(
+            (handleBar && handleBar.contains(e.target)) || 
+            (header && header.contains(e.target) && !e.target.closest('button, a'))
+        );
+
+        if (isTouchOnHandleOrHeader || startScrollTop <= 0) {
+            if (!isListeningWindow) {
+                isListeningWindow = true;
+                window.addEventListener('pointermove', onPointerMove, { passive: false });
+                window.addEventListener('pointerup', onPointerUp);
+                window.addEventListener('pointercancel', onPointerCancel);
+            }
+        }
+    };
+
     sheet.addEventListener('pointerdown', onPointerDown);
-    sheet.addEventListener('pointermove', onPointerMove);
-    sheet.addEventListener('pointerup', onPointerUp);
-    sheet.addEventListener('pointercancel', onPointerCancel);
-    sheet.addEventListener('lostpointercapture', onPointerCancel);
 
     return () => {
         sheet.removeEventListener('pointerdown', onPointerDown);
-        sheet.removeEventListener('pointermove', onPointerMove);
-        sheet.removeEventListener('pointerup', onPointerUp);
-        sheet.removeEventListener('pointercancel', onPointerCancel);
-        sheet.removeEventListener('lostpointercapture', onPointerCancel);
+        removeWindowListeners();
         resetDragStyles();
     };
 };

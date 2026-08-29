@@ -684,24 +684,31 @@
 }
 
 .pro-modal-handle-bar {
-    width: 44px;
+    position: relative;
+    width: 48px;
     height: 5px;
-    background: rgba(255, 255, 255, 0.26);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 999px;
     margin: 0 auto 1.1rem auto;
     cursor: grab;
     touch-action: none;
-    transition: background 0.2s ease, width 0.2s ease, transform 0.2s ease;
+    transition: background 0.2s ease;
 }
 
-.pro-modal-handle-bar:hover {
-    background: rgba(255, 255, 255, 0.45);
+/* Invisible large touch hit-box for fingers on touchscreen */
+.pro-modal-handle-bar::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    bottom: -14px;
+    left: -28px;
+    right: -28px;
 }
 
+.pro-modal-handle-bar:hover,
 .pro-modal-handle-bar:active,
 .pro-modal-sheet.is-dragging .pro-modal-handle-bar {
-    background: linear-gradient(135deg, #F12E77, #e879f9);
-    width: 52px;
+    background: rgba(255, 255, 255, 0.6);
     cursor: grabbing;
 }
 
@@ -712,6 +719,9 @@
     flex-direction: column;
     align-items: center;
     margin-bottom: 1.2rem;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .pro-modal-crown {
