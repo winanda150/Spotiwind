@@ -166,6 +166,7 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     let startTime = 0;
     let startScrollTop = 0;
     let initialSheetHeight = 0;
+    let canExpandToFullscreen = false;
     let isListeningWindow = false;
 
     const resetDragStyles = () => {
@@ -202,12 +203,12 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         const isFullscreen = sheet.classList.contains('is-fullscreen');
 
         // Gesture 1: Tarik ke ATAS (deltaY < 0)
+        // HANYA diproses jika konten memang panjang & melebihi layar (canExpandToFullscreen) dan ditarik pada handle/header!
         if (deltaY < -6) {
             if (isFullscreen) {
-                const rubberBand = deltaY * 0.1;
+                const rubberBand = deltaY * 0.08;
                 sheet.style.transform = `translateY(${rubberBand}px)`;
-            } else if (isTouchOnHandleOrHeader) {
-                // Tarik langsung dari handle bar / header -> respon ekspansi instan
+            } else if (canExpandToFullscreen && isTouchOnHandleOrHeader) {
                 if (!isDragging) {
                     isDragging = true;
                     sheet.classList.add('is-dragging');
@@ -219,7 +220,7 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
                 sheet.style.height = `${targetHeight}px`;
                 if (e.cancelable) e.preventDefault();
             }
-            // Jika sentuh area konten dan scroll normal, biarkan scroll konten bekerja alami tanpa glitch lompat
+            // Jika konten sudah muat semua (canExpandToFullscreen === false): Diam di tempat, tidak ada lonjakan sama sekali!
         }
         // Gesture 2: Tarik ke BAWAH (deltaY > 0)
         else if (deltaY > 6) {
@@ -255,9 +256,9 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         sheet.style.height = '';
         sheet.style.maxHeight = '';
 
-        // Kasus 1: Tarik ke ATAS (Swipe up threshold atau flick cepat ke atas dari mana saja)
+        // Kasus 1: Tarik ke ATAS -> HANYA masuk fullscreen jika konten memang panjang dan ditarik pada Handle Bar/Header!
         if (deltaY < -35 || velocityY < -0.3) {
-            if (!isFullscreen) {
+            if (!isFullscreen && canExpandToFullscreen && isTouchOnHandleOrHeader) {
                 sheet.classList.add('is-fullscreen');
             }
             setTimeout(() => { isModalGestureActive = false; }, 80);
@@ -296,6 +297,10 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
         startScrollTop = sheet.scrollTop;
         initialSheetHeight = sheet.offsetHeight;
         isModalGestureActive = false;
+
+        // Cek ketat: Apakah konten modal memang lebih panjang dari layar dan butuh scroll?
+        const isContentScrollable = (sheet.scrollHeight - sheet.clientHeight) > 20;
+        canExpandToFullscreen = isContentScrollable;
 
         isTouchOnHandleOrHeader = Boolean(
             (handleBar && handleBar.contains(e.target)) || 
