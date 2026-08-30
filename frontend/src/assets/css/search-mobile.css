@@ -681,13 +681,33 @@
 
 /* User / Friend Search Result Item */
 .search-results-dropdown .dropdown-item-user {
+    position: relative;
     background: rgba(56, 189, 248, 0.04);
     border-left: 3px solid #38bdf8;
-    transition: background 0.2s ease;
+    transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
 }
 
 .search-results-dropdown .dropdown-item-user:hover {
     background: rgba(56, 189, 248, 0.1);
+}
+
+/* PRO Subscriber Exclusive Hero Banner in Search Dropdown */
+.search-results-dropdown .dropdown-item-user.is-pro-user {
+    background-image: 
+        linear-gradient(to right, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.7) 55%, rgba(15, 23, 42, 0.4) 100%),
+        url('../../../public/Elemen/Logo/Banner%20Exclusive.webp');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    border-left: 3.5px solid #B91EC9;
+    box-shadow: 0 4px 16px rgba(185, 30, 201, 0.25);
+}
+
+.search-results-dropdown .dropdown-item-user.is-pro-user:hover {
+    background-image: 
+        linear-gradient(to right, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.6) 55%, rgba(15, 23, 42, 0.3) 100%),
+        url('../../../public/Elemen/Logo/Banner%20Exclusive.webp');
 }
 
 .search-results-dropdown .dropdown-item-user .dropdown-cover-wrapper {
@@ -700,7 +720,7 @@
 .search-results-dropdown .dropdown-item-user .dropdown-cover-wrapper.user-is-pro {
     padding: 2px;
     background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
-    box-shadow: 0 0 12px rgba(185, 30, 201, 0.4);
+    box-shadow: 0 0 12px rgba(185, 30, 201, 0.6);
 }
 
 .search-results-dropdown .dropdown-user-follow-btn {

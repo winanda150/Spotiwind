@@ -23,12 +23,12 @@ export const cacheSongAudio = async (song, onProgress = null) => {
         }
     };
 
-    reportProgress(10);
+    reportProgress(0);
 
     try {
         const cache = await caches.open(OFFLINE_CACHE_NAME);
 
-        // 1. Fetch & cache cover image in background
+        // 1. Fetch & cache cover image concurrently
         if (song.cover && !song.cover.startsWith('data:')) {
             fetch(song.cover)
                 .then((res) => {
@@ -39,7 +39,7 @@ export const cacheSongAudio = async (song, onProgress = null) => {
                 .catch(() => {});
         }
 
-        // 2. Fetch audio with real-time stream reading
+        // 2. Fetch audio with real-time byte stream reading
         const res = await fetch(song.audio);
         if (!res.ok && res.type !== 'opaque') {
             throw new Error(`Failed to fetch audio stream: ${res.status}`);
@@ -58,7 +58,7 @@ export const cacheSongAudio = async (song, onProgress = null) => {
                 if (done) break;
                 chunks.push(value);
                 receivedBytes += value.length;
-                const percent = 10 + (receivedBytes / totalBytes) * 85;
+                const percent = Math.round((receivedBytes / totalBytes) * 100);
                 reportProgress(percent);
             }
 
@@ -69,10 +69,10 @@ export const cacheSongAudio = async (song, onProgress = null) => {
             });
             await cache.put(song.audio, cachedResponse);
         } else {
-            // Fallback for responses without Content-Length / opaque
-            reportProgress(40);
+            // Fallback for chunked streams without content-length header
+            reportProgress(20);
             const blob = await res.blob();
-            reportProgress(88);
+            reportProgress(90);
             const cachedResponse = new Response(blob, {
                 status: 200,
                 headers: res.headers

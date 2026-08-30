@@ -82,9 +82,15 @@
     <meta property="og:url" content="https://spotiwind-music.vercel.app/">
     <meta property="og:type" content="website">
     <!-- Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="../assets/css/home-desktop.css">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+            });
+        }
+    </script>
 </head>
 
 <body class="dashboard-page is-transitioning">

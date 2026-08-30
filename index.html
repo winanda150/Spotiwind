@@ -8,9 +8,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Spotiwind - Feel The Music, Ride The Wind</title>
     <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="frontend/src/assets/css/index.css">
+    <script>
+        // Register PWA Service Worker for 100% offline access
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch((err) => {
+                    console.log('SW registration note:', err);
+                });
+            });
+        }
+    </script>
     <script>
         // Ensure relative asset URLs resolve correctly from app root on deep paths or refresh
         (function() {

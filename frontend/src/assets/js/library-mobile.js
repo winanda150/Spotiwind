@@ -424,11 +424,6 @@ function createSongItemHTML(song, options = {}) {
             <div class="library-song-info">
                 <h3 class="library-song-name">${name}</h3>
                 <p class="library-song-artist">${artist}</p>
-                ${isDownloadView ? `
-                    <div class="library-download-progress-track ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadTrack_${songId}">
-                        <div class="library-download-progress-fill ${song.downloadStatus === 'completed' ? 'is-done' : ''}" id="downloadFill_${songId}" style="width: ${song.downloadProgress || 10}%;"></div>
-                    </div>
-                ` : ''}
             </div>
             <div class="library-song-meta">
                 ${isDownloadView ? `
@@ -455,6 +450,11 @@ function createSongItemHTML(song, options = {}) {
                     </button>
                 `}
             </div>
+            ${isDownloadView ? `
+                <div class="library-download-progress-track ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadTrack_${songId}">
+                    <div class="library-download-progress-fill ${song.downloadStatus === 'completed' ? 'is-done' : ''}" id="downloadFill_${songId}" style="width: ${song.downloadProgress || 10}%;"></div>
+                </div>
+            ` : ''}
         </div>
     `;
 }

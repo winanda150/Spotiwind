@@ -355,6 +355,7 @@
 }
 
 .library-song-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.85rem;
@@ -363,6 +364,7 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
     cursor: pointer;
+    overflow: hidden;
     transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -768,14 +770,18 @@
    Download Progress Bar & Status Badge
    ============================================= */
 .library-download-progress-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
-    max-width: 160px;
-    height: 3.5px;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
+    max-width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0 0 10px 10px;
     overflow: hidden;
-    margin-top: 0.35rem;
-    position: relative;
+    margin: 0;
+    z-index: 2;
 }
 
 .library-download-progress-track.hidden {
@@ -784,15 +790,15 @@
 
 .library-download-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #ec4899, #8b5cf6, #22c55e);
-    border-radius: 999px;
-    transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    background: var(--primary-gradient, linear-gradient(90deg, #F12E77 0%, #B91EC9 50%, #7D19F5 100%));
+    border-radius: 0 0 10px 10px;
+    transition: width 0.35s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease;
+    box-shadow: 0 0 10px rgba(185, 30, 201, 0.6), 0 0 4px rgba(241, 46, 119, 0.4);
 }
 
 .library-download-progress-fill.is-done {
-    background: #22c55e;
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+    background: var(--primary-gradient, linear-gradient(90deg, #F12E77, #B91EC9, #7D19F5));
+    box-shadow: 0 0 12px rgba(185, 30, 201, 0.85);
 }
 
 .library-download-status-badge {
@@ -800,12 +806,12 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.2rem 0.55rem;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba(185, 30, 201, 0.15);
+    border: 1px solid rgba(185, 30, 201, 0.35);
     border-radius: 999px;
     font-size: 0.72rem;
     font-weight: 600;
-    color: #22c55e;
+    color: #f472b6;
     white-space: nowrap;
     animation: fadeInStatus 0.2s ease;
 }

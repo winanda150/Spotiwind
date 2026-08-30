@@ -419,7 +419,7 @@ export const initSearchPage = ({
                 const isPro = Boolean(foundUser.isPremium);
 
                 userItemHtml = `
-                    <div class="dropdown-item dropdown-item-user" data-user-uid="${escapeHtml(foundUser.uid)}" style="cursor: default;">
+                    <div class="dropdown-item dropdown-item-user ${isPro ? 'is-pro-user' : ''}" data-user-uid="${escapeHtml(foundUser.uid)}" style="cursor: default;">
                         <div class="dropdown-cover-wrapper ${isPro ? 'user-is-pro' : ''}">
                             <img src="${userPhoto}" alt="${userDisplayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" referrerpolicy="no-referrer">
                         </div>
@@ -433,10 +433,10 @@ export const initSearchPage = ({
                             </div>
                         </div>
                         ${!isSelf ? `
-                            <button class="dropdown-user-follow-btn" type="button" data-following="${isFollowing ? 'true' : 'false'}" style="${isFollowing ? 'background: rgba(255, 255, 255, 0.16);' : ''}" onclick="event.stopPropagation(); window.handleUserFollowClick('${escapeHtml(foundUser.uid)}', '${userDisplayName.replace(/'/g, "\\'")}', '${userPhoto.replace(/'/g, "\\'")}', this)">
+                            <button class="dropdown-user-follow-btn" type="button" data-following="${isFollowing ? 'true' : 'false'}" style="${isFollowing ? 'background: rgba(255, 255, 255, 0.22);' : ''}" onclick="event.stopPropagation(); window.handleUserFollowClick('${escapeHtml(foundUser.uid)}', '${userDisplayName.replace(/'/g, "\\'")}', '${userPhoto.replace(/'/g, "\\'")}', this)">
                                 ${isFollowing ? 'Following' : 'Follow'}
                             </button>
-                        ` : '<span style="font-size: 0.72rem; color: var(--text-muted); padding: 0.3rem 0.6rem;">Anda</span>'}
+                        ` : `<span style="font-size: 0.72rem; color: ${isPro ? '#f472b6' : 'var(--text-muted)'}; padding: 0.3rem 0.6rem; font-weight: 600;">Anda</span>`}
                     </div>
                 `;
             }

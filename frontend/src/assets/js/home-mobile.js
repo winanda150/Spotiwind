@@ -2119,6 +2119,10 @@ window.toggleDownloadSong = async (song) => {
         if (proBadge) proBadge.classList.add('hidden');
         const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
         if (sidebarAvatarWrapper) sidebarAvatarWrapper.classList.remove('is-pro');
+        const sidebarProfileContainer = document.querySelector('.sidebar-profile');
+        if (sidebarProfileContainer) sidebarProfileContainer.classList.remove('is-pro');
+        const mobileSidebar = document.querySelector('.mobile-sidebar');
+        if (mobileSidebar) mobileSidebar.classList.remove('is-pro');
 
         greetingName = 'Guest';
         currentUserProfile = null;
@@ -2163,12 +2167,18 @@ window.toggleDownloadSong = async (song) => {
             currentUserIsPro = profile?.isPremium === true;
             const proBadge = document.getElementById('sidebarProBadge');
             const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
+            const sidebarProfileContainer = document.querySelector('.sidebar-profile');
+            const mobileSidebar = document.querySelector('.mobile-sidebar');
             if (currentUserIsPro) {
                 proBadge?.classList.remove('hidden');
                 sidebarAvatarWrapper?.classList.add('is-pro');
+                sidebarProfileContainer?.classList.add('is-pro');
+                mobileSidebar?.classList.add('is-pro');
             } else {
                 proBadge?.classList.add('hidden');
                 sidebarAvatarWrapper?.classList.remove('is-pro');
+                sidebarProfileContainer?.classList.remove('is-pro');
+                mobileSidebar?.classList.remove('is-pro');
             }
         });
 
@@ -2558,9 +2568,8 @@ window.toggleDownloadSong = async (song) => {
                 contentContainer.innerHTML = initialHomeContent;
                 document.documentElement.scrollTop = homeScrollPosition;
 
-                initializeSkeletons();
-                initializeData();
                 initializeHomeContent();
+                initializeData();
 
                 const user = auth.currentUser;
                 if (user) {
@@ -2598,12 +2607,27 @@ window.toggleDownloadSong = async (song) => {
             contentContainer.style.opacity = '0';
             await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
 
-            // Muat konten halaman parsial dari path yang diberikan secara aman
+            // Muat konten halaman parsial dari path yang diberikan secara aman dengan offline fallback
             const pageFileName = page.includes('/') ? page.split('/').pop() : page;
             const pageFetchUrl = `${window.location.origin}/frontend/src/pages/${pageFileName}`;
-            const response = await fetch(pageFetchUrl);
-            if (!response.ok) throw new Error(`Could not load ${page}`);
-            const text = await response.text();
+            let text = '';
+
+            try {
+                const response = await fetch(pageFetchUrl);
+                if (response.ok) {
+                    text = await response.text();
+                } else {
+                    throw new Error(`Could not load ${page}`);
+                }
+            } catch (fetchErr) {
+                if ('caches' in window) {
+                    const cachedRes = await caches.match(pageFetchUrl) || await caches.match(`/frontend/src/pages/${pageFileName}`);
+                    if (cachedRes) {
+                        text = await cachedRes.text();
+                    }
+                }
+                if (!text) throw fetchErr;
+            }
             
             // Gunakan DOMParser untuk mengekstrak konten yang kita butuhkan
             const parser = new DOMParser();
@@ -3036,8 +3060,9 @@ window.spotiwind = {
     // Panggil initializeSkeletons sekali saat halaman pertama kali dimuat.
     initializeSkeletons();
     
-    // Panggil initializeHomeContent sekali saat halaman pertama kali dimuat.
+    // Panggil initializeHomeContent dan initializeData sekali saat halaman pertama kali dimuat.
     initializeHomeContent();
+    initializeData();
 
     setInterval(updateGreeting, 60000);
     document.addEventListener('visibilitychange', () => {
@@ -3203,8 +3228,6 @@ window.spotiwind = {
             }
             clearFriendPresenceListeners();
         }
-
-        initializeData(); // Always load music data for both guest and authenticated users
     });
 
         // [ROUTER] Popstate listener for browser Back / Forward buttons
