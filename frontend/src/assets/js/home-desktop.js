@@ -5,6 +5,7 @@ import {
 } from "./firebase-config.js";
 
 let playlistUnsubscribe = null;
+let recentlyPlayedUnsubscribe = null;
 let friendActivityListeners = []; // Using an array to track multiple listeners
 let currentFriendActivityLimit = 10;
 let isLoadingMoreActivity = false;
@@ -26,7 +27,7 @@ import { isUserPremium } from '../../services/profileService.js';
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
-import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud } from '../../services/recentlyPlayedService.js';
+import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -1300,7 +1301,10 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             setupUserPresence(user);
             renderFriendActivity();
             loadUserPlaylists(user.uid);
-            syncRecentlyPlayedFromCloud(user.uid).catch(() => {});
+            if (recentlyPlayedUnsubscribe) {
+                recentlyPlayedUnsubscribe();
+            }
+            recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid);
 
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
@@ -1400,6 +1404,10 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                         if (typeof userPresenceCleanup === 'function') {
                             userPresenceCleanup();
                             userPresenceCleanup = null;
+                        }
+                        if (recentlyPlayedUnsubscribe) {
+                            recentlyPlayedUnsubscribe();
+                            recentlyPlayedUnsubscribe = null;
                         }
                         signOut(auth).catch(err => console.error("Logout error:", err));
                     }

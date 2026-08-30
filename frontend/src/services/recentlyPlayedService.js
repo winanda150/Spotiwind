@@ -10,6 +10,7 @@ import {
     query,
     orderBy,
     limit,
+    onSnapshot,
     serverTimestamp
 } from "../assets/js/firebase-config.js";
 
@@ -137,6 +138,68 @@ const pruneOldestCloudSongs = async (uid) => {
 };
 
 /**
+ * Helper to parse snapshot documents into clean song objects
+ */
+const parseCloudDocs = (docs) => {
+    return docs.map(docSnap => {
+        const data = docSnap.data();
+        let playedAtMillis = Date.now();
+        if (data.playedAt?.toMillis && typeof data.playedAt.toMillis === 'function') {
+            playedAtMillis = data.playedAt.toMillis();
+        } else if (data.playedAt?.seconds) {
+            playedAtMillis = data.playedAt.seconds * 1000;
+        } else if (typeof data.playedAt === 'number') {
+            playedAtMillis = data.playedAt;
+        }
+
+        return {
+            id: docSnap.id,
+            name: data.name || 'Untitled',
+            artist: data.artist || 'Unknown Artist',
+            cover: data.cover || '../../public/Elemen/Logo/Spotiwind.webp',
+            audio: data.audio || '',
+            duration: Number(data.duration) || 0,
+            playedAt: playedAtMillis
+        };
+    });
+};
+
+/**
+ * Subscribe to realtime Recently Played changes from Cloud Firestore across all devices
+ */
+export const subscribeRecentlyPlayed = (uid, callback) => {
+    if (!uid) return () => {};
+
+    try {
+        const q = query(
+            getRecentlyPlayedCollectionRef(uid),
+            orderBy("playedAt", "desc"),
+            limit(MAX_CLOUD_ITEMS)
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            const cloudItems = parseCloudDocs(snapshot.docs);
+
+            if (cloudItems.length > 0) {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudItems));
+                window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: cloudItems }));
+            }
+
+            if (typeof callback === 'function') {
+                callback(cloudItems);
+            }
+        }, (error) => {
+            if (error?.code !== 'permission-denied') {
+                console.warn("Realtime recently played listener notice:", error?.message || error);
+            }
+        });
+    } catch (e) {
+        console.warn("Failed to subscribe to recently played:", e);
+        return () => {};
+    }
+};
+
+/**
  * Sync recently played songs from Cloud Firestore into local storage on login / app start
  */
 export const syncRecentlyPlayedFromCloud = async (uid) => {
@@ -155,28 +218,7 @@ export const syncRecentlyPlayedFromCloud = async (uid) => {
             return getRecentlyPlayed();
         }
 
-        const cloudItems = snapshot.docs.map(docSnap => {
-            const data = docSnap.data();
-            let playedAtMillis = Date.now();
-            if (data.playedAt?.toMillis && typeof data.playedAt.toMillis === 'function') {
-                playedAtMillis = data.playedAt.toMillis();
-            } else if (data.playedAt?.seconds) {
-                playedAtMillis = data.playedAt.seconds * 1000;
-            } else if (typeof data.playedAt === 'number') {
-                playedAtMillis = data.playedAt;
-            }
-
-            return {
-                id: docSnap.id,
-                name: data.name || 'Untitled',
-                artist: data.artist || 'Unknown Artist',
-                cover: data.cover || '../../public/Elemen/Logo/Spotiwind.webp',
-                audio: data.audio || '',
-                duration: Number(data.duration) || 0,
-                playedAt: playedAtMillis
-            };
-        });
-
+        const cloudItems = parseCloudDocs(snapshot.docs);
         const localItems = getRecentlyPlayed();
 
         // Merge cloud and local items uniquely, sorted by latest playedAt

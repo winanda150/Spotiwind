@@ -16,7 +16,7 @@ import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleas
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
-import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud } from '../../services/recentlyPlayedService.js';
+import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -68,6 +68,7 @@ const activePresenceListeners = new Map();
 let userPresenceCleanup = null;
 let sidebarPlaylistsUnsubscribe = null;
 let sidebarProfileUnsubscribe = null;
+let recentlyPlayedUnsubscribe = null;
 
 const renderSidebarPlaylists = (playlists = []) => {
     const listContainer = document.getElementById('sidebarPlaylistList');
@@ -3197,13 +3198,20 @@ window.spotiwind = {
         if (user) {
             initializeUserUI(user);
             loadLikedSongsCount(user.uid);
-            syncRecentlyPlayedFromCloud(user.uid).then(() => {
+            if (recentlyPlayedUnsubscribe) {
+                recentlyPlayedUnsubscribe();
+            }
+            recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid, () => {
                 updateSidebarMusicCounts();
-            }).catch(() => {});
+            });
             setupUnreadNotificationsListener(user.uid);
             setupUserPresence(user);
         } else {
             initializeGuestUI();
+            if (recentlyPlayedUnsubscribe) {
+                recentlyPlayedUnsubscribe();
+                recentlyPlayedUnsubscribe = null;
+            }
             if (unreadNotificationsListener) {
                 unreadNotificationsListener();
                 unreadNotificationsListener = null;
