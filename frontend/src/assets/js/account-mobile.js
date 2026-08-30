@@ -490,17 +490,20 @@ const updateProBannerUI = (isPro) => {
     const proDesc = document.querySelector('.pro-banner-desc');
     const managePlanBtn = document.getElementById('managePlanBtn');
     const managePlanBtnText = managePlanBtn?.querySelector('span');
+    const profileHeader = document.querySelector('.account-profile-header');
 
     if (isPro) {
         if (proTitle) proTitle.textContent = 'Spotiwind PRO Active';
         if (proDesc) proDesc.textContent = 'Status langganan aktif. Nikmati seluruh fitur eksklusif.';
         if (managePlanBtnText) managePlanBtnText.textContent = 'Manage plan';
         if (managePlanBtn) managePlanBtn.setAttribute('aria-label', 'Manage plan');
+        profileHeader?.classList.add('is-pro');
     } else {
         if (proTitle) proTitle.textContent = 'Spotiwind PRO';
-        if (proDesc) proDesc.textContent = 'Enjoy ad-free music, unlimited skips, and offline downloads.';
+        if (proDesc) proDesc.textContent = 'Banner profil eksklusif, badge PRO, dan download offline.';
         if (managePlanBtnText) managePlanBtnText.textContent = 'Upgrade to PRO';
         if (managePlanBtn) managePlanBtn.setAttribute('aria-label', 'Upgrade to PRO');
+        profileHeader?.classList.remove('is-pro');
     }
 };
 
@@ -529,6 +532,8 @@ const updateAccountStats = (user) => {
         if (statLikes) statLikes.textContent = '0';
         if (accountProBadge) accountProBadge.classList.add('hidden');
         updateProBannerUI(false);
+        const profileHeader = document.querySelector('.account-profile-header');
+        profileHeader?.classList.remove('is-pro');
         return;
     }
 
@@ -567,6 +572,7 @@ const updateAccountStats = (user) => {
 
         const badge = document.getElementById('accountProBadge');
         const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+        const profileHeader = document.querySelector('.account-profile-header');
         const accountCode = document.getElementById('accountCode');
         
         if (accountCode) {
@@ -579,9 +585,11 @@ const updateAccountStats = (user) => {
         if (isPro) {
             badge?.classList.remove('hidden');
             avatarWrapper?.classList.add('is-pro');
+            profileHeader?.classList.add('is-pro');
         } else {
             badge?.classList.add('hidden');
             avatarWrapper?.classList.remove('is-pro');
+            profileHeader?.classList.remove('is-pro');
         }
     });
 };
@@ -604,6 +612,8 @@ const updateAccountUserInfo = (user) => {
         if (accountProBadge) accountProBadge.classList.add('hidden');
         if (accountCodeWrapper) accountCodeWrapper.classList.add('hidden');
         if (avatarWrapper) avatarWrapper.classList.remove('is-pro');
+        const profileHeader = document.querySelector('.account-profile-header');
+        profileHeader?.classList.remove('is-pro');
         if (accountAvatar) {
             accountAvatar.src = 'https://ui-avatars.com/api/?name=Guest&background=1e293b&color=94a3b8&bold=true&size=512';
         }
@@ -1122,12 +1132,15 @@ export const initAccountPage = async () => {
                 updateProBannerUI(isPro);
                 const badge = document.getElementById('accountProBadge');
                 const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+                const profileHeader = document.querySelector('.account-profile-header');
                 if (isPro) {
                     badge?.classList.remove('hidden');
                     avatarWrapper?.classList.add('is-pro');
+                    profileHeader?.classList.add('is-pro');
                 } else {
                     badge?.classList.add('hidden');
                     avatarWrapper?.classList.remove('is-pro');
+                    profileHeader?.classList.remove('is-pro');
                 }
             }
         } catch (err) {

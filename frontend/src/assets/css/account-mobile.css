@@ -4,21 +4,39 @@
 }
 
 /* ==========================================================================
-   Account Profile Header Section (Clean Seamless Layout - No Box)
+   Account Profile Header Section
    ========================================================================== */
 .account-profile-header,
 .account-profile-card {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding: 0rem 0 1.25rem 0;
+    padding: 0 0 1.3rem 0;
     margin: 0;
+    width: 100%;
     background: transparent;
     border: none;
     border-radius: 0;
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+}
+
+/* Exclusive Banner Background ONLY for PRO subscribers */
+.account-profile-header.is-pro,
+.account-profile-card.is-pro {
+    padding: 1.3rem var(--mobile-horizontal-padding) 1.3rem;
+    margin-left: calc(-1 * var(--mobile-horizontal-padding));
+    margin-right: calc(-1 * var(--mobile-horizontal-padding));
+    margin-top: 0;
+    width: auto;
+    background-image: 
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.45) 45%, rgba(15, 23, 42, 0.85) 80%, var(--bg-dark, #0f172a) 100%),
+        url('../../../public/Elemen/Logo/Banner%20Exclusive.webp');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    overflow: hidden;
 }
 
 /* Avatar with camera badge (Gradient ring active only for PRO / isPremium) */

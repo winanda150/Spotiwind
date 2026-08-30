@@ -75,6 +75,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupOverviewCards();
     setupRealtimeOverviewData();
     setupSongActionListeners();
+    setupDownloadOptionsModal();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -85,6 +86,43 @@ export async function initLibraryPage(initialTab = 'overview') {
     };
     window.addEventListener('downloads-updated', handleDownloadsUpdated);
     listeners.push({ element: window, type: 'downloads-updated', handler: handleDownloadsUpdated });
+
+    // Listen for real-time download-progress event
+    const handleDownloadProgress = (e) => {
+        const { songId, progress, status } = e.detail || {};
+        if (!songId) return;
+
+        const track = document.getElementById(`downloadTrack_${songId}`);
+        const fill = document.getElementById(`downloadFill_${songId}`);
+        const badge = document.getElementById(`downloadBadge_${songId}`);
+        const text = document.getElementById(`downloadText_${songId}`);
+        const optBtn = document.getElementById(`downloadOptBtn_${songId}`);
+        const durationEl = document.getElementById(`downloadDuration_${songId}`);
+
+        if (fill) {
+            fill.style.width = `${progress}%`;
+        }
+        if (text) {
+            text.textContent = `${progress}%`;
+        }
+
+        if (progress >= 100 || status === 'completed') {
+            if (fill) fill.classList.add('is-done');
+            setTimeout(() => {
+                if (track) track.classList.add('hidden');
+                if (badge) badge.classList.add('hidden');
+                if (optBtn) optBtn.classList.remove('hidden');
+                if (durationEl) durationEl.classList.remove('hidden');
+            }, 600);
+        } else {
+            if (track) track.classList.remove('hidden');
+            if (badge) badge.classList.remove('hidden');
+            if (optBtn) optBtn.classList.add('hidden');
+            if (durationEl) durationEl.classList.add('hidden');
+        }
+    };
+    window.addEventListener('download-progress', handleDownloadProgress);
+    listeners.push({ element: window, type: 'download-progress', handler: handleDownloadProgress });
 }
 
 function setupLibraryTabs(initialTab = 'overview') {
@@ -386,17 +424,28 @@ function createSongItemHTML(song, options = {}) {
             <div class="library-song-info">
                 <h3 class="library-song-name">${name}</h3>
                 <p class="library-song-artist">${artist}</p>
+                ${isDownloadView ? `
+                    <div class="library-download-progress-track ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadTrack_${songId}">
+                        <div class="library-download-progress-fill ${song.downloadStatus === 'completed' ? 'is-done' : ''}" id="downloadFill_${songId}" style="width: ${song.downloadProgress || 10}%;"></div>
+                    </div>
+                ` : ''}
             </div>
             <div class="library-song-meta">
-                ${duration ? `<span class="library-song-duration">${durationText}</span>` : ''}
                 ${isDownloadView ? `
-                    <button class="library-song-action-btn btn-danger delete-download-btn" type="button" data-song-id="${songId}" title="Remove download" aria-label="Remove download">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <span class="library-download-status-badge ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadBadge_${songId}">
+                        <svg class="spin-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <span id="downloadText_${songId}">${song.downloadProgress || 10}%</span>
+                    </span>
+                    <span class="library-song-duration ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadDuration_${songId}">${durationText}</span>
+                    <button class="library-song-action-btn download-options-btn ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadOptBtn_${songId}" type="button" data-song-id="${songId}" title="Opsi Unduhan" aria-label="Opsi Unduhan">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                            <circle cx="12" cy="5" r="2"></circle>
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <circle cx="12" cy="19" r="2"></circle>
                         </svg>
                     </button>
                 ` : `
+                    ${duration ? `<span class="library-song-duration">${durationText}</span>` : ''}
                     <button class="library-song-action-btn download-song-btn" type="button" data-song-id="${songId}" title="Download song" aria-label="Download song">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -673,14 +722,21 @@ function setupSongActionListeners() {
             return;
         }
 
-        const deleteBtn = e.target.closest('.delete-download-btn');
-        if (deleteBtn) {
+        const optionsBtn = e.target.closest('.download-options-btn');
+        if (optionsBtn) {
             e.stopPropagation();
-            const songId = deleteBtn.dataset.songId;
-            if (window.toggleDownloadSong) {
-                window.toggleDownloadSong({ id: songId, name: 'Track' });
+            const songItem = optionsBtn.closest('.library-song-item');
+            if (songItem) {
+                const song = {
+                    id: songItem.dataset.songId,
+                    name: songItem.dataset.songName,
+                    artist: songItem.dataset.songArtist,
+                    cover: songItem.dataset.songCover,
+                    audio: songItem.dataset.songAudio,
+                    duration: Number(songItem.dataset.songDuration) || 0
+                };
+                openDownloadOptions(song);
             }
-            renderDownloadsPanel();
             return;
         }
 
@@ -729,6 +785,134 @@ function setupSongActionListeners() {
     listeners.push({ element: libraryContainer, type: 'click', handler: clickHandler });
 }
 
+/* =============================================
+   Download Options Bottom Sheet Modal Logic
+   ============================================= */
+
+let selectedDownloadSong = null;
+
+function openDownloadOptions(song) {
+    selectedDownloadSong = song;
+    const modal = document.getElementById('downloadOptionsModal');
+    const titleEl = document.getElementById('optionsSongTitle');
+    const artistEl = document.getElementById('optionsSongArtist');
+    const coverEl = document.getElementById('optionsSongCover');
+
+    if (titleEl) titleEl.textContent = song.name || song.title || 'Track';
+    if (artistEl) artistEl.textContent = song.artist || 'Unknown Artist';
+    if (coverEl) coverEl.src = song.cover || '../../public/Elemen/Logo/Spotiwind.webp';
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.removeAttribute('aria-hidden');
+        modal.removeAttribute('inert');
+        document.body.classList.add('modal-open');
+    }
+}
+
+function closeDownloadOptions() {
+    selectedDownloadSong = null;
+    const modal = document.getElementById('downloadOptionsModal');
+    if (modal) {
+        if (document.activeElement && modal.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.setAttribute('inert', '');
+        document.body.classList.remove('modal-open');
+    }
+}
+
+function setupDownloadOptionsModal() {
+    const backdrop = document.getElementById('downloadOptionsBackdrop');
+    const cancelBtn = document.getElementById('optCancelBtn');
+    const saveToDeviceBtn = document.getElementById('optSaveToDeviceBtn');
+    const deleteOfflineBtn = document.getElementById('optDeleteOfflineBtn');
+
+    if (backdrop) {
+        backdrop.addEventListener('click', closeDownloadOptions);
+        listeners.push({ element: backdrop, type: 'click', handler: closeDownloadOptions });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeDownloadOptions);
+        listeners.push({ element: cancelBtn, type: 'click', handler: closeDownloadOptions });
+    }
+
+    if (saveToDeviceBtn) {
+        const handleSave = async () => {
+            if (selectedDownloadSong && typeof window.downloadMp3ToDevice === 'function') {
+                const song = { ...selectedDownloadSong };
+                const originalHtml = saveToDeviceBtn.innerHTML;
+
+                // Animate to saving/loading state
+                saveToDeviceBtn.disabled = true;
+                saveToDeviceBtn.innerHTML = `
+                    <div class="opt-btn-icon icon-save">
+                        <svg class="spin-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                    </div>
+                    <div class="opt-btn-text">
+                        <span class="opt-title">Menyiapkan File MP3...</span>
+                        <span class="opt-desc">Mengekspor file musik ke penyimpanan HP</span>
+                    </div>
+                `;
+
+                try {
+                    await window.downloadMp3ToDevice(song);
+
+                    // Animate to success checkmark
+                    saveToDeviceBtn.innerHTML = `
+                        <div class="opt-btn-icon icon-save" style="background: rgba(34, 197, 94, 0.25);">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="opt-btn-text">
+                            <span class="opt-title" style="color: #22c55e;">File MP3 Berhasil Disimpan!</span>
+                            <span class="opt-desc">Tersimpan di folder Download perangkat</span>
+                        </div>
+                    `;
+
+                    setTimeout(() => {
+                        saveToDeviceBtn.disabled = false;
+                        saveToDeviceBtn.innerHTML = originalHtml;
+                        closeDownloadOptions();
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(`File MP3 "${song.name || 'Lagu'}" berhasil disimpan ke perangkat!`);
+                        }
+                    }, 800);
+                } catch (err) {
+                    console.error("Save to device error:", err);
+                    saveToDeviceBtn.disabled = false;
+                    saveToDeviceBtn.innerHTML = originalHtml;
+                    closeDownloadOptions();
+                    if (typeof window.showToast === 'function') {
+                        window.showToast("Gagal menyimpan file ke perangkat.");
+                    }
+                }
+            } else {
+                closeDownloadOptions();
+            }
+        };
+        saveToDeviceBtn.addEventListener('click', handleSave);
+        listeners.push({ element: saveToDeviceBtn, type: 'click', handler: handleSave });
+    }
+
+    if (deleteOfflineBtn) {
+        const handleDelete = () => {
+            if (selectedDownloadSong && typeof window.toggleDownloadSong === 'function') {
+                const song = { ...selectedDownloadSong };
+                closeDownloadOptions();
+                window.toggleDownloadSong(song);
+                renderDownloadsPanel();
+            } else {
+                closeDownloadOptions();
+            }
+        };
+        deleteOfflineBtn.addEventListener('click', handleDelete);
+        listeners.push({ element: deleteOfflineBtn, type: 'click', handler: handleDelete });
+    }
+}
+
 function cleanupUserSubscriptions() {
     if (typeof likedSongsUnsubscribe === 'function') {
         likedSongsUnsubscribe();
@@ -741,6 +925,7 @@ function cleanupUserSubscriptions() {
 }
 
 export function cleanupLibraryPage() {
+    closeDownloadOptions();
     cleanupUserSubscriptions();
 
     listeners.forEach((item) => {

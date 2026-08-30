@@ -7,7 +7,7 @@ import {
 import { toggleFavorite, getFavoriteSongs } from '../../services/favoriteService.js';
 import { isFavoriteSong } from '../../services/favoriteService.js';
 import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
-import { subscribeUserProfile } from '../../services/profileService.js';
+import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
 import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
@@ -15,6 +15,10 @@ import { subscribeUnreadNotifications } from '../../services/notificationService
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
+import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
+
+// Expose direct MP3 download globally for the 3-dots option menu
+window.downloadMp3ToDevice = downloadMp3ToDevice;
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -52,6 +56,8 @@ let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race
 let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
 let activePageCleanup = null;
 let pageLoadSequence = 0;
+let currentUserIsPro = false;
+let currentUserProfile = null;
 
 let previousPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
 let currentPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman aktif saat ini
@@ -1243,15 +1249,18 @@ window.isSongDownloaded = (songId) => {
     }
 };
 
-window.toggleDownloadSong = (song) => {
+window.toggleDownloadSong = async (song) => {
     const user = auth.currentUser;
     if (!user) {
-        showToast("Please log in to download songs for offline listening.");
+        showToast("Silakan login terlebih dahulu untuk mengunduh lagu.");
+        if (typeof window.navigateToAuthPage === 'function') {
+            window.navigateToAuthPage('login');
+        }
         return false;
     }
 
     if (!song || !song.id) {
-        showToast("Cannot download song: invalid metadata.");
+        showToast("Lagu tidak valid untuk diunduh.");
         return false;
     }
 
@@ -1261,32 +1270,95 @@ window.toggleDownloadSong = (song) => {
         if (!Array.isArray(list)) list = [];
 
         const index = list.findIndex(s => String(s.id) === String(song.id));
-        if (index > -1) {
+        const isAlreadyDownloaded = index > -1;
+
+        // Jika lagu sudah ada di unduhan dan user ingin menghapusnya, selalu izinkan
+        if (isAlreadyDownloaded) {
             list.splice(index, 1);
             localStorage.setItem('downloaded_songs', JSON.stringify(list));
+            await removeSongAudioFromCache(song);
             updateSidebarMusicCounts();
-            showToast(`Removed "${song.name || song.title || 'Song'}" from downloads.`);
+            showToast(`Menghapus "${song.name || song.title || 'Lagu'}" dari unduhan.`);
             window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
             return false;
-        } else {
-            list.unshift({
-                id: String(song.id),
-                name: song.name || song.title || 'Unknown Track',
-                artist: song.artist || 'Unknown Artist',
-                cover: song.cover || '',
-                audio: song.audio || '',
-                duration: song.duration || 0,
-                downloadedAt: Date.now()
-            });
+        }
+
+        // Jika ingin mengunduh lagu baru, periksa status langganan PRO
+        let isPro = currentUserIsPro;
+        if (!isPro && user.uid) {
+            try {
+                const profile = await getProfileByUid(user.uid);
+                if (profile?.isPremium === true) {
+                    isPro = true;
+                    currentUserIsPro = true;
+                    currentUserProfile = profile;
+                }
+            } catch (err) {
+                console.warn("Check user premium status on download:", err);
+            }
+        }
+
+        if (!isPro) {
+            showToast("Fitur Download Offline eksklusif untuk pelanggan Spotiwind PRO.");
+            if (typeof loadPageContent === 'function') {
+                loadPageContent('account-mobile.html');
+            }
+            return false;
+        }
+
+        // Pengguna PRO: Tampilkan item di tab unduhan langsung dengan status 'downloading'
+        const newDownloadItem = {
+            id: String(song.id),
+            name: song.name || song.title || 'Unknown Track',
+            artist: song.artist || 'Unknown Artist',
+            cover: song.cover || '',
+            audio: song.audio || '',
+            duration: song.duration || 0,
+            downloadStatus: 'downloading',
+            downloadProgress: 10,
+            isCachedOffline: false,
+            downloadedAt: Date.now()
+        };
+
+        list.unshift(newDownloadItem);
+        localStorage.setItem('downloaded_songs', JSON.stringify(list));
+        updateSidebarMusicCounts();
+        window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
+
+        showToast(`Mengunduh "${song.name || song.title || 'Lagu'}" untuk pemutaran offline...`);
+
+        // Mulai proses caching stream dengan progress tracking
+        const success = await cacheSongAudio(song, (progress) => {
+            newDownloadItem.downloadProgress = progress;
+            if (progress >= 100) {
+                newDownloadItem.downloadStatus = 'completed';
+                newDownloadItem.isCachedOffline = true;
+            }
+            localStorage.setItem('downloaded_songs', JSON.stringify(list));
+            window.dispatchEvent(new CustomEvent('download-progress', {
+                detail: { songId: String(song.id), progress, status: newDownloadItem.downloadStatus }
+            }));
+        });
+
+        if (success) {
+            newDownloadItem.downloadStatus = 'completed';
+            newDownloadItem.downloadProgress = 100;
+            newDownloadItem.isCachedOffline = true;
             localStorage.setItem('downloaded_songs', JSON.stringify(list));
             updateSidebarMusicCounts();
-            showToast(`Downloaded "${song.name || song.title || 'Song'}" for offline listening.`);
+            showToast(`Berhasil mengunduh "${song.name || song.title || 'Lagu'}" untuk didengarkan offline.`);
+            window.dispatchEvent(new CustomEvent('download-progress', {
+                detail: { songId: String(song.id), progress: 100, status: 'completed' }
+            }));
             window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
             return true;
+        } else {
+            showToast("Gagal mengunduh audio lagu.");
+            return false;
         }
     } catch (e) {
         console.error("Error toggling download:", e);
-        showToast("Failed to update download.");
+        showToast("Gagal memperbarui unduhan.");
         return false;
     }
 };
@@ -1470,7 +1542,9 @@ window.toggleDownloadSong = (song) => {
         activeAudio.onended = null;
 
         try {
-            activeAudio.src = audioUrl;
+            // Check if audio is cached in offline CacheStorage for 100% offline playback
+            const cachedBlobUrl = await getCachedAudioBlobUrl(audioUrl);
+            activeAudio.src = cachedBlobUrl || audioUrl;
 
             // Update Document Title (Consistent with desktop)
             document.title = `Spotiwind - Feel The Music, Ride The Wind`;
@@ -2047,6 +2121,8 @@ window.toggleDownloadSong = (song) => {
         if (sidebarAvatarWrapper) sidebarAvatarWrapper.classList.remove('is-pro');
 
         greetingName = 'Guest';
+        currentUserProfile = null;
+        currentUserIsPro = false;
         lastGreetingHour = -1;
         updateGreeting();
 
@@ -2083,9 +2159,11 @@ window.toggleDownloadSong = (song) => {
             sidebarProfileUnsubscribe = null;
         }
         sidebarProfileUnsubscribe = subscribeUserProfile(user.uid, (profile) => {
+            currentUserProfile = profile;
+            currentUserIsPro = profile?.isPremium === true;
             const proBadge = document.getElementById('sidebarProBadge');
             const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
-            if (profile?.isPremium === true) {
+            if (currentUserIsPro) {
                 proBadge?.classList.remove('hidden');
                 sidebarAvatarWrapper?.classList.add('is-pro');
             } else {
