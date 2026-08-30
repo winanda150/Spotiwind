@@ -3,6 +3,7 @@ import { subscribeUserPlaylists, subscribeLikedSongs } from '../../services/libr
 import { subscribeUserProfile, getProfileByUid, generateUserCode, setUserPremiumStatus } from '../../services/profileService.js';
 import { subscribeUserFollowers, subscribeUserFollowing } from '../../services/userService.js';
 import { loadLocalCatalog } from '../../services/catalogService.js';
+import { clearRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 
 let unsubscribeAccountAuth = null;
 let unsubscribePlaylists = null;
@@ -26,6 +27,7 @@ let activateTrialBtnHandler = null;
 let cancelSubBtnHandler = null;
 let seeAllRecentBtnHandler = null;
 let seeAllArtistsBtnHandler = null;
+let clearExcessRecentBtnHandler = null;
 let isModalGestureActive = false;
 let planCardClickHandlers = [];
 let subModalBackdropHandler = null;
@@ -902,8 +904,34 @@ const bindAccountInteractions = () => {
     // Render Recently Played Section
     renderAccountRecentlyPlayed();
 
+    window.addEventListener('recently-played-updated', () => {
+        renderAccountRecentlyPlayed();
+        renderAccountTopArtists();
+    }, { passive: true });
+
     // Render Top Artists Section
     renderAccountTopArtists();
+
+    // Tombol Hapus Semua Lagu yang muncul jika tersimpan lebih dari 40 lagu
+    const clearExcessRecentBtn = document.getElementById('clearExcessRecentBtn');
+    if (clearExcessRecentBtn) {
+        clearExcessRecentBtnHandler = async (e) => {
+            e.preventDefault();
+            try {
+                const user = auth.currentUser;
+                await clearRecentlyPlayed(user?.uid);
+                localStorage.removeItem('recently_played_songs');
+                localStorage.removeItem('recentlyPlayed');
+                window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: [] }));
+                showToast('Seluruh riwayat lagu berhasil dibersihkan!');
+                renderAccountRecentlyPlayed();
+                renderAccountTopArtists();
+            } catch (err) {
+                console.warn("Failed to clear excess recently played songs:", err);
+            }
+        };
+        clearExcessRecentBtn.addEventListener('click', clearExcessRecentBtnHandler);
+    }
 
     // Tombol See all pada Recently Played Section
     const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
@@ -950,21 +978,47 @@ const renderAccountRecentlyPlayed = () => {
     const container = document.getElementById('accountRecentList');
     if (!container) return;
 
+    const countBadge = document.getElementById('accountRecentCountBadge');
+    const clearExcessBtn = document.getElementById('clearExcessRecentBtn');
+    const clearExcessBtnText = document.getElementById('clearExcessRecentBtnText');
+
     try {
         const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
         const list = JSON.parse(raw);
         const validList = Array.isArray(list) ? list : [];
 
+        // Update badge total
+        if (countBadge) {
+            if (validList.length > 0) {
+                countBadge.textContent = String(validList.length);
+                countBadge.classList.remove('hidden');
+            } else {
+                countBadge.classList.add('hidden');
+            }
+        }
+
+        // Tampilkan tombol Hapus Semua jika ada riwayat lagu tersimpan
+        if (clearExcessBtn) {
+            if (validList.length > 0) {
+                clearExcessBtn.classList.remove('hidden');
+                if (clearExcessBtnText) {
+                    clearExcessBtnText.textContent = `Hapus Semua (${validList.length})`;
+                }
+            } else {
+                clearExcessBtn.classList.add('hidden');
+            }
+        }
+
         if (validList.length === 0) {
             container.innerHTML = `
                 <div class="account-recent-empty">
                     <div class="account-recent-empty-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                     </div>
-                    <p class="account-recent-empty-title">No recently played songs</p>
+                    <h3 class="account-recent-empty-title">No recently played songs</h3>
                     <p class="account-recent-empty-desc">Songs you've recently played will appear here.</p>
                 </div>
             `;
@@ -1019,12 +1073,12 @@ const renderAccountTopArtists = async () => {
             container.innerHTML = `
                 <div class="account-artists-empty">
                     <div class="account-artists-empty-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                     </div>
-                    <p class="account-artists-empty-title">No top artists yet</p>
+                    <h3 class="account-artists-empty-title">No top artists yet</h3>
                     <p class="account-artists-empty-desc">Play your favorite songs to see your top artists here.</p>
                 </div>
             `;
@@ -1216,6 +1270,12 @@ export const cleanupAccountPage = () => {
         shareBtn.removeEventListener('click', previewShareBtnHandler);
     }
     previewShareBtnHandler = null;
+
+    const clearExcessRecentBtn = document.getElementById('clearExcessRecentBtn');
+    if (clearExcessRecentBtn && clearExcessRecentBtnHandler) {
+        clearExcessRecentBtn.removeEventListener('click', clearExcessRecentBtnHandler);
+    }
+    clearExcessRecentBtnHandler = null;
 
     const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
     if (seeAllRecentBtn && seeAllRecentBtnHandler) {

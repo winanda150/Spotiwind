@@ -70,6 +70,10 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      match /recently_played/{songId} {
+        allow read, write: if isOwner(userId);
+      }
+
       match /notifications/{notificationId} {
         allow read, write: if isOwner(userId);
       }

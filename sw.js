@@ -47,6 +47,7 @@ const PRECACHE_ASSETS = [
     '/frontend/src/services/activityService.js',
     '/frontend/src/services/presenceService.js',
     '/frontend/src/services/notificationService.js',
+    '/frontend/src/services/recentlyPlayedService.js',
     '/frontend/src/services/jamendoService.js',
     '/frontend/public/Elemen/Logo/Spotiwind.webp',
     '/frontend/public/Elemen/Logo/Spotiwind.ico'

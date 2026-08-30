@@ -16,6 +16,7 @@ import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleas
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
+import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud } from '../../services/recentlyPlayedService.js';
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -156,27 +157,8 @@ const updateSidebarMusicCounts = () => {
 };
 
 const recordRecentlyPlayedSong = (song) => {
-    if (!song || !song.id) return;
-    try {
-        const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
-        const list = JSON.parse(raw);
-        const validList = Array.isArray(list) ? list : [];
-        const filtered = validList.filter(item => String(item.id) !== String(song.id));
-        filtered.unshift({
-            id: String(song.id),
-            name: song.name || song.title || '',
-            artist: song.artist || '',
-            cover: song.cover || '',
-            audio: song.audio || '',
-            duration: song.duration || 0,
-            playedAt: Date.now()
-        });
-        if (filtered.length > 50) filtered.length = 50;
-        localStorage.setItem('recently_played_songs', JSON.stringify(filtered));
-        updateSidebarMusicCounts();
-    } catch (e) {
-        console.warn("Failed to record recently played song:", e);
-    }
+    recordRecentlyPlayed(song);
+    updateSidebarMusicCounts();
 };
 
 const loadLikedSongsCount = async (uid) => {
@@ -3215,6 +3197,9 @@ window.spotiwind = {
         if (user) {
             initializeUserUI(user);
             loadLikedSongsCount(user.uid);
+            syncRecentlyPlayedFromCloud(user.uid).then(() => {
+                updateSidebarMusicCounts();
+            }).catch(() => {});
             setupUnreadNotificationsListener(user.uid);
             setupUserPresence(user);
         } else {

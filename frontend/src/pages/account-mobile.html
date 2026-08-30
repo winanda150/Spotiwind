@@ -137,8 +137,20 @@
         <!-- Recently Played Section -->
         <section class="account-recent-section" aria-label="Recently Played">
             <div class="section-header">
-                <h2 class="section-title">Recently played</h2>
-                <a href="#" class="see-all-link" id="seeAllAccountRecentBtn">See all</a>
+                <div class="section-header-title-group">
+                    <h2 class="section-title">Recently played</h2>
+                    <span id="accountRecentCountBadge" class="account-recent-badge hidden">0</span>
+                </div>
+                <div class="section-header-actions">
+                    <button id="clearExcessRecentBtn" class="clear-excess-recent-btn hidden" type="button" aria-label="Hapus semua riwayat lagu">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span id="clearExcessRecentBtnText">Hapus Semua</span>
+                    </button>
+                    <a href="#" class="see-all-link" id="seeAllAccountRecentBtn">See all</a>
+                </div>
             </div>
             <div class="song-grid account-recent-grid" id="accountRecentList">
                 <div class="song-card-skeleton">

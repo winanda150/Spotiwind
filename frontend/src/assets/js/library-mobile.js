@@ -203,9 +203,11 @@ function formatCount(count, singular = 'song', plural = 'songs') {
 }
 
 function setupRealtimeOverviewData() {
-    // 1. Update localStorage-based counts (Downloads)
+    // 1. Update localStorage-based counts (Downloads & Recently Played)
     updateLocalStats();
     renderDownloadsPanel();
+
+    window.addEventListener('recently-played-updated', updateLocalStats, { passive: true });
 
     // 2. Listen to Auth State to bind live Firestore data
     const authUnsub = onAuthStateChanged(auth, async (user) => {

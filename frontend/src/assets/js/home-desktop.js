@@ -26,6 +26,7 @@ import { isUserPremium } from '../../services/profileService.js';
 import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
+import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud } from '../../services/recentlyPlayedService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -367,6 +368,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
 
     activeAudio.pause();
     currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration };
+    recordRecentlyPlayed(currentSongData);
     currentSongIndex = currentPlaylist.findIndex(s => s.audio === audioUrl);
     syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
 
@@ -1298,6 +1300,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             setupUserPresence(user);
             renderFriendActivity();
             loadUserPlaylists(user.uid);
+            syncRecentlyPlayedFromCloud(user.uid).catch(() => {});
 
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
