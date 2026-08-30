@@ -254,10 +254,8 @@ body.is-desktop-auth-view .bottom-player-bar {
     transition: all 0.3s ease;
 }
 
-.nav-item:hover:nth-child(4) svg,
-.nav-item.active:nth-child(4) svg,
-.nav-item:hover:nth-child(5) svg,
-.nav-item.active:nth-child(5) svg {
+.nav-item:hover:nth-child(3) svg,
+.nav-item.active:nth-child(3) svg {
     fill: none;
 }
 

@@ -418,8 +418,8 @@ body.player-active .app-container {
     transition: fill 0.3s ease;
 }
 
-.sidebar-nav-item:hover:nth-child(4) svg,
-.sidebar-nav-item.active:nth-child(4) svg {
+.sidebar-nav-item:hover:nth-child(3) svg,
+.sidebar-nav-item.active:nth-child(3) svg {
     fill: none;
 }
 
@@ -1885,8 +1885,8 @@ body.is-auth-view.player-active .app-container {
     color: var(--text-main);
 }
 
-.nav-item:hover:nth-child(4) svg,
-.nav-item.active:nth-child(4) svg {
+.mobile-bottom-nav .nav-item:hover:nth-child(3) svg,
+.mobile-bottom-nav .nav-item.active:nth-child(3) svg {
     fill: none;
 }
 

@@ -44,7 +44,8 @@ let notificationPageStyleLink = null; // [NEW] To store the dynamically added no
 let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
 let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
 let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
-let radioPageStyleLink = null; // [NEW] To store the dynamically added radio page CSS link
+let windflowPageStyleLink = null; // To store the dynamically added windflow page CSS link
+let radioPageStyleLink = null; // Backward-compatibility fallback
 let searchPageStyleLink = null;
 let authPageStyleLink = null; // [NEW] To store the dynamically added auth page CSS link
 let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
@@ -2162,8 +2163,8 @@ window.toggleDownloadSong = (song) => {
                 isActive = itemTarget.includes('search');
             } else if (normalizedTarget.includes('library')) {
                 isActive = itemTarget.includes('library');
-            } else if (normalizedTarget.includes('radio')) {
-                isActive = itemTarget.includes('radio');
+            } else if (normalizedTarget.includes('windflow') || normalizedTarget.includes('radio')) {
+                isActive = itemTarget.includes('windflow') || itemTarget.includes('radio');
             } else if (normalizedTarget.includes('account')) {
                 isActive = itemTarget.includes('account');
             } else if (normalizedTarget.includes('home') || normalizedTarget === 'mobile.html' || normalizedTarget === '/' || normalizedTarget === '') {
@@ -2322,14 +2323,14 @@ window.toggleDownloadSong = (song) => {
                 initialTab: targetTab,
                 state: { route: 'library', initialTab: targetTab }
             });
-        } else if (cleanPath === '/radio') {
-            updateSidebarActiveState('radio-mobile.html');
-            updateBottomNavActive('radio-mobile.html');
-            await loadPageContent('radio-mobile.html', {
+        } else if (cleanPath === '/windflow' || cleanPath === '/radio') {
+            updateSidebarActiveState('windflow-mobile.html');
+            updateBottomNavActive('windflow-mobile.html');
+            await loadPageContent('windflow-mobile.html', {
                 pushState: shouldPushState,
-                route: '/radio',
-                title: 'Radio | Spotiwind',
-                state: { route: 'radio' }
+                route: cleanPath === '/radio' ? '/radio' : '/windflow',
+                title: 'WindFlow | Spotiwind',
+                state: { route: 'windflow' }
             });
         } else if (cleanPath === '/account') {
             updateSidebarActiveState('account-mobile.html');
@@ -2394,9 +2395,9 @@ window.toggleDownloadSong = (song) => {
             } else if (page.includes('notifications-mobile.html')) {
                 targetRoute = '/notifications';
                 targetTitle = 'Notifications | Spotiwind';
-            } else if (page.includes('radio-mobile.html')) {
-                targetRoute = '/radio';
-                targetTitle = 'Radio | Spotiwind';
+            } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
+                targetRoute = '/windflow';
+                targetTitle = 'WindFlow | Spotiwind';
             } else if (page.includes('account-mobile.html')) {
                 targetRoute = '/account';
                 targetTitle = 'Account | Spotiwind';
@@ -2575,10 +2576,10 @@ window.toggleDownloadSong = (song) => {
                         `${cssBase}account-mobile.css`,
                         accountPageStyleLink
                     );
-                } else if (page.includes('radio-mobile.html')) {
-                    radioPageStyleLink = await loadStylesheet(
-                        `${cssBase}radio-mobile.css`,
-                        radioPageStyleLink
+                } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
+                    windflowPageStyleLink = await loadStylesheet(
+                        `${cssBase}windflow-mobile.css`,
+                        windflowPageStyleLink
                     );
                 } else if (page.includes('auth-mobile.html')) {
                     authPageStyleLink = await loadStylesheet(
@@ -2608,9 +2609,9 @@ window.toggleDownloadSong = (song) => {
                     accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
                     accountPageStyleLink = null;
                 }
-                if (!page.includes('radio-mobile.html') && radioPageStyleLink && radioPageStyleLink.parentNode) {
-                    radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
-                    radioPageStyleLink = null;
+                if (!page.includes('windflow-mobile.html') && !page.includes('radio-mobile.html') && windflowPageStyleLink && windflowPageStyleLink.parentNode) {
+                    windflowPageStyleLink.parentNode.removeChild(windflowPageStyleLink);
+                    windflowPageStyleLink = null;
                 }
                 if (!page.includes('auth-mobile.html') && authPageStyleLink && authPageStyleLink.parentNode) {
                     authPageStyleLink.parentNode.removeChild(authPageStyleLink);
@@ -2736,14 +2737,15 @@ window.toggleDownloadSong = (song) => {
                     } else {
                         console.error("initAccountPage function not found in module.");
                     }
-                } else if (page.includes('radio-mobile.html')) {
-                    const radioModule = await import('./radio-mobile.js').catch(err => { console.error("Failed to load radio module:", err); return {}; });
-                    const { initRadioPage } = radioModule;
+                } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
+                    const windflowModule = await import('./windflow-mobile.js').catch(err => { console.error("Failed to load windflow module:", err); return {}; });
+                    const initFunc = windflowModule.initWindFlowPage || windflowModule.initRadioPage;
 
-                    if (typeof initRadioPage === 'function') {
-                        initRadioPage();
+                    if (typeof initFunc === 'function') {
+                        initFunc();
+                        activePageCleanup = windflowModule.cleanupWindFlowPage;
                     } else {
-                        console.error("initRadioPage function not found in module.");
+                        console.error("initWindFlowPage function not found in module.");
                     }
                 } else if (page.includes('auth-mobile.html')) {
                     const authModule = await import('./auth-mobile.js').catch(err => { console.error("Failed to load auth module:", err); return {}; });
