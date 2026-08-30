@@ -2,6 +2,7 @@ import { auth, onAuthStateChanged } from './firebase-config.js';
 import { subscribeUserPlaylists, subscribeLikedSongs } from '../../services/libraryService.js';
 import { subscribeUserProfile, getProfileByUid, generateUserCode, setUserPremiumStatus } from '../../services/profileService.js';
 import { subscribeUserFollowers, subscribeUserFollowing } from '../../services/userService.js';
+import { loadLocalCatalog } from '../../services/catalogService.js';
 
 let unsubscribeAccountAuth = null;
 let unsubscribePlaylists = null;
@@ -23,6 +24,8 @@ let closeSubModalBtnHandler = null;
 let closeManageModalBtnHandler = null;
 let activateTrialBtnHandler = null;
 let cancelSubBtnHandler = null;
+let seeAllRecentBtnHandler = null;
+let seeAllArtistsBtnHandler = null;
 let isModalGestureActive = false;
 let planCardClickHandlers = [];
 let subModalBackdropHandler = null;
@@ -886,6 +889,40 @@ const bindAccountInteractions = () => {
         shareBtn.addEventListener('click', previewShareBtnHandler);
     }
 
+    // Render Recently Played Section
+    renderAccountRecentlyPlayed();
+
+    // Render Top Artists Section
+    renderAccountTopArtists();
+
+    // Tombol See all pada Recently Played Section
+    const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
+    if (seeAllRecentBtn) {
+        seeAllRecentBtnHandler = (e) => {
+            e.preventDefault();
+            const libraryNav = document.querySelector('.mobile-bottom-nav .nav-item[data-target="library-mobile.html"]');
+            if (libraryNav) {
+                libraryNav.click();
+            } else if (typeof window.navigateToLibraryPage === 'function') {
+                window.navigateToLibraryPage('overview');
+            }
+        };
+        seeAllRecentBtn.addEventListener('click', seeAllRecentBtnHandler);
+    }
+
+    // Tombol See all pada Top Artists Section
+    const seeAllArtistsBtn = document.getElementById('seeAllAccountArtistsBtn');
+    if (seeAllArtistsBtn) {
+        seeAllArtistsBtnHandler = (e) => {
+            e.preventDefault();
+            const searchNav = document.querySelector('.mobile-bottom-nav .nav-item[data-target="search-mobile.html"]');
+            if (searchNav) {
+                searchNav.click();
+            }
+        };
+        seeAllArtistsBtn.addEventListener('click', seeAllArtistsBtnHandler);
+    }
+
     keydownHandler = (e) => {
         if (e.key === 'Escape') {
             closeAvatarPreview();
@@ -894,6 +931,168 @@ const bindAccountInteractions = () => {
         }
     };
     document.addEventListener('keydown', keydownHandler);
+};
+
+/**
+ * Render Recently Played songs on the account page
+ */
+const renderAccountRecentlyPlayed = () => {
+    const container = document.getElementById('accountRecentList');
+    if (!container) return;
+
+    try {
+        const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+        const list = JSON.parse(raw);
+        const validList = Array.isArray(list) ? list : [];
+
+        if (validList.length === 0) {
+            container.innerHTML = `
+                <div class="account-recent-empty">
+                    <div class="account-recent-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <p class="account-recent-empty-title">No recently played songs</p>
+                    <p class="account-recent-empty-desc">Songs you've recently played will appear here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        const recentSongs = validList.slice(0, 10);
+
+        container.innerHTML = recentSongs.map(song => {
+            const safeName = (song.name || song.title || 'Untitled').replace(/"/g, '&quot;');
+            const safeArtist = (song.artist || 'Unknown Artist').replace(/"/g, '&quot;');
+            const cover = song.cover || '../../public/Elemen/Logo/Spotiwind.webp';
+            const audio = song.audio || '';
+            const duration = song.duration || 0;
+
+            return `
+                <div class="song-card" data-id="${song.id}" data-audio="${audio}">
+                    <div class="song-cover">
+                        <img src="${cover}" alt="${safeName}" width="148" height="111" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">
+                        <button class="play-overlay" aria-label="Play ${safeName}" 
+                            data-audio="${audio}" data-name="${safeName}" data-artist="${safeArtist}" 
+                            data-cover="${cover}" data-duration="${duration}" data-context="account-recent">
+                            ${PLAY_ICON}
+                        </button>
+                    </div>
+                    <div class="song-info">
+                        <h3 class="song-name">${safeName}</h3>
+                        <p class="song-artist">${safeArtist}</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.warn("Failed to render recently played songs on account page:", e);
+    }
+};
+
+/**
+ * Render Top Artists on the account page (Hybrid Smart: Aggregates played songs, or shows empty state)
+ */
+const renderAccountTopArtists = async () => {
+    const container = document.getElementById('accountArtistsList');
+    if (!container) return;
+
+    try {
+        const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+        const list = JSON.parse(raw);
+        const validList = Array.isArray(list) ? list : [];
+
+        if (validList.length === 0) {
+            container.innerHTML = `
+                <div class="account-artists-empty">
+                    <div class="account-artists-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <p class="account-artists-empty-title">No top artists yet</p>
+                    <p class="account-artists-empty-desc">Play your favorite songs to see your top artists here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Hitung frekuensi artis dari daftar lagu yang diputar
+        const artistCounts = {};
+        const artistSongMap = {};
+
+        validList.forEach((song) => {
+            const rawArtist = (song.artist || '').trim();
+            if (!rawArtist) return;
+
+            const mainArtist = rawArtist.split(/[,&]/)[0].trim();
+            if (!mainArtist) return;
+
+            artistCounts[mainArtist] = (artistCounts[mainArtist] || 0) + 1;
+            if (!artistSongMap[mainArtist]) {
+                artistSongMap[mainArtist] = song;
+            }
+        });
+
+        const sortedArtistNames = Object.keys(artistCounts).sort((a, b) => artistCounts[b] - artistCounts[a]);
+
+        if (sortedArtistNames.length === 0) {
+            container.innerHTML = `
+                <div class="account-artists-empty">
+                    <div class="account-artists-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <p class="account-artists-empty-title">No top artists yet</p>
+                    <p class="account-artists-empty-desc">Play your favorite songs to see your top artists here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Ambil data katalog lokal untuk mencocokkan foto artis berkualitas tinggi
+        let catalogArtists = [];
+        try {
+            const catalog = await loadLocalCatalog();
+            catalogArtists = catalog.artists || [];
+        } catch {
+            // Ignored
+        }
+
+        const topArtistsData = sortedArtistNames.slice(0, 10).map((artistName) => {
+            const matched = catalogArtists.find(
+                (a) => a.name.toLowerCase() === artistName.toLowerCase()
+            );
+
+            const sampleSong = artistSongMap[artistName];
+            const fallbackPhoto = sampleSong?.cover || `https://ui-avatars.com/api/?name=${encodeURIComponent(artistName)}&background=7D19F5&color=fff&bold=true&size=512`;
+
+            return {
+                id: matched?.id || artistName.toLowerCase().replace(/\s+/g, '-'),
+                name: matched?.name || artistName,
+                photo: matched?.photo || fallbackPhoto
+            };
+        });
+
+        container.innerHTML = topArtistsData.map((artist) => {
+            const safeName = artist.name.replace(/"/g, '&quot;');
+            return `
+                <div class="artist-card" data-artist-id="${artist.id}" data-artist-name="${safeName}" data-artist-photo="${artist.photo}">
+                    <div class="artist-photo" style="background-image: url('${artist.photo}')"></div>
+                    <span class="artist-name">${safeName}</span>
+                </div>
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.warn("Failed to render top artists on account page:", e);
+    }
 };
 
 export const initAccountPage = async () => {
@@ -1004,6 +1203,18 @@ export const cleanupAccountPage = () => {
         shareBtn.removeEventListener('click', previewShareBtnHandler);
     }
     previewShareBtnHandler = null;
+
+    const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
+    if (seeAllRecentBtn && seeAllRecentBtnHandler) {
+        seeAllRecentBtn.removeEventListener('click', seeAllRecentBtnHandler);
+    }
+    seeAllRecentBtnHandler = null;
+
+    const seeAllArtistsBtn = document.getElementById('seeAllAccountArtistsBtn');
+    if (seeAllArtistsBtn && seeAllArtistsBtnHandler) {
+        seeAllArtistsBtn.removeEventListener('click', seeAllArtistsBtnHandler);
+    }
+    seeAllArtistsBtnHandler = null;
 
     const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
     if (closeSubModalBtn && closeSubModalBtnHandler) {

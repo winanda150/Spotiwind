@@ -10,7 +10,7 @@
             </button>
         </div>
         <div class="header-brand">
-            <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo">
+            <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo" width="28" height="28">
             <span class="mobile-brand-name">Spotiwind</span>
         </div>
         <div class="header-right">
@@ -28,7 +28,7 @@
         <!-- Profile Header Section -->
         <section class="account-profile-header">
             <div class="account-avatar-wrapper">
-                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User&background=B91EC9&color=fff&bold=true&size=512" alt="User Avatar" class="account-avatar" referrerpolicy="no-referrer">
+                <img id="accountAvatar" src="https://ui-avatars.com/api/?name=User&background=B91EC9&color=fff&bold=true&size=512" alt="User Avatar" class="account-avatar" width="106" height="106" referrerpolicy="no-referrer">
                 <div class="avatar-camera-badge" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -130,6 +130,59 @@
                     <svg viewBox="0 0 24 24" fill="currentColor" class="pro-crown-icon" aria-hidden="true">
                         <path d="M5 16h14a1 1 0 0 0 1-1L21 6l-4.5 4L12 3 7.5 10 3 6l1 9a1 1 0 0 0 1 1zm-1 2a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4z"/>
                     </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recently Played Section -->
+        <section class="account-recent-section" aria-label="Recently Played">
+            <div class="section-header">
+                <h2 class="section-title">Recently played</h2>
+                <a href="#" class="see-all-link" id="seeAllAccountRecentBtn">See all</a>
+            </div>
+            <div class="song-grid account-recent-grid" id="accountRecentList">
+                <div class="song-card-skeleton">
+                    <div class="skeleton-cover"></div>
+                    <div class="skeleton-info">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-artist"></div>
+                    </div>
+                </div>
+                <div class="song-card-skeleton">
+                    <div class="skeleton-cover"></div>
+                    <div class="skeleton-info">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-artist"></div>
+                    </div>
+                </div>
+                <div class="song-card-skeleton">
+                    <div class="skeleton-cover"></div>
+                    <div class="skeleton-info">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-artist"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Top Artists Section -->
+        <section class="account-artists-section" aria-label="Top Artists">
+            <div class="section-header">
+                <h2 class="section-title">Top artists</h2>
+                <a href="#" class="see-all-link" id="seeAllAccountArtistsBtn">See all</a>
+            </div>
+            <div class="artists-grid account-artists-grid" id="accountArtistsList">
+                <div class="artist-card-skeleton">
+                    <div class="skeleton skeleton-photo"></div>
+                    <div class="skeleton skeleton-name"></div>
+                </div>
+                <div class="artist-card-skeleton">
+                    <div class="skeleton skeleton-photo"></div>
+                    <div class="skeleton skeleton-name"></div>
+                </div>
+                <div class="artist-card-skeleton">
+                    <div class="skeleton skeleton-photo"></div>
+                    <div class="skeleton skeleton-name"></div>
                 </div>
             </div>
         </section>

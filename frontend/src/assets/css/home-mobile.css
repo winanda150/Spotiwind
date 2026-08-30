@@ -1205,8 +1205,8 @@ body.player-active .app-container {
 
 .song-cover {
     width: 100%;
-    aspect-ratio: 3 / 2;
-    /* Membuat gambar lebih lebar dari tinggi */
+    aspect-ratio: 4 / 3;
+    /* Proporsional dan serasi dengan recent grid (4:3) */
     position: relative;
     overflow: hidden;
 }
@@ -1214,7 +1214,9 @@ body.player-active .app-container {
 .song-cover img {
     width: 100%;
     height: 100%;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
+    display: block;
 }
 
 .play-overlay {
@@ -1237,7 +1239,7 @@ body.player-active .app-container {
 }
 
 .song-info {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.85rem 0.9rem 0.85rem;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -1983,8 +1985,7 @@ body.is-auth-view.player-active .app-container {
 }
 
 /* Skeleton Loading Styles */
-.song-card-skeleton,
-.artist-card-skeleton {
+.song-card-skeleton {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 0.8rem;
@@ -1996,11 +1997,16 @@ body.is-auth-view.player-active .app-container {
 }
 
 .artist-card-skeleton {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 0;
-    height: 160px;
-    /* Match approximate height */
+    flex: 0 0 auto;
+    width: 120px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    position: relative;
 }
 
 .skeleton {
@@ -2033,15 +2039,15 @@ body.is-auth-view.player-active .app-container {
 
 .song-card-skeleton .skeleton-cover {
     width: 100%;
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 4 / 3;
     background-color: rgba(255, 255, 255, 0.1);
 }
 
 .song-card-skeleton .skeleton-info {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.85rem 0.9rem 0.85rem;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .song-card-skeleton .skeleton-title {
@@ -2055,14 +2061,19 @@ body.is-auth-view.player-active .app-container {
 }
 
 .artist-card-skeleton .skeleton-photo {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
+    border: 2px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 .artist-card-skeleton .skeleton-name {
-    width: 60%;
+    width: 75px;
     height: 14px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Top Artists Section Styles */

@@ -1030,15 +1030,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
     document.body.addEventListener('click', async (e) => {
-        const playBtn = e.target.closest('.song-card .play-overlay') || e.target.closest('.song-card .play-mini-btn');
+        const playBtn = e.target.closest('.song-card .play-overlay');
         if (playBtn) {
             // Prevent the click from bubbling up to other potential listeners (like the mini player bar)
             e.stopPropagation();
 
             const card = playBtn.closest('.song-card');
-            const overlay = card.querySelector('.play-overlay'); // Always get data from the main overlay
+            const overlay = card ? card.querySelector('.play-overlay') : playBtn;
             const d = overlay.dataset;
-            window.playPreview(overlay, d.audio, d.name, d.artist, d.cover, card.dataset.id, Number(d.duration), d.context);
+            window.playPreview(overlay, d.audio, d.name, d.artist, d.cover, card?.dataset?.id || '', Number(d.duration), d.context);
             return;
         }
 
@@ -1359,6 +1359,62 @@ window.toggleDownloadSong = (song) => {
             } else if (context === 'library') {
                 const libSongs = typeof window.getLibraryPlaylist === 'function' ? window.getLibraryPlaylist() : [];
                 baseQueue = Array.isArray(libSongs) ? [...libSongs] : [];
+            } else if (context === 'account-recent' || context === 'recently-played' || context === 'recent') {
+                // Ambil seluruh daftar lagu dari riwayat recently played (sampai 50 lagu)
+                let allRecentSongs = [];
+                try {
+                    const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+                    const list = JSON.parse(raw);
+                    allRecentSongs = (Array.isArray(list) ? list : []).map(s => ({
+                        id: String(s.id),
+                        audio: s.audio,
+                        name: s.name || s.title || 'Untitled',
+                        artist: s.artist || 'Unknown Artist',
+                        cover: s.cover || '../../public/Elemen/Logo/Spotiwind.webp',
+                        duration: Number(s.duration) || 0
+                    })).filter(s => s.audio);
+                } catch {
+                    allRecentSongs = [];
+                }
+
+                // Jika grid di halaman akun aktif, pastikan urutan awal persis dengan yang tampil di grid
+                const recentGrid = document.getElementById('accountRecentList');
+                if (recentGrid) {
+                    const cards = Array.from(recentGrid.querySelectorAll('.song-card'));
+                    const gridSongs = cards.map(card => {
+                        const ov = card.querySelector('.play-overlay');
+                        const dt = ov ? ov.dataset : {};
+                        const titleEl = card.querySelector('.song-name');
+                        const artistEl = card.querySelector('.song-artist');
+                        const imgEl = card.querySelector('.song-cover img');
+                        return {
+                            id: String(card.dataset.id || dt.id || ''),
+                            audio: card.dataset.audio || dt.audio || '',
+                            name: dt.name || titleEl?.textContent?.trim() || 'Untitled',
+                            artist: dt.artist || artistEl?.textContent?.trim() || 'Unknown Artist',
+                            cover: dt.cover || imgEl?.src || '../../public/Elemen/Logo/Spotiwind.webp',
+                            duration: Number(dt.duration) || 0
+                        };
+                    }).filter(s => s.audio);
+
+                    if (gridSongs.length > 0) {
+                        // Gabungkan: lagu-lagu di grid + lagu-lagu sisa di full history yang belum ada di grid
+                        const gridIds = new Set(gridSongs.map(s => String(s.id)));
+                        const remainingHistorySongs = allRecentSongs.filter(s => !gridIds.has(String(s.id)));
+                        allRecentSongs = [...gridSongs, ...remainingHistorySongs];
+                    }
+                }
+
+                // Susun urutan: Dimulai dari lagu yang diklik -> sisa lagu grid -> sisa lagu riwayat selanjutnya -> lalu looping ke lagu sebelum yang diklik
+                const clickedIdx = allRecentSongs.findIndex(s => areSameSongs(s, targetSong) || String(s.id) === String(songId) || (s.audio && s.audio === targetSong.audio));
+                if (clickedIdx !== -1) {
+                    baseQueue = [
+                        ...allRecentSongs.slice(clickedIdx),
+                        ...allRecentSongs.slice(0, clickedIdx)
+                    ];
+                } else {
+                    baseQueue = [targetSong, ...allRecentSongs.filter(s => !areSameSongs(s, targetSong))];
+                }
             }
 
             if (baseQueue.length === 0) {
@@ -1639,7 +1695,7 @@ window.toggleDownloadSong = (song) => {
         <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && activeAudio.paused ? 'is-paused' : ''}" 
             data-id="${song.id}" data-audio="${song.audio}">
             <div class="song-cover">
-                <img src="${song.cover}" alt="${song.name}" style="width:100%; height:100%; object-fit:cover;">
+                <img src="${song.cover}" alt="${song.name}" width="160" height="120" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;">
                 <button class="play-overlay" aria-label="Play ${song.name}" 
                     data-audio="${song.audio}" data-name="${safeName}" data-artist="${safeArtist}" 
                     data-cover="${song.cover}" data-duration="${song.duration}" data-context="${context}">
@@ -1649,14 +1705,6 @@ window.toggleDownloadSong = (song) => {
             <div class="song-info">
                 <h3 class="song-name">${song.name}</h3>
                 <p class="song-artist">${song.artist}</p>
-            </div>
-            <div class="song-footer">
-                <div class="song-stats">
-                    <button class="play-mini-btn" aria-label="Play ${song.name}">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                    </button>
-                    <span class="play-count">${song.plays || '0'}</span>
-                </div>
             </div>
         </div>`;
     };

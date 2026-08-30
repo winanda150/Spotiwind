@@ -27,8 +27,8 @@
     -webkit-backdrop-filter: blur(8px);
     border: none;
     color: var(--text-main, #ffffff);
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -38,8 +38,8 @@
 }
 
 .back-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 25px;
+    height: 25px;
 }
 
 .back-btn.transparent-bg {
