@@ -495,72 +495,11 @@
     padding: 0 var(--mobile-horizontal-padding);
 }
 
-.account-recent-section .section-header-title-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
 .account-recent-section .section-title {
     font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-main, #ffffff);
     letter-spacing: -0.02em;
-}
-
-.account-recent-badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #94A3B8;
-    line-height: 1.2;
-    transition: all 0.2s ease;
-}
-
-.account-recent-badge.hidden {
-    display: none !important;
-}
-
-.account-recent-section .section-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-}
-
-.clear-excess-recent-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3.5px 9px;
-    font-size: 0.73rem;
-    font-weight: 600;
-    font-family: inherit;
-    color: #F87171;
-    background: rgba(239, 68, 68, 0.12);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    -webkit-tap-highlight-color: transparent;
-}
-
-.clear-excess-recent-btn:hover {
-    background: rgba(239, 68, 68, 0.22);
-    border-color: rgba(239, 68, 68, 0.45);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-}
-
-.clear-excess-recent-btn:active {
-    transform: scale(0.96);
-}
-
-.clear-excess-recent-btn.hidden {
-    display: none !important;
 }
 
 .account-recent-section .see-all-link {

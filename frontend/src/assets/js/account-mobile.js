@@ -27,7 +27,6 @@ let activateTrialBtnHandler = null;
 let cancelSubBtnHandler = null;
 let seeAllRecentBtnHandler = null;
 let seeAllArtistsBtnHandler = null;
-let clearExcessRecentBtnHandler = null;
 let isModalGestureActive = false;
 let planCardClickHandlers = [];
 let subModalBackdropHandler = null;
@@ -912,27 +911,6 @@ const bindAccountInteractions = () => {
     // Render Top Artists Section
     renderAccountTopArtists();
 
-    // Tombol Hapus Semua Lagu yang muncul jika tersimpan lebih dari 40 lagu
-    const clearExcessRecentBtn = document.getElementById('clearExcessRecentBtn');
-    if (clearExcessRecentBtn) {
-        clearExcessRecentBtnHandler = async (e) => {
-            e.preventDefault();
-            try {
-                const user = auth.currentUser;
-                await clearRecentlyPlayed(user?.uid);
-                localStorage.removeItem('recently_played_songs');
-                localStorage.removeItem('recentlyPlayed');
-                window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: [] }));
-                showToast('Seluruh riwayat lagu berhasil dibersihkan!');
-                renderAccountRecentlyPlayed();
-                renderAccountTopArtists();
-            } catch (err) {
-                console.warn("Failed to clear excess recently played songs:", err);
-            }
-        };
-        clearExcessRecentBtn.addEventListener('click', clearExcessRecentBtnHandler);
-    }
-
     // Tombol See all pada Recently Played Section
     const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
     if (seeAllRecentBtn) {
@@ -978,36 +956,10 @@ const renderAccountRecentlyPlayed = () => {
     const container = document.getElementById('accountRecentList');
     if (!container) return;
 
-    const countBadge = document.getElementById('accountRecentCountBadge');
-    const clearExcessBtn = document.getElementById('clearExcessRecentBtn');
-    const clearExcessBtnText = document.getElementById('clearExcessRecentBtnText');
-
     try {
         const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
         const list = JSON.parse(raw);
         const validList = Array.isArray(list) ? list : [];
-
-        // Update badge total
-        if (countBadge) {
-            if (validList.length > 0) {
-                countBadge.textContent = String(validList.length);
-                countBadge.classList.remove('hidden');
-            } else {
-                countBadge.classList.add('hidden');
-            }
-        }
-
-        // Tampilkan tombol Hapus Semua jika ada riwayat lagu tersimpan
-        if (clearExcessBtn) {
-            if (validList.length > 0) {
-                clearExcessBtn.classList.remove('hidden');
-                if (clearExcessBtnText) {
-                    clearExcessBtnText.textContent = `Hapus Semua (${validList.length})`;
-                }
-            } else {
-                clearExcessBtn.classList.add('hidden');
-            }
-        }
 
         if (validList.length === 0) {
             container.innerHTML = `
@@ -1270,12 +1222,6 @@ export const cleanupAccountPage = () => {
         shareBtn.removeEventListener('click', previewShareBtnHandler);
     }
     previewShareBtnHandler = null;
-
-    const clearExcessRecentBtn = document.getElementById('clearExcessRecentBtn');
-    if (clearExcessRecentBtn && clearExcessRecentBtnHandler) {
-        clearExcessRecentBtn.removeEventListener('click', clearExcessRecentBtnHandler);
-    }
-    clearExcessRecentBtnHandler = null;
 
     const seeAllRecentBtn = document.getElementById('seeAllAccountRecentBtn');
     if (seeAllRecentBtn && seeAllRecentBtnHandler) {
