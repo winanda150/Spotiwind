@@ -27,6 +27,7 @@ let activateTrialBtnHandler = null;
 let cancelSubBtnHandler = null;
 let seeAllRecentBtnHandler = null;
 let seeAllArtistsBtnHandler = null;
+let recentlyPlayedUpdateHandler = null;
 let isModalGestureActive = false;
 let planCardClickHandlers = [];
 let subModalBackdropHandler = null;
@@ -903,10 +904,14 @@ const bindAccountInteractions = () => {
     // Render Recently Played Section
     renderAccountRecentlyPlayed();
 
-    window.addEventListener('recently-played-updated', () => {
+    if (recentlyPlayedUpdateHandler) {
+        window.removeEventListener('recently-played-updated', recentlyPlayedUpdateHandler);
+    }
+    recentlyPlayedUpdateHandler = () => {
         renderAccountRecentlyPlayed();
         renderAccountTopArtists();
-    }, { passive: true });
+    };
+    window.addEventListener('recently-played-updated', recentlyPlayedUpdateHandler, { passive: true });
 
     // Render Top Artists Section
     renderAccountTopArtists();
@@ -978,6 +983,14 @@ const renderAccountRecentlyPlayed = () => {
         }
 
         const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+        const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || 
+                            window.__currentSongData || 
+                            (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
+        const activeAudio = window.__activeAudio || document.querySelector('audio');
+        const isAudioPlaying = Boolean(activeAudio && activeAudio.src && !activeAudio.paused && !activeAudio.ended);
+
         const recentSongs = validList.slice(0, 10);
 
         container.innerHTML = recentSongs.map(song => {
@@ -987,14 +1000,20 @@ const renderAccountRecentlyPlayed = () => {
             const audio = song.audio || '';
             const duration = song.duration || 0;
 
+            const isSame = currentSong && (typeof window.areSameSongs === 'function'
+                ? window.areSameSongs(currentSong, song)
+                : (String(currentSong.id) === String(song.id) || (audio && currentSong.audio === audio)));
+            const isActive = Boolean(isSame);
+            const isPaused = isActive && Boolean(activeAudio?.paused);
+
             return `
-                <div class="song-card" data-id="${song.id}" data-audio="${audio}">
+                <div class="song-card ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id}" data-audio="${audio}">
                     <div class="song-cover">
                         <img src="${cover}" alt="${safeName}" width="148" height="111" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">
                         <button class="play-overlay" aria-label="Play ${safeName}" 
                             data-audio="${audio}" data-name="${safeName}" data-artist="${safeArtist}" 
                             data-cover="${cover}" data-duration="${duration}" data-context="account-recent">
-                            ${PLAY_ICON}
+                            ${isActive && isAudioPlaying ? PAUSE_ICON : PLAY_ICON}
                         </button>
                     </div>
                     <div class="song-info">
@@ -1004,6 +1023,10 @@ const renderAccountRecentlyPlayed = () => {
                 </div>
             `;
         }).join('');
+
+        if (typeof window.syncActiveSongUI === 'function') {
+            window.syncActiveSongUI();
+        }
     } catch (e) {
         console.warn("Failed to render recently played songs on account page:", e);
     }
@@ -1234,6 +1257,11 @@ export const cleanupAccountPage = () => {
         seeAllArtistsBtn.removeEventListener('click', seeAllArtistsBtnHandler);
     }
     seeAllArtistsBtnHandler = null;
+
+    if (recentlyPlayedUpdateHandler) {
+        window.removeEventListener('recently-played-updated', recentlyPlayedUpdateHandler);
+        recentlyPlayedUpdateHandler = null;
+    }
 
     const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
     if (closeSubModalBtn && closeSubModalBtnHandler) {

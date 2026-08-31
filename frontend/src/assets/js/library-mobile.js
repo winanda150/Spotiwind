@@ -792,6 +792,110 @@ function setupSongActionListeners() {
    ============================================= */
 
 let selectedDownloadSong = null;
+let cleanupDownloadOptionsDrag = null;
+
+/**
+ * Setup swipe-down (collapse / dismiss) gesture only for download options bottom sheet modal
+ */
+function setupDownloadOptionsDrag(modalEl, onCloseCallback) {
+    if (!modalEl) return () => {};
+
+    const sheet = modalEl.querySelector('.download-options-sheet');
+    if (!sheet) return () => {};
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let startTime = 0;
+    let isListeningWindow = false;
+
+    const resetDragStyles = () => {
+        isDragging = false;
+        sheet.classList.remove('is-dragging');
+        sheet.style.transform = '';
+        removeWindowListeners();
+    };
+
+    const removeWindowListeners = () => {
+        if (!isListeningWindow) return;
+        isListeningWindow = false;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerCancel);
+    };
+
+    const onPointerMove = (e) => {
+        if (e.pointerType === 'mouse' && e.buttons === 0) {
+            onPointerUp(e);
+            return;
+        }
+
+        currentY = e.clientY;
+        const deltaY = e.clientY - startY;
+
+        // ONLY allow dragging DOWNWARDS (deltaY > 0). Dragging upwards is strictly clamped / ignored.
+        if (deltaY > 0) {
+            if (!isDragging) {
+                isDragging = true;
+                sheet.classList.add('is-dragging');
+            }
+            sheet.style.transform = `translateY(${deltaY}px)`;
+            if (e.cancelable) e.preventDefault();
+        } else {
+            if (isDragging) {
+                sheet.style.transform = 'translateY(0)';
+            }
+        }
+    };
+
+    const onPointerUp = (e) => {
+        removeWindowListeners();
+
+        const deltaY = (e ? e.clientY : currentY) - startY;
+        const deltaTime = Math.max(1, Date.now() - startTime);
+        const velocityY = deltaY / deltaTime;
+
+        isDragging = false;
+        sheet.classList.remove('is-dragging');
+        sheet.style.transform = '';
+
+        // Kasus: Tarik ke BAWAH (Swipe down threshold: > 50px or velocity > 0.28)
+        if (deltaY > 50 || velocityY > 0.28) {
+            if (typeof onCloseCallback === 'function') {
+                onCloseCallback();
+            }
+        }
+    };
+
+    const onPointerCancel = () => {
+        resetDragStyles();
+    };
+
+    const onPointerDown = (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        // Ignore clicks on buttons/interactive elements inside the sheet
+        if (e.target.closest('button, a')) return;
+
+        startY = e.clientY;
+        currentY = e.clientY;
+        startTime = Date.now();
+
+        if (!isListeningWindow) {
+            isListeningWindow = true;
+            window.addEventListener('pointermove', onPointerMove, { passive: false });
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerCancel);
+        }
+    };
+
+    sheet.addEventListener('pointerdown', onPointerDown);
+
+    return () => {
+        sheet.removeEventListener('pointerdown', onPointerDown);
+        removeWindowListeners();
+        resetDragStyles();
+    };
+}
 
 function openDownloadOptions(song) {
     selectedDownloadSong = song;
@@ -805,6 +909,11 @@ function openDownloadOptions(song) {
     if (coverEl) coverEl.src = song.cover || '../../public/Elemen/Logo/Spotiwind.webp';
 
     if (modal) {
+        const sheet = modal.querySelector('.download-options-sheet');
+        if (sheet) {
+            sheet.classList.remove('is-dragging');
+            sheet.style.transform = '';
+        }
         modal.classList.remove('hidden');
         modal.removeAttribute('aria-hidden');
         modal.removeAttribute('inert');
@@ -819,6 +928,11 @@ function closeDownloadOptions() {
         if (document.activeElement && modal.contains(document.activeElement)) {
             document.activeElement.blur();
         }
+        const sheet = modal.querySelector('.download-options-sheet');
+        if (sheet) {
+            sheet.classList.remove('is-dragging');
+            sheet.style.transform = '';
+        }
         modal.classList.add('hidden');
         modal.setAttribute('aria-hidden', 'true');
         modal.setAttribute('inert', '');
@@ -827,10 +941,19 @@ function closeDownloadOptions() {
 }
 
 function setupDownloadOptionsModal() {
+    const modal = document.getElementById('downloadOptionsModal');
     const backdrop = document.getElementById('downloadOptionsBackdrop');
     const cancelBtn = document.getElementById('optCancelBtn');
     const saveToDeviceBtn = document.getElementById('optSaveToDeviceBtn');
     const deleteOfflineBtn = document.getElementById('optDeleteOfflineBtn');
+
+    if (modal) {
+        if (cleanupDownloadOptionsDrag) {
+            cleanupDownloadOptionsDrag();
+            cleanupDownloadOptionsDrag = null;
+        }
+        cleanupDownloadOptionsDrag = setupDownloadOptionsDrag(modal, closeDownloadOptions);
+    }
 
     if (backdrop) {
         backdrop.addEventListener('click', closeDownloadOptions);
@@ -929,6 +1052,11 @@ function cleanupUserSubscriptions() {
 export function cleanupLibraryPage() {
     closeDownloadOptions();
     cleanupUserSubscriptions();
+
+    if (cleanupDownloadOptionsDrag) {
+        cleanupDownloadOptionsDrag();
+        cleanupDownloadOptionsDrag = null;
+    }
 
     listeners.forEach((item) => {
         if (item.element && item.type && item.handler) {

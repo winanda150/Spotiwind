@@ -590,9 +590,9 @@
 .download-options-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.72);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .download-options-sheet {
@@ -610,7 +610,15 @@
     box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
     transform: translateY(0);
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    touch-action: pan-y;
+    will-change: transform;
     z-index: 1;
+}
+
+.download-options-sheet.is-dragging {
+    transition: none !important;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .download-options-modal.hidden .download-options-sheet {
@@ -621,8 +629,9 @@
     width: 38px;
     height: 4px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.25);
     margin: 0 auto -0.25rem auto;
+    cursor: grab;
 }
 
 .download-options-header {
