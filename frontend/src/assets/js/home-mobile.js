@@ -17,6 +17,7 @@ import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -159,6 +160,7 @@ const updateSidebarMusicCounts = () => {
 
 const recordRecentlyPlayedSong = (song) => {
     recordRecentlyPlayed(song);
+    recordTrackPlay(song);
     updateSidebarMusicCounts();
 };
 
@@ -1922,30 +1924,66 @@ window.toggleDownloadSong = async (song) => {
         }
     };
 
+    let popularTracksUnsubscribe = null;
+
     /**
-     * Function to fetch popular song data from Jamendo
+     * Function to fetch popular song data from Firebase Firestore in REAL-TIME
      */
     const fetchTrendingMusic = async () => {
         const gridSelector = '.popular-section .song-grid'; 
         const sectionTitle = document.getElementById('sectionTitle');
-        try {
-            if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
-            
-            const rawSongs = await getTrendingCatalog(12);
+        if (sectionTitle) sectionTitle.textContent = "Popular Right Now";
 
-        // [FIX] Only render and return true if there is data to display.
-        if (rawSongs.length === 0) {
-            console.log("fetchTrendingMusic: No unique songs found after filtering, retrying...");
-            return false; // Signal the retry-wrapper to try again.
+        if (popularTracksUnsubscribe) {
+            popularTracksUnsubscribe();
+            popularTracksUnsubscribe = null;
         }
 
-        trendingPlaylist = rawSongs;
-        renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'trending');
-        return true; // Success
-        } catch (error) {
-            console.error("Failed to fetch music data:", error);
-            throw error; // Throw error to be caught by fetchWithContinuousRetry
-        }
+        return new Promise((resolve, reject) => {
+            let isFirstLoad = true;
+
+            popularTracksUnsubscribe = subscribePopularTracks((rawSongs) => {
+                const grid = document.querySelector(gridSelector);
+                if (!grid) {
+                    if (isFirstLoad) {
+                        isFirstLoad = false;
+                        resolve(true);
+                    }
+                    return;
+                }
+
+                if (!rawSongs || rawSongs.length === 0) {
+                    trendingPlaylist = [];
+                    grid.innerHTML = `
+                        <div class="popular-empty-state">
+                            <div class="popular-empty-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 18V5l12-2v13"></path>
+                                    <circle cx="6" cy="18" r="3"></circle>
+                                    <circle cx="18" cy="16" r="3"></circle>
+                                </svg>
+                            </div>
+                            <h3 class="popular-empty-title">No popular songs yet</h3>
+                            <p class="popular-empty-desc">Play your favorite songs to see them trending here.</p>
+                        </div>
+                    `;
+                } else {
+                    trendingPlaylist = rawSongs;
+                    if (isFirstLoad) {
+                        renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'trending');
+                    } else {
+                        // Realtime update: update grid directly and sync UI
+                        grid.innerHTML = rawSongs.map(song => createSongCardHTML(song, 'trending')).join('');
+                        syncActiveSongUI();
+                    }
+                }
+
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                    resolve(true);
+                }
+            }, 10);
+        });
     };
 
     /**
@@ -3010,7 +3048,7 @@ window.toggleDownloadSong = async (song) => {
      * This ensures skeletons are always visible, even on a quick refresh.
      */
     const initializeSkeletons = () => {
-        showSkeletonLoader('.popular-section .song-grid', 'song', 6);
+        showSkeletonLoader('.popular-section .song-grid', 'song', 10);
         showSkeletonLoader('#newReleasesGrid', 'song', 6);
         showSkeletonLoader('#indonesianSongsGrid', 'song', 6);
         showSkeletonLoader('.artists-grid', 'artist', 5);

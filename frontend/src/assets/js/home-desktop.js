@@ -28,6 +28,7 @@ import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalog
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -370,6 +371,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     activeAudio.pause();
     currentSongData = { id: songId, audio: audioUrl, name: title, artist, cover, duration };
     recordRecentlyPlayed(currentSongData);
+    recordTrackPlay(currentSongData);
     currentSongIndex = currentPlaylist.findIndex(s => s.audio === audioUrl);
     syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
 
@@ -644,27 +646,63 @@ const fetchTopArtists = async () => {
     }
 };
 
+let popularTracksUnsubscribe = null;
+
 /**
- * Function to fetch popular song data from Jamendo.
+ * Function to fetch popular song data from Firebase Firestore in REAL-TIME.
  */
 const fetchTrendingMusic = async () => {
-    try {
-        const rawSongs = await getTrendingCatalog(12);
+    const gridSelector = '.popular-section .song-grid';
 
-        // [FIX] Only render and return true if there is data to display.
-        if (rawSongs.length === 0) {
-            console.log("fetchTrendingMusic: No unique songs found after filtering, retrying...");
-            return false; // Signal the retry-wrapper to try again.
-        }
-
-        currentPlaylist = rawSongs; // Save playlist for navigation
-        syncQueueState(currentPlaylist, null, -1);
-        renderGridProgressively('.popular-section .song-grid', rawSongs, createSongCardHTML, '.song-card-skeleton');
-        return true; // Success
-    } catch (error) {
-        console.error("Failed to fetch music data:", error);
-        throw error; // Throw error to be caught by fetchWithContinuousRetry
+    if (popularTracksUnsubscribe) {
+        popularTracksUnsubscribe();
+        popularTracksUnsubscribe = null;
     }
+
+    return new Promise((resolve) => {
+        let isFirstLoad = true;
+
+        popularTracksUnsubscribe = subscribePopularTracks((rawSongs) => {
+            const grid = document.querySelector(gridSelector);
+            if (!grid) {
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                    resolve(true);
+                }
+                return;
+            }
+
+            if (!rawSongs || rawSongs.length === 0) {
+                currentPlaylist = [];
+                grid.innerHTML = `
+                    <div class="popular-empty-state">
+                        <div class="popular-empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="popular-empty-title">No popular songs yet</h3>
+                        <p class="popular-empty-desc">Play your favorite songs to see them trending here.</p>
+                    </div>
+                `;
+            } else {
+                currentPlaylist = rawSongs;
+                syncQueueState(currentPlaylist, null, -1);
+                if (isFirstLoad) {
+                    renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton');
+                } else {
+                    grid.innerHTML = rawSongs.map(createSongCardHTML).join('');
+                }
+            }
+
+            if (isFirstLoad) {
+                isFirstLoad = false;
+                resolve(true);
+            }
+        }, 10);
+    });
 };
 
 document.addEventListener('DOMContentLoaded', () => {
