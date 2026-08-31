@@ -1400,9 +1400,12 @@ window.toggleDownloadSong = async (song) => {
         // Only update the playlist if a context is given and it's a NEW song
         if (context) {
             let baseQueue = [];
-            if (context === 'trending' || context === 'new') {
-                const masterPool = [...trendingPlaylist, ...newReleasesPlaylist];
-                baseQueue = Array.from(new Map(masterPool.map(s => [s.id, s])).values());
+            if (context === 'trending') {
+                // [FIX] Strictly use songs from the Popular Right Now grid
+                baseQueue = [...trendingPlaylist];
+            } else if (context === 'new') {
+                // [FIX] Strictly use songs from the New Releases grid
+                baseQueue = [...newReleasesPlaylist];
             } else if (context === 'search') {
                 baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
             } else if (context === 'popular') {
