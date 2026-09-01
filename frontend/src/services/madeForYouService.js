@@ -1,6 +1,44 @@
 import { loadLocalCatalog } from './catalogService.js';
 
 let cachedMixes = null;
+const STORAGE_KEY = 'spotiwind-made-for-you-mixes';
+const isBrowser = typeof window !== 'undefined' && !!window.sessionStorage;
+
+const clearPersistedMixCache = () => {
+    if (!isBrowser) return;
+    try {
+        window.sessionStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+        console.warn('Failed to clear persisted made-for-you cache:', error);
+    }
+};
+
+const readPersistedMixes = () => {
+    if (!isBrowser) return [];
+    try {
+        const raw = window.sessionStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.warn('Failed to read persisted made-for-you cache:', error);
+        return [];
+    }
+};
+
+const writePersistedMixes = (mixes) => {
+    if (!isBrowser || !Array.isArray(mixes)) return;
+    try {
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(mixes));
+    } catch (error) {
+        console.warn('Failed to persist made-for-you cache:', error);
+    }
+};
+
+if (isBrowser) {
+    window.addEventListener('beforeunload', clearPersistedMixCache);
+    window.addEventListener('pagehide', clearPersistedMixCache);
+}
 
 const MIX_DEFINITIONS = [
     {
@@ -99,6 +137,16 @@ const MIX_DEFINITIONS = [
  * Filter and build curated song arrays for each Mix (True Spotify-Style Balanced Blend)
  */
 export const getMadeForYouMixes = async () => {
+    if (cachedMixes && cachedMixes.length > 0) {
+        return cachedMixes;
+    }
+
+    const persistedMixes = readPersistedMixes();
+    if (persistedMixes.length > 0) {
+        cachedMixes = persistedMixes;
+        return cachedMixes;
+    }
+
     try {
         const catalog = await loadLocalCatalog();
         const allSongs = catalog.songs || [];
@@ -223,6 +271,7 @@ export const getMadeForYouMixes = async () => {
         });
 
         cachedMixes = mixes;
+        writePersistedMixes(mixes);
         return mixes;
     } catch (error) {
         console.error('Failed to generate Made for You mixes:', error);
@@ -231,3 +280,8 @@ export const getMadeForYouMixes = async () => {
 };
 
 export const getCachedMadeForYouMixes = () => cachedMixes || [];
+
+export const clearMadeForYouMixesCache = () => {
+    cachedMixes = null;
+    clearPersistedMixCache();
+};

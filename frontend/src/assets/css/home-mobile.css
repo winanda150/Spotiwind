@@ -91,6 +91,14 @@ body.player-active .app-container {
     z-index: 10000;
 }
 
+body.mix-detail-open .mobile-header {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
 .header-left {
     display: flex;
     align-items: center;
@@ -1342,7 +1350,7 @@ body.player-active .app-container {
     justify-content: space-between;
     padding: 0 var(--mobile-horizontal-padding);
     /* Sedikit padding dalam untuk konten */
-    z-index: 999;
+    z-index: 1100;
     cursor: pointer;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
 
@@ -1732,7 +1740,7 @@ body.player-active .app-container {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    z-index: 1000;
+    z-index: 1100;
     padding-bottom: env(safe-area-inset-bottom);
     transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease, visibility 0.3s;
 }
@@ -3222,6 +3230,7 @@ body.full-player-open {
     color: var(--text-muted);
     line-height: 1.35;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -3267,7 +3276,7 @@ body.full-player-open {
 .mix-detail-modal {
     position: fixed;
     inset: 0;
-    z-index: 10500;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     opacity: 1;
@@ -3291,7 +3300,7 @@ body.full-player-open {
 
 .mix-detail-sheet {
     position: relative;
-    z-index: 2;
+    z-index: 1010;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -3338,7 +3347,7 @@ body.full-player-open {
 .mix-detail-scrollable {
     flex: 1;
     overflow-y: auto;
-    padding: 1.25rem 1rem 7rem;
+    padding: 1.25rem 1rem 1.25rem;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -3519,8 +3528,3 @@ body.full-player-open {
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
 }
-
-
-
-
-

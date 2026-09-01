@@ -39,6 +39,7 @@ let currentPlaylist = [];
 let desktopMadeForYouMixes = []; // Buffer to store 10 Made for You mixes on desktop
 let desktopNewReleasesPlaylist = []; // Buffer to store new releases on desktop
 let currentSongIndex = -1;
+let activeMixId = null; // Track the active Made for You mix so overlapping songs do not cross-switch between mixes
 let isShuffle = false;
 let isRepeat = false;
 let isDragging = false;
@@ -342,10 +343,29 @@ const toggleLike = async (e) => {
 /**
  * Core Playback Logic - Synchronized with Mobile context-awareness
  */
-window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
+window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null, customPlaylist = null, mixId = null) => {
+    const previousMixId = activeMixId;
     const songId = String(id);
+    const targetSong = {
+        id: songId,
+        audio: audioUrl,
+        name: title,
+        artist,
+        cover,
+        duration: Number(duration) || 0
+    };
     const wasSameSong = Boolean(currentSongData && (String(currentSongData.id) === songId || (audioUrl && currentSongData.audio === audioUrl)));
-    const isSameSong = Boolean(wasSameSong && activeAudio && activeAudio.src);
+    const isSameSong = Boolean(
+        context === 'made-for-you'
+            ? (previousMixId && String(previousMixId) === String(mixId) && wasSameSong && activeAudio && activeAudio.src)
+            : (wasSameSong && activeAudio && activeAudio.src)
+    );
+
+    if (context === 'made-for-you') {
+        activeMixId = mixId || null;
+    } else {
+        activeMixId = null;
+    }
 
     if (isSameSong) {
         if (!activeAudio.paused) {
@@ -467,6 +487,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         };
 
         await playbackPromise;
+        syncActiveDesktopUI();
         updateMyActivity(title);
 
         if (btn) btn.classList.remove('btn-loading');
@@ -973,7 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mixId = mixCard?.dataset.mixId;
             const targetMix = desktopMadeForYouMixes.find(m => m.id === mixId);
             if (targetMix && targetMix.songs && targetMix.songs.length > 0) {
-                const isMixActive = currentSongData && targetMix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+                const isMixActive = activeMixId && String(activeMixId) === String(mixId) && currentSongData && targetMix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
                 if (isMixActive) {
                     if (!activeAudio.paused) {
                         activeAudio.pause();
@@ -985,6 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const firstSong = targetMix.songs[0];
                 currentPlaylist = [...targetMix.songs];
+                activeMixId = targetMix.id;
                 window.playPreview(
                     mixPlayOverlay,
                     firstSong.audio,
@@ -993,7 +1015,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     firstSong.cover,
                     firstSong.id,
                     Number(firstSong.duration) || 0,
-                    'made-for-you'
+                    'made-for-you',
+                    targetMix.songs,
+                    targetMix.id
                 );
             }
             return;
