@@ -91,7 +91,21 @@ const getKnownLocalArtist = async (artistName = '') => {
 };
 
 /**
+ * Split a raw artist string into individual artist names.
+ * Handles formats: "A & B", "A feat. B", "A ft. B", "A x B", "A and B"
+ * Returns an array of trimmed, non-empty artist name strings.
+ */
+export const splitArtistNames = (rawArtist = '') => {
+    if (!rawArtist) return [];
+    return String(rawArtist)
+        .split(/\s*(?:feat\.?|ft\.?|&|×|✕|\/)\s*/i)
+        .map(s => s.trim())
+        .filter(Boolean);
+};
+
+/**
  * Record a song play for the artist in Firestore top_artists collection.
+ * For collaborative songs (e.g. "For Revenge & Stereo Wall"), records each artist individually.
  * @param {Object} song - The song object being played
  */
 export const recordArtistPlay = async (song) => {
@@ -100,33 +114,39 @@ export const recordArtistPlay = async (song) => {
     const rawArtistName = String(song.artist || song.artist_name || '').trim();
     if (!rawArtistName || rawArtistName.toLowerCase() === 'unknown artist') return;
 
-    const matchedLocal = await getKnownLocalArtist(rawArtistName);
-    const artistId = matchedLocal?.id || getArtistEntityId(rawArtistName);
-    const artistName = matchedLocal?.name || rawArtistName;
-    const artistPhoto = matchedLocal?.photo || normalizeArtistPhotoUrl(song.artist_image || song.photo || song.cover || '');
+    // Split collaborative artist names into individual artists
+    const artistParts = splitArtistNames(rawArtistName);
+    if (artistParts.length === 0) return;
 
-    const now = Date.now();
-    if (recentlyRecordedArtists.has(artistId)) {
-        const lastRecorded = recentlyRecordedArtists.get(artistId);
-        if (now - lastRecorded < RECORD_COOLDOWN_MS) {
-            return;
+    for (const individualArtist of artistParts) {
+        const matchedLocal = await getKnownLocalArtist(individualArtist);
+        const artistId = matchedLocal?.id || getArtistEntityId(individualArtist);
+        const artistName = matchedLocal?.name || individualArtist;
+        const artistPhoto = matchedLocal?.photo || normalizeArtistPhotoUrl(song.artist_image || song.photo || song.cover || '');
+
+        const now = Date.now();
+        if (recentlyRecordedArtists.has(artistId)) {
+            const lastRecorded = recentlyRecordedArtists.get(artistId);
+            if (now - lastRecorded < RECORD_COOLDOWN_MS) {
+                continue; // Skip this artist, still in cooldown
+            }
         }
-    }
-    recentlyRecordedArtists.set(artistId, now);
+        recentlyRecordedArtists.set(artistId, now);
 
-    try {
-        const artistRef = doc(getTopArtistsRef(), artistId);
-        const artistData = {
-            id: artistId,
-            name: artistName,
-            photo: artistPhoto,
-            playCount: increment(1),
-            updatedAt: serverTimestamp()
-        };
+        try {
+            const artistRef = doc(getTopArtistsRef(), artistId);
+            const artistData = {
+                id: artistId,
+                name: artistName,
+                photo: artistPhoto,
+                playCount: increment(1),
+                updatedAt: serverTimestamp()
+            };
 
-        await setDoc(artistRef, artistData, { merge: true });
-    } catch (error) {
-        console.error('Failed to record artist play in Firestore:', error);
+            await setDoc(artistRef, artistData, { merge: true });
+        } catch (error) {
+            console.error(`Failed to record artist play for "${artistName}" in Firestore:`, error);
+        }
     }
 };
 

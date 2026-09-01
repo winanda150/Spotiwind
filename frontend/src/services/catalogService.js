@@ -110,12 +110,29 @@ export const loadLocalCatalog = async (manifestUrl = null) => {
     const response = await fetch(targetUrl);
     if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
     const data = await response.json();
+    const uniqueSongs = [];
+    const seenSongKeys = new Set();
+
+    for (const song of data.songs || []) {
+        const identityCandidates = [
+            String(song.id || '').trim().toLowerCase(),
+            String(song.audio || '').trim().toLowerCase(),
+            `${String(song.name || '').trim().toLowerCase()}|${String(song.artist || '').trim().toLowerCase()}`
+        ].filter(Boolean);
+
+        const songKey = identityCandidates.find(Boolean) || '';
+        if (!songKey || seenSongKeys.has(songKey)) continue;
+
+        seenSongKeys.add(songKey);
+        uniqueSongs.push(song);
+    }
+
     return {
         artists: (data.artists || []).map((artist) => ({
             ...artist,
             photo: getPublicAssetUrl(artist.photo)
         })),
-        songs: (data.songs || []).map((song, index) => ({
+        songs: uniqueSongs.map((song, index) => ({
             id: song.id || `local-${index}`,
             name: song.name,
             artist: song.artist,

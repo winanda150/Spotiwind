@@ -12,3 +12,4 @@ export * from "./presenceService.js";
 export * from "./catalogService.js";
 export * from "./popularTrackService.js";
 export * from "./topArtistService.js";
+export * from "./madeForYouService.js";

@@ -19,6 +19,7 @@ import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downlo
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
 import { recordArtistPlay, getTopArtists as getFirestoreTopArtists, subscribeTopArtists } from '../../services/topArtistService.js';
+import { getMadeForYouMixes } from '../../services/madeForYouService.js';
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -29,10 +30,10 @@ let currentPlayingBtn = null;
 let currentPlaylist = [];
 let trendingPlaylist = []; // Buffer to store the list of popular songs
 let newReleasesPlaylist = []; // Buffer to store the list of new releases
+let madeForYouMixes = []; // Buffer to store the 10 Made for You mixes
 let searchPlaylist = []; // Buffer to store search results
 let popularPlaylist = []; // Buffer to store Popular Searches song list for Up Next
-let indonesianSongsPlaylist = []; // NEW: Buffer for all local songs
-let indonesianGridPlaylist = []; // NEW: Buffer specifically for the 12 songs in the Indonesian grid
+let indonesianSongsPlaylist = []; // Buffer for all local songs (for search)
 let indonesianArtistsPlaylist = []; // NEW: Buffer for local artists
 let unshuffledPlaylist = []; // NEW: To store the original order of the playlist
 let currentSongIndex = -1;
@@ -282,9 +283,17 @@ const syncActiveSongUI = () => {
         if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
     });
 
-    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon').forEach(el => {
+    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon').forEach(el => {
         el.innerHTML = PLAY_ICON;
     });
+
+    const mixDetailPlayAllBtn = document.getElementById('mixDetailPlayAllBtn');
+    if (mixDetailPlayAllBtn) {
+        mixDetailPlayAllBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>`;
+    }
 
     if (isPlaying || isPaused) {
         const activeElements = getSongElements(currentSongData);
@@ -302,6 +311,36 @@ const syncActiveSongUI = () => {
             const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon');
             if (playIcon) {
                 playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+            }
+        });
+
+        // [NEW] Sync active state for Made for You Mix cards
+        document.querySelectorAll('.mix-card').forEach(mixCard => {
+            const mixId = mixCard.dataset.mixId;
+            const mixData = (typeof madeForYouMixes !== 'undefined' ? madeForYouMixes : []).find(m => m.id === mixId);
+            if (mixData && mixData.songs && mixData.songs.some(s => areSameSongs(s, currentSongData))) {
+                mixCard.classList.add('is-active-song');
+                if (isPaused) mixCard.classList.add('is-paused');
+                const overlay = mixCard.querySelector('.play-overlay');
+                if (overlay) {
+                    overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+                }
+            }
+        });
+
+        // [NEW] Sync active state for Mix Detail Modal tracklist rows
+        document.querySelectorAll('.mix-track-row').forEach(row => {
+            const rowSongId = row.dataset.songId;
+            const rowAudio = row.dataset.songAudio;
+            if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
+                row.classList.add('is-active-song');
+                const idxEl = row.querySelector('.mix-track-idx');
+                if (idxEl) idxEl.innerHTML = isPlaying ? '❚❚' : '▶';
+                if (mixDetailPlayAllBtn) {
+                    mixDetailPlayAllBtn.innerHTML = isPlaying 
+                        ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+                        : `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                }
             }
         });
     }
@@ -1021,9 +1060,204 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    let activeDetailMix = null;
+
+    const openMixDetailModal = (mixId) => {
+        const modal = document.getElementById('mixDetailModal');
+        const header = document.getElementById('mixDetailHeader');
+        const tracklist = document.getElementById('mixDetailTracklist');
+        if (!modal || !header || !tracklist) return;
+
+        const targetMix = madeForYouMixes.find(m => m.id === mixId);
+        if (!targetMix) return;
+
+        activeDetailMix = targetMix;
+
+        const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
+        const totalMin = Math.round(totalSec / 60);
+
+        header.innerHTML = `
+            <div class="mix-detail-header-content">
+                <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
+                    <img src="${targetMix.cover}" alt="${targetMix.title}" loading="lazy">
+                    <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
+                </div>
+                <span class="mix-detail-hero-badge">${targetMix.tag}</span>
+                <h1 class="mix-detail-hero-title">${targetMix.title}</h1>
+                <p class="mix-detail-hero-desc">${targetMix.subtitle}</p>
+                <div class="mix-detail-hero-meta">
+                    <span>Spotiwind</span> • <span>${targetMix.songs.length} songs</span> • <span>~${totalMin} min</span>
+                </div>
+            </div>
+        `;
+
+        tracklist.innerHTML = targetMix.songs.map((song, idx) => {
+            const isCurrent = currentSongData && areSameSongs(currentSongData, song);
+            const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
+            const min = Math.floor((song.duration || 0) / 60);
+            const sec = String((song.duration || 0) % 60).padStart(2, '0');
+            return `
+            <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''}" 
+                 data-song-id="${song.id}"
+                 data-song-audio="${song.audio}"
+                 data-song-name="${song.name}"
+                 data-song-artist="${song.artist}"
+                 data-song-cover="${song.cover}"
+                 data-song-duration="${song.duration || 0}"
+                 data-mix-id="${targetMix.id}"
+                 data-song-idx="${idx}">
+                <span class="mix-track-idx">${isCurrent ? (isPlaying ? '❚❚' : '▶') : (idx + 1)}</span>
+                <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" loading="lazy">
+                <div class="mix-track-info">
+                    <h4 class="mix-track-name">${song.name}</h4>
+                    <p class="mix-track-artist">${song.artist}</p>
+                </div>
+                <span class="mix-track-duration">${min}:${sec}</span>
+            </div>`;
+        }).join('');
+
+        modal.classList.remove('hidden');
+        modal.removeAttribute('inert');
+        document.body.style.overflow = 'hidden';
+        // Move focus into the modal for accessibility
+        const closeBtn = modal.querySelector('#closeMixDetailBtn');
+        if (closeBtn) closeBtn.focus();
+        syncActiveSongUI();
+    };
+
+    const closeMixDetailModal = () => {
+        const modal = document.getElementById('mixDetailModal');
+        if (!modal) return;
+        // Move focus out BEFORE hiding, to prevent aria-hidden+focus conflict
+        document.activeElement?.blur();
+        modal.classList.add('hidden');
+        modal.setAttribute('inert', '');
+        document.body.style.overflow = '';
+    };
+
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
     document.body.addEventListener('click', async (e) => {
+        // 1. Click on Mix Play Overlay Button -> toggle play mix directly
+        const mixPlayOverlay = e.target.closest('.mix-card .play-overlay');
+        if (mixPlayOverlay) {
+            e.stopPropagation();
+            const mixCard = mixPlayOverlay.closest('.mix-card');
+            const mixId = mixCard?.dataset.mixId;
+            const targetMix = madeForYouMixes.find(m => m.id === mixId);
+            if (targetMix && targetMix.songs && targetMix.songs.length > 0) {
+                const isMixActive = currentSongData && targetMix.songs.some(s => areSameSongs(s, currentSongData));
+                if (isMixActive) {
+                    if (!activeAudio.paused) {
+                        activeAudio.pause();
+                    } else {
+                        activeAudio.play();
+                    }
+                    syncActiveSongUI();
+                    return;
+                }
+                const firstSong = targetMix.songs[0];
+                window.playPreview(
+                    mixPlayOverlay,
+                    firstSong.audio,
+                    firstSong.name,
+                    firstSong.artist,
+                    firstSong.cover,
+                    firstSong.id,
+                    Number(firstSong.duration) || 0,
+                    'made-for-you',
+                    targetMix.songs
+                );
+            }
+            return;
+        }
+
+        // 2. Click on Mix Card (outside play button) -> Open Mix Detail Modal View
+        const mixCard = e.target.closest('.mix-card');
+        if (mixCard) {
+            e.stopPropagation();
+            const mixId = mixCard.dataset.mixId;
+            openMixDetailModal(mixId);
+            return;
+        }
+
+        // 3. Click on Close Mix Detail Modal
+        if (e.target.closest('#closeMixDetailBtn') || e.target.closest('.mix-detail-backdrop')) {
+            closeMixDetailModal();
+            return;
+        }
+
+        // 4. Click on Mix Detail Play All / Pause All Button
+        const mixDetailPlayAllBtn = e.target.closest('#mixDetailPlayAllBtn');
+        if (mixDetailPlayAllBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
+            e.stopPropagation();
+            const isMixActive = currentSongData && activeDetailMix.songs.some(s => areSameSongs(s, currentSongData));
+            if (isMixActive) {
+                if (!activeAudio.paused) {
+                    activeAudio.pause();
+                } else {
+                    activeAudio.play();
+                }
+                syncActiveSongUI();
+                return;
+            }
+            const firstSong = activeDetailMix.songs[0];
+            window.playPreview(
+                null,
+                firstSong.audio,
+                firstSong.name,
+                firstSong.artist,
+                firstSong.cover,
+                firstSong.id,
+                Number(firstSong.duration) || 0,
+                'made-for-you',
+                activeDetailMix.songs
+            );
+            return;
+        }
+
+        // 5. Click on Mix Detail Shuffle Button
+        const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
+        if (mixDetailShuffleBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
+            e.stopPropagation();
+            const shuffled = [...activeDetailMix.songs].sort(() => 0.5 - Math.random());
+            const firstSong = shuffled[0];
+            window.playPreview(
+                null,
+                firstSong.audio,
+                firstSong.name,
+                firstSong.artist,
+                firstSong.cover,
+                firstSong.id,
+                Number(firstSong.duration) || 0,
+                'made-for-you',
+                shuffled
+            );
+            return;
+        }
+
+        // 6. Click on Mix Tracklist Row in Modal
+        const mixTrackRow = e.target.closest('.mix-track-row');
+        if (mixTrackRow && activeDetailMix) {
+            e.stopPropagation();
+            const songId = mixTrackRow.dataset.songId;
+            const song = activeDetailMix.songs.find(s => String(s.id) === String(songId));
+            if (song) {
+                window.playPreview(
+                    null,
+                    song.audio,
+                    song.name,
+                    song.artist,
+                    song.cover,
+                    song.id,
+                    Number(song.duration) || 0,
+                    'made-for-you',
+                    activeDetailMix.songs
+                );
+            }
+            return;
+        }
+
         const playBtn = e.target.closest('.song-card .play-overlay');
         if (playBtn) {
             // Prevent the click from bubbling up to other potential listeners (like the mini player bar)
@@ -1353,7 +1587,7 @@ window.toggleDownloadSong = async (song) => {
     /**
      * Function to play/pause audio
      */
-    window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null) => {
+    window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 0, context = null, customPlaylist = null) => {
         if (!audioUrl) {
             return;
         }
@@ -1408,14 +1642,18 @@ window.toggleDownloadSong = async (song) => {
             } else if (context === 'new') {
                 // [FIX] Strictly use songs from the New Releases grid
                 baseQueue = [...newReleasesPlaylist];
+            } else if (context === 'made-for-you') {
+                // [NEW] Use the songs from the selected Made for You mix
+                if (Array.isArray(customPlaylist) && customPlaylist.length > 0) {
+                    baseQueue = [...customPlaylist];
+                } else {
+                    const matchedMix = madeForYouMixes.find(m => m.songs && m.songs.some(s => areSameSongs(s, targetSong)));
+                    baseQueue = matchedMix ? [...matchedMix.songs] : [targetSong];
+                }
             } else if (context === 'search') {
                 baseQueue = [...searchPlaylist]; // Use a copy to keep the current queue stable
             } else if (context === 'popular') {
                 baseQueue = [...popularPlaylist]; // Playlist dari Popular Searches
-            } else if (context === 'local') {
-                // [FIX] When playing from the Indonesian grid, the playlist context should be the songs
-                // from that specific grid, not the entire local song library.
-                baseQueue = [...indonesianGridPlaylist]; // [FIX] Use indonesianGridPlaylist for 'local' context
             } else if (context.startsWith('artist-')) { // [NEW] Handle artist page context
                 // Use the songs currently displayed on the artist's page
                 baseQueue = [...artistPageCurrentSongs]; // [FIX] Use artistPageCurrentSongs for 'artist-' context
@@ -1937,30 +2175,69 @@ window.toggleDownloadSong = async (song) => {
     };
 
     /**
-     * [FIXED & REFACTORED] Function to fetch and render local Indonesian songs.
-     * This fixes two critical issues:
-     * 1. The Indonesian Songs grid now renders independently, so it will always appear even if the manifest for search fails to load.
-     * 2. The path to `indonesian-songs-manifest.json` is corrected to a more robust location, fixing the local search feature.
+     * Function to render one Made for You mix card
      */
-    const fetchIndonesianSongs = async () => {
-        const gridSelector = '#indonesianSongsGrid';
+    const createMixCardHTML = (mix) => {
+        // Build cover area: 2x2 collage if ≥2 unique covers, else single image
+        const imgs = mix.coverImages || (mix.cover ? [mix.cover] : []);
+        let coverContent;
+        if (imgs.length >= 2) {
+            const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
+            coverContent = `
+                <div class="mix-collage">
+                    ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" loading="lazy"></div>`).join('')}
+                </div>`;
+        } else {
+            coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+        }
+        return `
+        <div class="song-card mix-card" data-mix-id="${mix.id}" data-context="made-for-you">
+            <div class="song-cover mix-cover" style="background: ${mix.gradient};">
+                ${coverContent}
+                <div class="mix-overlay-gradient"></div>
+                <span class="mix-badge">${mix.tag}</span>
+                <div class="mix-color-strip" style="background: ${mix.accentColor};"></div>
+                <button class="play-overlay mix-play-btn" aria-label="Play ${mix.title}" 
+                    data-mix-id="${mix.id}" data-context="made-for-you">
+                    ${PLAY_ICON}
+                </button>
+            </div>
+            <div class="song-info mix-info">
+                <h3 class="song-name mix-title">${mix.title}</h3>
+                <p class="song-artist mix-subtitle">${mix.subtitle}</p>
+            </div>
+        </div>`;
+    };
 
-        const IndonesianGridSongs = getFeaturedLocalSongs();
+    /**
+     * Function to fetch and render Made for You mixes (10 Mix playlists)
+     */
+    const fetchMadeForYou = async () => {
+        const gridSelector = '#madeForYouGrid';
+        try {
+            const mixes = await getMadeForYouMixes();
+            if (!mixes || mixes.length === 0) return false;
+            madeForYouMixes = mixes;
+            renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton', 'made-for-you');
+            return true;
+        } catch (error) {
+            console.error("Failed to load Made for You mixes:", error);
+            throw error;
+        }
+    };
 
-        // [FIX 1] Render the grid immediately. This ensures the grid is always visible.
-        indonesianGridPlaylist = IndonesianGridSongs;
-        renderGridProgressively(gridSelector, IndonesianGridSongs, createSongCardHTML, '.song-card-skeleton', 'local');
-
+    /**
+     * Load catalog data in background for search and artist pages
+     */
+    const loadLocalCatalogData = async () => {
         try {
             const catalog = await loadLocalCatalog();
-            indonesianArtistsPlaylist = catalog.artists;
-            indonesianSongsPlaylist = catalog.songs;
-
+            indonesianArtistsPlaylist = catalog.artists || [];
+            indonesianSongsPlaylist = catalog.songs || [];
             return true;
-
         } catch (error) {
-            console.error('Failed to load Indonesian song manifest for search:', error);
-            throw error; // Re-throw to allow fetchWithContinuousRetry to work.
+            console.error('Failed to load local song catalog:', error);
+            return false;
         }
     };
 
@@ -2821,7 +3098,7 @@ window.toggleDownloadSong = async (song) => {
                         setSearchPlaylist: (value) => { searchPlaylist = value; },
                         setPopularPlaylist: (value) => { popularPlaylist = value; }
                     });
-                    fetchWithContinuousRetry(fetchIndonesianSongs); // Diperlukan untuk data lagu lokal di fungsi pencarian
+                    loadLocalCatalogData(); // Diperlukan untuk data lagu lokal di fungsi pencarian
                 } else if (page.includes('artist-mobile.html')) {
                     const artistModule = await import('./artist-mobile.js').catch(err => { console.error("Failed to load artist module:", err); return {}; });
                     const { initArtistPage } = artistModule;
@@ -3089,9 +3366,9 @@ window.toggleDownloadSong = async (song) => {
      */
     const initializeSkeletons = () => {
         showSkeletonLoader('.popular-section .song-grid', 'song', 10);
-        showSkeletonLoader('#newReleasesGrid', 'song', 6);
-        showSkeletonLoader('#indonesianSongsGrid', 'song', 6);
         showSkeletonLoader('.artists-grid', 'artist', 10);
+        showSkeletonLoader('#madeForYouGrid', 'song', 10);
+        showSkeletonLoader('#newReleasesGrid', 'song', 6);
     };
 
     // [FIX] Pindahkan definisi initializeData ke lingkup yang lebih tinggi (global)
@@ -3101,8 +3378,9 @@ window.toggleDownloadSong = async (song) => {
         // Ini memungkinkan data muncul satu per satu saat sudah siap, tanpa menunggu yang lain.
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
+        fetchWithContinuousRetry(fetchMadeForYou);
         fetchWithContinuousRetry(fetchNewReleases);
-        fetchWithContinuousRetry(fetchIndonesianSongs);
+        loadLocalCatalogData(); // Load catalog data in background for search & artist pages
     };
 
 // [NEW] Expose necessary functions to the global scope for modules

@@ -24,17 +24,20 @@ import { getFollowingIds, getFriendsActivityByIds, subscribeFriendsActivityByIds
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
 import { isUserPremium } from '../../services/profileService.js';
-import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
+import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
 import { recordArtistPlay, getTopArtists as getFirestoreTopArtists, subscribeTopArtists } from '../../services/topArtistService.js';
+import { getMadeForYouMixes } from '../../services/madeForYouService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
 let currentPlayingBtn = null;
 let currentPlaylist = [];
+let desktopMadeForYouMixes = []; // Buffer to store 10 Made for You mixes on desktop
+let desktopNewReleasesPlaylist = []; // Buffer to store new releases on desktop
 let currentSongIndex = -1;
 let isShuffle = false;
 let isRepeat = false;
@@ -688,6 +691,75 @@ const fetchTopArtists = async () => {
     });
 };
 
+/**
+ * Renderer function for a single Made for You mix card on desktop
+ */
+const createMixCardHTML = (mix) => {
+    // Build cover area: 2x2 collage if ≥2 unique covers, else single image
+    const imgs = mix.coverImages || (mix.cover ? [mix.cover] : []);
+    let coverContent;
+    if (imgs.length >= 2) {
+        const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
+        coverContent = `
+            <div class="mix-collage">
+                ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" loading="lazy"></div>`).join('')}
+            </div>`;
+    } else {
+        coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+    }
+    return `
+    <div class="song-card mix-card" data-mix-id="${mix.id}" data-context="made-for-you">
+        <div class="song-cover mix-cover" style="background: ${mix.gradient};">
+            ${coverContent}
+            <div class="mix-overlay-gradient"></div>
+            <span class="mix-badge">${mix.tag}</span>
+            <div class="mix-color-strip" style="background: ${mix.accentColor};"></div>
+            <button class="play-overlay mix-play-btn" aria-label="Play ${mix.title}" 
+                data-mix-id="${mix.id}" data-context="made-for-you">
+                ${PLAY_ICON}
+            </button>
+        </div>
+        <div class="song-info mix-info">
+            <h3 class="song-name mix-title">${mix.title}</h3>
+            <p class="song-artist mix-subtitle">${mix.subtitle}</p>
+        </div>
+    </div>`;
+};
+
+/**
+ * Function to fetch and render Made for You mixes on desktop
+ */
+const fetchMadeForYou = async () => {
+    const gridSelector = '#madeForYouGrid';
+    try {
+        const mixes = await getMadeForYouMixes();
+        if (!mixes || mixes.length === 0) return false;
+        desktopMadeForYouMixes = mixes;
+        renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton');
+        return true;
+    } catch (error) {
+        console.error("Failed to load desktop Made for You mixes:", error);
+        throw error;
+    }
+};
+
+/**
+ * Function to fetch new releases on desktop
+ */
+const fetchNewReleases = async () => {
+    const gridSelector = '#newReleasesGrid';
+    try {
+        const rawSongs = await getNewReleaseCatalog(6);
+        if (!rawSongs || rawSongs.length === 0) return false;
+        desktopNewReleasesPlaylist = rawSongs;
+        renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton');
+        return true;
+    } catch (error) {
+        console.error("Failed to fetch desktop new releases:", error);
+        throw error;
+    }
+};
+
 let popularTracksUnsubscribe = null;
 
 /**
@@ -747,11 +819,283 @@ const fetchTrendingMusic = async () => {
     });
 };
 
+let activeDesktopDetailMix = null;
+
+const syncActiveDesktopUI = () => {
+    if (!currentSongData) return;
+    const isPlaying = activeAudio && !activeAudio.paused && !activeAudio.ended;
+    const isPaused = activeAudio && activeAudio.paused && !activeAudio.ended;
+
+    document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
+        el.classList.remove('is-active-song', 'is-paused');
+    });
+
+    document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
+        el.classList.remove('btn-loading');
+        if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
+    });
+
+    const mixDetailPlayAllBtn = document.getElementById('mixDetailPlayAllBtn');
+    if (mixDetailPlayAllBtn) {
+        mixDetailPlayAllBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>`;
+    }
+
+    if (isPlaying || isPaused) {
+        // Highlight active individual songs
+        document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
+            el.classList.add('is-active-song');
+            if (isPaused) el.classList.add('is-paused');
+            const overlay = el.querySelector('.play-overlay');
+            if (overlay) overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+        });
+
+        // Highlight active mix cards
+        document.querySelectorAll('.mix-card').forEach(mixCard => {
+            const mixId = mixCard.dataset.mixId;
+            const mixData = desktopMadeForYouMixes.find(m => m.id === mixId);
+            if (mixData && mixData.songs && mixData.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio))) {
+                mixCard.classList.add('is-active-song');
+                if (isPaused) mixCard.classList.add('is-paused');
+                const overlay = mixCard.querySelector('.play-overlay');
+                if (overlay) {
+                    overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+                }
+            }
+        });
+
+        // Highlight active track rows in modal
+        document.querySelectorAll('.mix-track-row').forEach(row => {
+            const rowSongId = row.dataset.songId;
+            const rowAudio = row.dataset.songAudio;
+            if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
+                row.classList.add('is-active-song');
+                const idxEl = row.querySelector('.mix-track-idx');
+                if (idxEl) idxEl.innerHTML = isPlaying ? '❚❚' : '▶';
+                if (mixDetailPlayAllBtn) {
+                    mixDetailPlayAllBtn.innerHTML = isPlaying 
+                        ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+                        : `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                }
+            }
+        });
+    }
+};
+
+const openDesktopMixDetailModal = (mixId) => {
+    const modal = document.getElementById('mixDetailModal');
+    const header = document.getElementById('mixDetailHeader');
+    const tracklist = document.getElementById('mixDetailTracklist');
+    if (!modal || !header || !tracklist) return;
+
+    const targetMix = desktopMadeForYouMixes.find(m => m.id === mixId);
+    if (!targetMix) return;
+
+    activeDesktopDetailMix = targetMix;
+
+    const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
+    const totalMin = Math.round(totalSec / 60);
+
+    header.innerHTML = `
+        <div class="mix-detail-header-content">
+            <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
+                <img src="${targetMix.cover}" alt="${targetMix.title}" loading="lazy">
+                <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
+            </div>
+            <div class="mix-detail-hero-info">
+                <span class="mix-detail-hero-badge">${targetMix.tag}</span>
+                <h1 class="mix-detail-hero-title">${targetMix.title}</h1>
+                <p class="mix-detail-hero-desc">${targetMix.subtitle}</p>
+                <div class="mix-detail-hero-meta">
+                    <span>Spotiwind</span> • <span>${targetMix.songs.length} songs</span> • <span>~${totalMin} min</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    tracklist.innerHTML = targetMix.songs.map((song, idx) => {
+        const isCurrent = currentSongData && (String(currentSongData.id) === String(song.id) || (song.audio && currentSongData.audio === song.audio));
+        const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
+        const min = Math.floor((song.duration || 0) / 60);
+        const sec = String((song.duration || 0) % 60).padStart(2, '0');
+        return `
+        <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''}" 
+             data-song-id="${song.id}"
+             data-song-audio="${song.audio}"
+             data-song-name="${song.name}"
+             data-song-artist="${song.artist}"
+             data-song-cover="${song.cover}"
+             data-song-duration="${song.duration || 0}"
+             data-mix-id="${targetMix.id}"
+             data-song-idx="${idx}">
+            <span class="mix-track-idx">${isCurrent ? (isPlaying ? '❚❚' : '▶') : (idx + 1)}</span>
+            <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" loading="lazy">
+            <div class="mix-track-info">
+                <h4 class="mix-track-name">${song.name}</h4>
+                <p class="mix-track-artist">${song.artist}</p>
+            </div>
+            <span class="mix-track-duration">${min}:${sec}</span>
+        </div>`;
+    }).join('');
+
+    modal.classList.remove('hidden');
+    modal.removeAttribute('inert');
+    document.body.style.overflow = 'hidden';
+    // Move focus into the modal for accessibility
+    const closeBtn = modal.querySelector('#closeMixDetailBtn');
+    if (closeBtn) closeBtn.focus();
+    syncActiveDesktopUI();
+};
+
+const closeDesktopMixDetailModal = () => {
+    const modal = document.getElementById('mixDetailModal');
+    if (!modal) return;
+    // Move focus out BEFORE hiding, to prevent aria-hidden+focus conflict
+    document.activeElement?.blur();
+    modal.classList.add('hidden');
+    modal.setAttribute('inert', '');
+    document.body.style.overflow = '';
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    activeAudio.addEventListener('play', () => syncActiveDesktopUI());
+    activeAudio.addEventListener('pause', () => syncActiveDesktopUI());
+
     // Implementation of Event Delegation instead of inline onclick
     document.body.addEventListener('click', (e) => {
+        // 1. Click on Mix Play Overlay Button -> toggle play mix directly
+        const mixPlayOverlay = e.target.closest('.mix-card .play-overlay');
+        if (mixPlayOverlay) {
+            e.stopPropagation();
+            const mixCard = mixPlayOverlay.closest('.mix-card');
+            const mixId = mixCard?.dataset.mixId;
+            const targetMix = desktopMadeForYouMixes.find(m => m.id === mixId);
+            if (targetMix && targetMix.songs && targetMix.songs.length > 0) {
+                const isMixActive = currentSongData && targetMix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+                if (isMixActive) {
+                    if (!activeAudio.paused) {
+                        activeAudio.pause();
+                    } else {
+                        activeAudio.play();
+                    }
+                    syncActiveDesktopUI();
+                    return;
+                }
+                const firstSong = targetMix.songs[0];
+                currentPlaylist = [...targetMix.songs];
+                window.playPreview(
+                    mixPlayOverlay,
+                    firstSong.audio,
+                    firstSong.name,
+                    firstSong.artist,
+                    firstSong.cover,
+                    firstSong.id,
+                    Number(firstSong.duration) || 0,
+                    'made-for-you'
+                );
+            }
+            return;
+        }
+
+        // 2. Click on Mix Card (outside play button) -> Open Desktop Mix Detail Modal View
+        const mixCard = e.target.closest('.mix-card');
+        if (mixCard) {
+            e.stopPropagation();
+            const mixId = mixCard.dataset.mixId;
+            openDesktopMixDetailModal(mixId);
+            return;
+        }
+
+        // 3. Click on Close Mix Detail Modal
+        if (e.target.closest('#closeMixDetailBtn') || e.target.closest('.mix-detail-backdrop')) {
+            closeDesktopMixDetailModal();
+            return;
+        }
+
+        // 4. Click on Mix Detail Play All / Pause All Button
+        const mixDetailPlayAllBtn = e.target.closest('#mixDetailPlayAllBtn');
+        if (mixDetailPlayAllBtn && activeDesktopDetailMix && activeDesktopDetailMix.songs.length > 0) {
+            e.stopPropagation();
+            const isMixActive = currentSongData && activeDesktopDetailMix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+            if (isMixActive) {
+                if (!activeAudio.paused) {
+                    activeAudio.pause();
+                } else {
+                    activeAudio.play();
+                }
+                syncActiveDesktopUI();
+                return;
+            }
+            const firstSong = activeDesktopDetailMix.songs[0];
+            currentPlaylist = [...activeDesktopDetailMix.songs];
+            window.playPreview(
+                null,
+                firstSong.audio,
+                firstSong.name,
+                firstSong.artist,
+                firstSong.cover,
+                firstSong.id,
+                Number(firstSong.duration) || 0,
+                'made-for-you'
+            );
+            return;
+        }
+
+        // 5. Click on Mix Detail Shuffle Button
+        const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
+        if (mixDetailShuffleBtn && activeDesktopDetailMix && activeDesktopDetailMix.songs.length > 0) {
+            e.stopPropagation();
+            const shuffled = [...activeDesktopDetailMix.songs].sort(() => 0.5 - Math.random());
+            const firstSong = shuffled[0];
+            currentPlaylist = [...shuffled];
+            window.playPreview(
+                null,
+                firstSong.audio,
+                firstSong.name,
+                firstSong.artist,
+                firstSong.cover,
+                firstSong.id,
+                Number(firstSong.duration) || 0,
+                'made-for-you'
+            );
+            return;
+        }
+
+        // 6. Click on Mix Tracklist Row in Modal
+        const mixTrackRow = e.target.closest('.mix-track-row');
+        if (mixTrackRow && activeDesktopDetailMix) {
+            e.stopPropagation();
+            const songId = mixTrackRow.dataset.songId;
+            const song = activeDesktopDetailMix.songs.find(s => String(s.id) === String(songId));
+            if (song) {
+                currentPlaylist = [...activeDesktopDetailMix.songs];
+                window.playPreview(
+                    null,
+                    song.audio,
+                    song.name,
+                    song.artist,
+                    song.cover,
+                    song.id,
+                    Number(song.duration) || 0,
+                    'made-for-you'
+                );
+            }
+            return;
+        }
+
         const playBtn = e.target.closest('.play-overlay') || e.target.closest('.play-mini-btn');
         if (!playBtn) return;
+
+        const newReleaseCard = playBtn.closest('#newReleasesGrid .song-card');
+        if (newReleaseCard) {
+            currentPlaylist = [...desktopNewReleasesPlaylist];
+            const overlay = newReleaseCard.querySelector('.play-overlay');
+            const { audio, name, artist, cover } = overlay.dataset;
+            window.playPreview(overlay, audio, name, artist, cover, newReleaseCard.dataset.id, 0, 'new');
+            return;
+        }
 
         const card = playBtn.closest('.song-card');
         if (!card) return;
@@ -1364,6 +1708,8 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     const initializeDesktopDashboardData = () => {
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
+        fetchWithContinuousRetry(fetchMadeForYou);
+        fetchWithContinuousRetry(fetchNewReleases);
     };
 
     const initializeDesktopUserUI = async (user) => {
@@ -1814,4 +2160,4 @@ const initDesktopSearch = async () => {
             searchDropdown.classList.remove('active');
         }
     });
-};
+};
