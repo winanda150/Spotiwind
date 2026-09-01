@@ -92,11 +92,7 @@ body.player-active .app-container {
 }
 
 body.mix-detail-open .mobile-header {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(-100%);
-    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    display: none;
 }
 
 .header-left {
@@ -3347,8 +3343,12 @@ body.full-player-open {
 .mix-detail-scrollable {
     flex: 1;
     overflow-y: auto;
-    padding: 1.25rem 1rem 1.25rem;
+    padding: 1.25rem 1rem calc(1.25rem + 50px + env(safe-area-inset-bottom));
     -webkit-overflow-scrolling: touch;
+}
+
+body.player-active .mix-detail-modal .mix-detail-scrollable {
+    padding-bottom: calc(1.25rem + 115px + env(safe-area-inset-bottom));
 }
 
 .mix-detail-header-content {
@@ -3447,7 +3447,7 @@ body.full-player-open {
     background: none;
     border: none;
     color: var(--text-muted);
-    padding: 10px;
+    padding: 11px;
     cursor: pointer;
     border-radius: 50%;
     transition: color 0.2s;
@@ -3463,6 +3463,7 @@ body.full-player-open {
     align-items: center;
     gap: 0.75rem;
     padding: 0.65rem 0.5rem;
+    margin: 0.8rem 0;
     border-radius: 8px;
     cursor: pointer;
     transition: background 0.2s;
