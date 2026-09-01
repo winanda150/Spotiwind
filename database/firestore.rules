@@ -99,5 +99,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if true;
     }
+
+    match /top_artists/{artistId} {
+      allow read: if true;
+      allow create, update: if true;
+    }
   }
 }

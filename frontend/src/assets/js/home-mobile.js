@@ -18,6 +18,7 @@ import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNe
 import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
+import { recordArtistPlay, getTopArtists as getFirestoreTopArtists, subscribeTopArtists } from '../../services/topArtistService.js';
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -161,6 +162,7 @@ const updateSidebarMusicCounts = () => {
 const recordRecentlyPlayedSong = (song) => {
     recordRecentlyPlayed(song);
     recordTrackPlay(song);
+    recordArtistPlay(song);
     updateSidebarMusicCounts();
 };
 
@@ -1629,20 +1631,55 @@ window.toggleDownloadSong = async (song) => {
         `).join('');
     };
 
+    let topArtistsUnsubscribe = null;
+
     /**
-     * Function to fetch popular artist data from Jamendo
+     * Function to fetch popular artist data from Firebase Firestore in REAL-TIME
      */
     const fetchTopArtists = async () => {
         const artistsGrid = document.querySelector('.artists-grid');
-        try {
-            const artistsWithPhotos = await getCatalogTopArtists(10);
-            if (artistsWithPhotos.length === 0) return false;
-            renderTopArtists(artistsWithPhotos);
-            return true;
-        } catch (error) {
-            console.error("Failed to fetch artist data:", error);
-            throw error; // Throw error to be caught by fetchWithContinuousRetry
+
+        if (topArtistsUnsubscribe) {
+            topArtistsUnsubscribe();
+            topArtistsUnsubscribe = null;
         }
+
+        return new Promise((resolve) => {
+            let isFirstLoad = true;
+
+            topArtistsUnsubscribe = subscribeTopArtists((artists) => {
+                const grid = document.querySelector('.artists-grid');
+                if (!grid) {
+                    if (isFirstLoad) {
+                        isFirstLoad = false;
+                        resolve(true);
+                    }
+                    return;
+                }
+
+                if (!artists || artists.length === 0) {
+                    grid.innerHTML = `
+                        <div class="popular-empty-state">
+                            <div class="popular-empty-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </div>
+                            <h3 class="popular-empty-title">No top artists yet</h3>
+                            <p class="popular-empty-desc">Play songs to see top artists trending here.</p>
+                        </div>
+                    `;
+                } else {
+                    renderTopArtists(artists);
+                }
+
+                if (isFirstLoad) {
+                    isFirstLoad = false;
+                    resolve(true);
+                }
+            }, 10);
+        });
     };
 
     /**
@@ -3054,7 +3091,7 @@ window.toggleDownloadSong = async (song) => {
         showSkeletonLoader('.popular-section .song-grid', 'song', 10);
         showSkeletonLoader('#newReleasesGrid', 'song', 6);
         showSkeletonLoader('#indonesianSongsGrid', 'song', 6);
-        showSkeletonLoader('.artists-grid', 'artist', 5);
+        showSkeletonLoader('.artists-grid', 'artist', 10);
     };
 
     // [FIX] Pindahkan definisi initializeData ke lingkup yang lebih tinggi (global)
