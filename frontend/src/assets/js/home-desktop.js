@@ -24,7 +24,7 @@ import { getFollowingIds, getFriendsActivityByIds, subscribeFriendsActivityByIds
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
 import { isUserPremium } from '../../services/profileService.js';
-import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
+import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
@@ -37,7 +37,6 @@ let activeAudio = new Audio();
 let currentPlayingBtn = null;
 let currentPlaylist = [];
 let desktopMadeForYouMixes = []; // Buffer to store 10 Made for You mixes on desktop
-let desktopNewReleasesPlaylist = []; // Buffer to store new releases on desktop
 let currentSongIndex = -1;
 let activeMixId = null; // Track the active Made for You mix so overlapping songs do not cross-switch between mixes
 let isDesktopMixDetailShuffleActive = false; // Track whether shuffle is toggled on in the desktop Mix Detail modal
@@ -359,9 +358,25 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     const wasSameSong = Boolean(currentSongData && (String(currentSongData.id) === songId || (audioUrl && currentSongData.audio === audioUrl)));
     const isSameSong = Boolean(
         context === 'made-for-you'
-            ? (previousMixId && String(previousMixId) === String(mixId) && wasSameSong && activeAudio && activeAudio.src)
+            ? (previousMixId && mixId ? String(previousMixId) === String(mixId) : true) && wasSameSong && activeAudio && activeAudio.src
             : (wasSameSong && activeAudio && activeAudio.src)
     );
+
+    if (isSameSong) {
+        if (!activeAudio.paused) {
+            activeAudio.pause();
+        } else {
+            if (btn) btn.classList.add('btn-loading');
+            document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.add('btn-loading'));
+            activeAudio.play().catch(e => {
+                console.error("Resume error:", e);
+            }).finally(() => {
+                if (btn) btn.classList.remove('btn-loading');
+                document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
+            });
+        }
+        return;
+    }
 
     if (context === 'made-for-you') {
         activeMixId = mixId || activeMixId || (desktopMadeForYouMixes.find(m => m.songs && m.songs.some(s => String(s.id) === songId || (s.audio && s.audio === audioUrl)))?.id) || null;
@@ -380,21 +395,6 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
                 currentDesktopPlaybackContext = null;
             }
         }
-    }
-
-    if (isSameSong) {
-        if (!activeAudio.paused) {
-            activeAudio.pause();
-        } else {
-            if (btn) btn.classList.add('btn-loading');
-            document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.add('btn-loading'));
-            activeAudio.play().catch(e => {
-                console.error("Resume error:", e);
-                if (btn) btn.classList.remove('btn-loading');
-                document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
-            });
-        }
-        return;
     }
 
     // Context-aware playlist management
@@ -786,23 +786,6 @@ const fetchMadeForYou = async () => {
     }
 };
 
-/**
- * Function to fetch new releases on desktop
- */
-const fetchNewReleases = async () => {
-    const gridSelector = '#newReleasesGrid';
-    try {
-        const rawSongs = await getNewReleaseCatalog(6);
-        if (!rawSongs || rawSongs.length === 0) return false;
-        desktopNewReleasesPlaylist = rawSongs;
-        renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton');
-        return true;
-    } catch (error) {
-        console.error("Failed to fetch desktop new releases:", error);
-        throw error;
-    }
-};
-
 let popularTracksUnsubscribe = null;
 
 /**
@@ -889,6 +872,7 @@ const syncActiveDesktopUI = () => {
     if (isPlaying || isPaused) {
         // Highlight active individual songs
         document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
+            if (el.classList.contains('mix-card') || el.classList.contains('mix-track-row')) return;
             el.classList.add('is-active-song');
             if (isPaused) el.classList.add('is-paused');
             const overlay = el.querySelector('.play-overlay');
@@ -915,7 +899,9 @@ const syncActiveDesktopUI = () => {
         document.querySelectorAll('.mix-track-row').forEach(row => {
             const rowSongId = row.dataset.songId;
             const rowAudio = row.dataset.songAudio;
-            if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
+            const rowMixId = row.dataset.mixId;
+            const isRowInActiveMix = activeMixId ? String(rowMixId) === String(activeMixId) : false;
+            if (isRowInActiveMix && (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio))) {
                 row.classList.add('is-active-song');
                 if (isPaused) row.classList.add('is-paused');
                 const playIcon = row.querySelector('.mix-track-play-icon');
@@ -975,8 +961,9 @@ const openDesktopMixDetailModal = (mixId) => {
         </div>
     `;
 
+    const isMixActive = activeMixId ? String(targetMix.id) === String(activeMixId) : false;
     tracklist.innerHTML = targetMix.songs.map((song, idx) => {
-        const isCurrent = currentSongData && (String(currentSongData.id) === String(song.id) || (song.audio && currentSongData.audio === song.audio));
+        const isCurrent = isMixActive && currentSongData && (String(currentSongData.id) === String(song.id) || (song.audio && currentSongData.audio === song.audio));
         const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
         const isPaused = isCurrent && activeAudio && activeAudio.paused;
         const min = Math.floor((song.duration || 0) / 60);
@@ -1089,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mixDetailPlayAllBtn = e.target.closest('#mixDetailPlayAllBtn');
         if (mixDetailPlayAllBtn && activeDesktopDetailMix && activeDesktopDetailMix.songs.length > 0) {
             e.stopPropagation();
-            const isMixActive = currentSongData && activeDesktopDetailMix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+            const isMixActive = activeMixId ? String(activeDesktopDetailMix.id) === String(activeMixId) : false;
             if (isMixActive) {
                 if (!activeAudio.paused) {
                     activeAudio.pause();
@@ -1152,15 +1139,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const playBtn = e.target.closest('.play-overlay') || e.target.closest('.play-mini-btn');
         if (!playBtn) return;
-
-        const newReleaseCard = playBtn.closest('#newReleasesGrid .song-card');
-        if (newReleaseCard) {
-            currentPlaylist = [...desktopNewReleasesPlaylist];
-            const overlay = newReleaseCard.querySelector('.play-overlay');
-            const { audio, name, artist, cover } = overlay.dataset;
-            window.playPreview(overlay, audio, name, artist, cover, newReleaseCard.dataset.id, 0, 'new');
-            return;
-        }
 
         const card = playBtn.closest('.song-card');
         if (!card) return;
@@ -1774,7 +1752,6 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
         fetchWithContinuousRetry(fetchMadeForYou);
-        fetchWithContinuousRetry(fetchNewReleases);
     };
 
     const initializeDesktopUserUI = async (user) => {

@@ -1026,10 +1026,6 @@ body.mix-detail-open .mobile-header {
     transition: color 0.2s;
 }
 
-.see-all-link:hover {
-    color: var(--text-main);
-}
-
 .mood-grid {
     display: flex;
     gap: 1rem;

@@ -1126,15 +1126,6 @@ body.is-dragging-progress .progress-thumb {
     transition: color 0.2s;
 }
 
-.see-all-link:hover {
-    color: var(--text-main);
-}
-
-.see-all-link:hover .see-all-icon {
-    color: var(--text-main);
-    /* Ikon juga berubah warna saat hover */
-}
-
 .mood-grid {
     display: flex;
     gap: 1rem;

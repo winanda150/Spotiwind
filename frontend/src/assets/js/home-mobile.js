@@ -12,7 +12,7 @@ import { updateMyActivity as updateActivityRecord } from '../../services/activit
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUnreadNotifications } from '../../services/notificationService.js';
-import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getNewReleaseCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
+import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
@@ -29,7 +29,6 @@ let activeAudio = new Audio();
 let currentPlayingBtn = null;
 let currentPlaylist = [];
 let trendingPlaylist = []; // Buffer to store the list of popular songs
-let newReleasesPlaylist = []; // Buffer to store the list of new releases
 let madeForYouMixes = []; // Buffer to store the 10 Made for You mixes
 let activeMixId = null; // Track the Mix currently playing so only that card stays active
 let isMixDetailShuffleActive = false; // Track whether shuffle is toggled on in the Mix Detail modal
@@ -285,6 +284,10 @@ const getSongElements = (song) => {
     if (!song) return [];
     const elements = Array.from(document.querySelectorAll('[data-id], [data-song-id], .library-song-item, .popular-search-card, .dropdown-item, .song-card, .artist-song-list-item'));
     return elements.filter(element => {
+        // Exclude mix cards and mix track rows because they are strictly scoped by activeMixId
+        if (element.classList.contains('mix-card') || element.classList.contains('mix-track-row')) {
+            return false;
+        }
         const id = element.dataset.id || element.dataset.songId || element.dataset.popularId;
         const audio = element.dataset.audio || element.dataset.songAudio || element.querySelector('.play-overlay')?.dataset?.audio;
         const name = element.dataset.name || element.dataset.songName || element.querySelector('.song-name, .library-song-name, .dropdown-song-name, .popular-search-title-row strong, .item-name')?.textContent;
@@ -359,7 +362,9 @@ const syncActiveSongUI = () => {
         document.querySelectorAll('.mix-track-row').forEach(row => {
             const rowSongId = row.dataset.songId;
             const rowAudio = row.dataset.songAudio;
-            if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
+            const rowMixId = row.dataset.mixId;
+            const isRowInActiveMix = activeMixId ? String(rowMixId) === String(activeMixId) : false;
+            if (isRowInActiveMix && (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio))) {
                 row.classList.add('is-active-song');
                 if (isPaused) row.classList.add('is-paused');
                 const playIcon = row.querySelector('.mix-track-play-icon');
@@ -1133,8 +1138,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
+        const isMixActive = activeMixId ? String(targetMix.id) === String(activeMixId) : false;
         tracklist.innerHTML = targetMix.songs.map((song, idx) => {
-            const isCurrent = currentSongData && areSameSongs(currentSongData, song);
+            const isCurrent = isMixActive && currentSongData && areSameSongs(currentSongData, song);
             const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
             const isPaused = isCurrent && activeAudio && activeAudio.paused;
             const min = Math.floor((song.duration || 0) / 60);
@@ -1244,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mixDetailPlayAllBtn = e.target.closest('#mixDetailPlayAllBtn');
         if (mixDetailPlayAllBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
             e.stopPropagation();
-            const isMixActive = currentSongData && activeDetailMix.songs.some(s => areSameSongs(s, currentSongData));
+            const isMixActive = activeMixId ? String(activeDetailMix.id) === String(activeMixId) : false;
             if (isMixActive) {
                 if (!activeAudio.paused) {
                     activeAudio.pause();
@@ -1640,27 +1646,6 @@ window.toggleDownloadSong = async (song) => {
             return;
         }
 
-        const previousMixId = activeMixId;
-        if (context === 'made-for-you') {
-            activeMixId = mixId || activeMixId || (madeForYouMixes.find(m => m.songs && m.songs.some(s => areSameSongs(s, targetSong)))?.id) || null;
-            currentPlaybackContext = 'made-for-you';
-        } else if (context) {
-            activeMixId = null;
-            currentPlaybackContext = context;
-        } else {
-            // Context was not explicitly provided (e.g. from playNext / queue / loop):
-            // Check if the song is still in the active mix to preserve activeMixId
-            if (activeMixId) {
-                const activeMix = madeForYouMixes.find(m => String(m.id) === String(activeMixId));
-                if (activeMix && activeMix.songs && activeMix.songs.some(s => areSameSongs(s, targetSong))) {
-                    currentPlaybackContext = 'made-for-you';
-                } else {
-                    activeMixId = null;
-                    currentPlaybackContext = null;
-                }
-            }
-        }
-
         const songId = String(id);
         const targetSong = {
             id: songId,
@@ -1672,7 +1657,7 @@ window.toggleDownloadSong = async (song) => {
         };
 
         const wasSameSong = Boolean(currentSongData && areSameSongs(currentSongData, targetSong));
-        const isSameSong = Boolean(isSameSongForContext(currentSongData, targetSong, context, mixId, previousMixId) && activeAudio && activeAudio.src);
+        const isSameSong = Boolean(isSameSongForContext(currentSongData, targetSong, context, mixId, activeMixId) && activeAudio && activeAudio.src);
 
         // If btn is null (called from Up Next/Next/Prev/Library/Search), try to find the button in the DOM to sync the UI
         if (!btn) {
@@ -1681,7 +1666,7 @@ window.toggleDownloadSong = async (song) => {
             btn = activeEl?.querySelector('.play-overlay');
         }
 
-        // Toggle Play/Pause logic for the same song FIRST (never wipe or re-shuffle queue on same song)
+        // Toggle Play/Pause logic for the same song FIRST (preserve activeMixId, queue, and playback state)
         if (isSameSong) {
             if (!activeAudio.paused) {
                 activeAudio.pause();
@@ -1702,13 +1687,31 @@ window.toggleDownloadSong = async (song) => {
             return;
         }
 
+        // Only update activeMixId and playback context when playing a DIFFERENT song/mix:
+        if (context === 'made-for-you') {
+            activeMixId = mixId || activeMixId || (madeForYouMixes.find(m => m.songs && m.songs.some(s => areSameSongs(s, targetSong)))?.id) || null;
+            currentPlaybackContext = 'made-for-you';
+        } else if (context) {
+            activeMixId = null;
+            currentPlaybackContext = context;
+        } else {
+            // Context was not explicitly provided (e.g. from playNext / queue / loop):
+            if (activeMixId) {
+                const activeMix = madeForYouMixes.find(m => String(m.id) === String(activeMixId));
+                if (activeMix && activeMix.songs && activeMix.songs.some(s => areSameSongs(s, targetSong))) {
+                    currentPlaybackContext = 'made-for-you';
+                } else {
+                    activeMixId = null;
+                    currentPlaybackContext = null;
+                }
+            }
+        }
+
         // Build a fresh queue from the selected context so a different Mix cannot inherit the previous playlist state.
         let baseQueue = [];
         if (context) {
             if (context === 'trending') {
                 baseQueue = [...trendingPlaylist];
-            } else if (context === 'new') {
-                baseQueue = [...newReleasesPlaylist];
             } else if (context === 'made-for-you') {
                 if (Array.isArray(customPlaylist) && customPlaylist.length > 0) {
                     baseQueue = [...customPlaylist];
@@ -2209,29 +2212,6 @@ window.toggleDownloadSong = async (song) => {
         } else {
             grid.innerHTML = items.map(item => itemRenderer(item, context)).join('');
             syncActiveSongUI();
-        }
-    };
-
-    /**
-     * Function to fetch the latest release data from Jamendo
-     */
-    const fetchNewReleases = async () => {
-        const gridSelector = '#newReleasesGrid';
-
-        try {
-            const rawSongs = await getNewReleaseCatalog(12);
-
-            // [FIX] Only render and return true if there is data to display.
-            if (rawSongs.length === 0) {
-                return false; // Signal the retry-wrapper to try again.
-            }
-
-            newReleasesPlaylist = rawSongs;
-            renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'new');
-            return true; // Success
-        } catch (error) {
-            console.error("Failed to fetch new releases:", error);
-            throw error; // Throw error to be caught by fetchWithContinuousRetry
         }
     };
 
@@ -3442,7 +3422,6 @@ window.toggleDownloadSong = async (song) => {
         showSkeletonLoader('.popular-section .song-grid', 'song', 10);
         showSkeletonLoader('.artists-grid', 'artist', 10);
         showSkeletonLoader('#madeForYouGrid', 'song', 10);
-        showSkeletonLoader('#newReleasesGrid', 'song', 6);
     };
 
     // [FIX] Pindahkan definisi initializeData ke lingkup yang lebih tinggi (global)
@@ -3453,7 +3432,6 @@ window.toggleDownloadSong = async (song) => {
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
         fetchWithContinuousRetry(fetchMadeForYou);
-        fetchWithContinuousRetry(fetchNewReleases);
         loadLocalCatalogData(); // Load catalog data in background for search & artist pages
     };
 
