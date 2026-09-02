@@ -17,7 +17,26 @@ const SEARCH_STATS_COLLECTION = 'search_stats';
 
 const getStatsRef = (type) => collection(db, SEARCH_STATS_COLLECTION, type, 'items');
 
-const getEntityId = (type, item) => `${type}-${String(item.id || item.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+const getEntityId = (type, item) => {
+    let raw = '';
+    if (type === 'songs' && item.artist && item.name) {
+        raw = `${item.artist}-${item.name}`;
+    } else if (type === 'artists') {
+        raw = item.name || item.id || '';
+    } else if (type === 'albums') {
+        raw = item.artist ? `${item.artist}-${item.name}` : (item.name || item.id || '');
+    } else {
+        raw = item.id || item.name || '';
+    }
+
+    const clean = String(raw)
+        .toLowerCase()
+        .replace(/^(songs|artists|albums)-+/i, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+    return clean || 'unknown';
+};
 
 export const normalizePopularityAssetUrl = (url) => {
     if (!url || typeof url !== 'string') return '';
