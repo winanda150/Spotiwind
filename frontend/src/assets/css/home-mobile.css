@@ -20,7 +20,9 @@ html {
     background-color: var(--bg-dark);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -169,6 +171,7 @@ body.mix-detail-open .mobile-header {
 }
 
 @media (min-width: 1024px) {
+
     .mobile-sidebar,
     .sidebar-overlay {
         display: none !important;
@@ -204,7 +207,7 @@ body.mix-detail-open .mobile-header {
     font-weight: 600;
 }
 
-.sidebar-brand > span {
+.sidebar-brand>span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -251,7 +254,7 @@ body.mix-detail-open .mobile-header {
     margin-top: 0;
     padding: 1.35rem 1.15rem 0;
     width: auto;
-    background-image: 
+    background-image:
         linear-gradient(to bottom, rgba(24, 25, 36, 0.2) 0%, rgba(24, 25, 36, 0.45) 45%, rgba(24, 25, 36, 0.85) 80%, #181924 100%),
         url('../../../public/Elemen/Logo/Banner%20Exclusive.webp');
     background-size: cover;
@@ -385,7 +388,7 @@ body.mix-detail-open .mobile-header {
     flex-shrink: 0;
 }
 
-.sidebar-profile-link > span {
+.sidebar-profile-link>span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -505,7 +508,7 @@ body.mix-detail-open .mobile-header {
     color: var(--text-main);
 }
 
-.sidebar-music-item > span:not(.sidebar-music-meta) {
+.sidebar-music-item>span:not(.sidebar-music-meta) {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -610,7 +613,7 @@ body.mix-detail-open .mobile-header {
     color: var(--text-main);
 }
 
-.sidebar-playlist-item > img {
+.sidebar-playlist-item>img {
     width: 42px;
     height: 42px;
     flex-shrink: 0;
@@ -726,7 +729,7 @@ body.mix-detail-open .mobile-header {
     flex-shrink: 0;
 }
 
-.sidebar-secondary-item > span {
+.sidebar-secondary-item>span {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -734,11 +737,11 @@ body.mix-detail-open .mobile-header {
     white-space: nowrap;
 }
 
-.sidebar-secondary-item--with-chevron > span {
+.sidebar-secondary-item--with-chevron>span {
     flex: 1;
 }
 
-.sidebar-secondary-item--with-chevron > svg:last-child {
+.sidebar-secondary-item--with-chevron>svg:last-child {
     width: 16px;
     height: 16px;
 }
@@ -2536,8 +2539,13 @@ body.full-player-open {
 }
 
 @keyframes bounce {
-    from { height: 4px; }
-    to { height: 12px; }
+    from {
+        height: 4px;
+    }
+
+    to {
+        height: 12px;
+    }
 }
 
 .up-next-icon {
@@ -3213,10 +3221,11 @@ body.full-player-open {
     z-index: 2;
 }
 
-.mix-card .mix-overlay-gradient {
+.mix-card .mix-overlay-gradient,
+.mix-detail-hero-cover-wrapper .mix-overlay-gradient {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.65) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.65) 100%);
     pointer-events: none;
     z-index: 1;
 }
@@ -3232,7 +3241,8 @@ body.full-player-open {
     overflow: hidden;
 }
 
-.mix-card .mix-color-strip {
+.mix-card .mix-color-strip,
+.mix-detail-hero-cover-wrapper .mix-color-strip {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -3251,11 +3261,13 @@ body.full-player-open {
     height: 100%;
     position: absolute;
     inset: 0;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-collage-cell {
     overflow: hidden;
     display: flex;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-collage-cell img {
@@ -3264,6 +3276,7 @@ body.full-player-open {
     object-fit: cover;
     display: block;
     filter: brightness(0.92);
+    aspect-ratio: 4 / 3;
 }
 
 /* =============================================
@@ -3289,9 +3302,9 @@ body.full-player-open {
 .mix-detail-modal .mix-detail-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(10, 15, 29, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
 }
 
 .mix-detail-sheet {
@@ -3301,7 +3314,7 @@ body.full-player-open {
     flex-direction: column;
     width: 100%;
     height: 100%;
-    background: #0b1120;
+    background: radial-gradient(circle at 50% 0%, rgba(185, 30, 201, 0.15), transparent 70%), var(--bg-dark, #0f172a);
     overflow: hidden;
 }
 
@@ -3310,33 +3323,27 @@ body.full-player-open {
     align-items: center;
     justify-content: space-between;
     padding: 0.75rem 1rem;
-    background: rgba(11, 17, 32, 0.85);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     z-index: 10;
 }
 
 .mix-detail-back-btn {
     background: none;
     border: none;
-    color: #ffffff;
+    color: var(--text-main, #ffffff);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 6px;
-    border-radius: 50%;
-    transition: background 0.2s;
-}
-
-.mix-detail-back-btn:active {
-    background: rgba(255, 255, 255, 0.1);
 }
 
 .mix-detail-nav-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-main, #ffffff);
     letter-spacing: 0.5px;
 }
 
@@ -3363,9 +3370,10 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
     position: relative;
     width: 180px;
     height: 135px;
+    aspect-ratio: 4 / 3;
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 25px rgba(185, 30, 201, 0.25);
     margin-bottom: 1.25rem;
     border: 1px solid rgba(255, 255, 255, 0.15);
 }
@@ -3374,13 +3382,15 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-detail-hero-badge {
     display: inline-block;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
     font-size: 0.65rem;
     font-weight: 800;
@@ -3394,14 +3404,14 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 .mix-detail-hero-title {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #ffffff;
+    color: var(--text-main, #ffffff);
     margin: 0 0 0.5rem;
     line-height: 1.2;
 }
 
 .mix-detail-hero-desc {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     margin: 0 0 0.75rem;
     max-width: 320px;
     line-height: 1.4;
@@ -3409,7 +3419,7 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 
 .mix-detail-hero-meta {
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--text-muted, #9ca3af);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -3420,7 +3430,7 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
     align-items: center;
     justify-content: space-between;
     padding: 0 0.5rem 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
     margin-bottom: 1rem;
 }
 
@@ -3428,15 +3438,15 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: #22c55e;
-    color: #000000;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    color: #ffffff;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
-    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: 0 8px 24px rgba(185, 30, 201, 0.45);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .mix-detail-play-btn:active {
@@ -3444,59 +3454,121 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 }
 
 .mix-detail-action-icon-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    padding: 11px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    color: var(--text-muted, #9ca3af);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     border-radius: 50%;
-    transition: color 0.2s;
+    transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
 }
 
-.mix-detail-action-icon-btn:hover,
+.mix-detail-action-icon-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mix-detail-action-icon-btn:active {
+    transform: scale(0.92);
+}
+
 .mix-detail-action-icon-btn.is-active {
-    color: #22c55e;
+    color: #ffffff;
+    background: rgba(185, 30, 201, 0.3);
+    border-color: var(--accent-color, #B91EC9);
+    box-shadow: 0 0 16px rgba(185, 30, 201, 0.5);
+}
+
+.mix-detail-action-icon-btn.is-active svg {
+    color: #ffffff;
 }
 
 .mix-track-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.65rem 0.5rem;
-    margin: 0.8rem 0;
+    gap: 0.85rem;
+    padding: 0.65rem 0.85rem;
+    margin: 0.6rem 0;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
 }
 
-.mix-track-row:active, .mix-track-row:hover {
+.mix-track-row:active,
+.mix-track-row:hover {
     background: rgba(255, 255, 255, 0.06);
 }
 
 .mix-track-row.is-active-song {
-    background: rgba(34, 197, 94, 0.12);
+    background: rgba(185, 30, 201, 0.15) !important;
+    border-color: var(--accent-color, #B91EC9) !important;
 }
 
 .mix-track-row.is-active-song .mix-track-name {
-    color: #22c55e;
+    color: #22c55e !important;
     font-weight: 700;
 }
 
+.mix-track-row.is-active-song .mix-track-idx {
+    color: var(--accent-color, #B91EC9);
+}
+
 .mix-track-idx {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     width: 20px;
     text-align: center;
     flex-shrink: 0;
 }
 
-.mix-track-cover {
+.mix-track-cover-wrapper {
+    position: relative;
     width: 44px;
     height: 44px;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.mix-track-cover {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
     border-radius: 6px;
     object-fit: cover;
-    flex-shrink: 0;
+    display: block;
+}
+
+.mix-track-play-icon {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: #ffffff;
+    border-radius: 6px;
+}
+
+.mix-track-play-icon svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.mix-track-row:hover .mix-track-play-icon,
+.mix-track-row.is-active-song .mix-track-play-icon {
+    opacity: 1;
 }
 
 .mix-track-info {
@@ -3507,7 +3579,7 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 .mix-track-name {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--text-main, #ffffff);
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -3516,7 +3588,7 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 
 .mix-track-artist {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     margin: 2px 0 0;
     white-space: nowrap;
     overflow: hidden;
@@ -3524,8 +3596,10 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
 }
 
 .mix-track-duration {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+    font-size: 0.78rem;
+    color: var(--text-muted, #9ca3af);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+    margin-right: 0.35rem;
+    padding-left: 0.5rem;
 }

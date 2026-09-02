@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <script>
         // Suppress third-party/extension performance observer noise in console
-        (function() {
-            var isExtensionNoise = function(text) {
+        (function () {
+            var isExtensionNoise = function (text) {
                 if (!text) return false;
                 var str = String(text);
                 return str.indexOf('startTime') !== -1 || str.indexOf('reportAllChanges') !== -1;
             };
 
-            var suppress = function(e) {
+            var suppress = function (e) {
                 var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
                 var stack = (e && e.error && e.error.stack) || '';
                 if (isExtensionNoise(msg) || isExtensionNoise(stack)) {
@@ -22,13 +22,13 @@
                 }
             };
             window.addEventListener('error', suppress, true);
-            window.onerror = function(msg, url, line, col, err) {
+            window.onerror = function (msg, url, line, col, err) {
                 var text = String(msg || '') + ' ' + String(err && err.stack || '');
                 if (isExtensionNoise(text)) {
                     return true;
                 }
             };
-            window.addEventListener('unhandledrejection', function(e) {
+            window.addEventListener('unhandledrejection', function (e) {
                 var reason = String(e && e.reason ? (e.reason.message || e.reason.stack || e.reason) : '');
                 if (isExtensionNoise(reason)) {
                     e.preventDefault();
@@ -38,9 +38,9 @@
             // Intercept console.error calls from injected scripts
             if (window.console && window.console.error) {
                 var origError = window.console.error;
-                window.console.error = function() {
+                window.console.error = function () {
                     var args = Array.prototype.slice.call(arguments);
-                    var joined = args.map(function(a) {
+                    var joined = args.map(function (a) {
                         return (a && (a.message || a.stack || String(a))) || '';
                     }).join(' ');
                     if (isExtensionNoise(joined)) {
@@ -52,13 +52,14 @@
         })();
 
         // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
-        (function() {
+        (function () {
             var base = document.createElement('base');
             base.href = window.location.origin + '/frontend/src/pages/';
             document.head.appendChild(base);
         })();
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
@@ -67,8 +68,7 @@
     <title>Spotiwind - Feel The Music, Ride The Wind</title>
     <meta name="description"
         content="Explore your music library on Spotiwind. Discover the latest songs, see your friends' activity, and enjoy playlists curated just for you.">
-    <meta name="keywords"
-        content="Spotiwind mobile, music streaming, indonesian songs, playlists, podcasts">
+    <meta name="keywords" content="Spotiwind mobile, music streaming, indonesian songs, playlists, podcasts">
     <link rel="icon" type="image/x-icon" href="../../public/Elemen/Logo/Spotiwind.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,7 +90,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(() => {});
+                navigator.serviceWorker.register('/sw.js').catch(() => { });
             });
         }
     </script>
@@ -102,35 +102,39 @@
 
     <div class="app-container">
         <header class="mobile-header">
-    <div class="header-left">
-        <button class="menu-btn" type="button" aria-label="Open menu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-        </button>
-    </div>
-    <div class="header-brand">
-        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo" width="28" height="28">
-        <span class="mobile-brand-name">Spotiwind</span>
-    </div>
-    <div class="header-right">
-        <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
-            </svg>
-            <span id="notificationBadge" class="notification-badge hidden"></span>
-        </button>
-    </div>
-</header>
+            <div class="header-left">
+                <button class="menu-btn" type="button" aria-label="Open menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="header-brand">
+                <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="mobile-logo" width="28"
+                    height="28">
+                <span class="mobile-brand-name">Spotiwind</span>
+            </div>
+            <div class="header-right">
+                <button id="notificationBtn" class="notification-btn" type="button" aria-label="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 0-3.46 0"></path>
+                    </svg>
+                    <span id="notificationBadge" class="notification-badge hidden"></span>
+                </button>
+            </div>
+        </header>
 
         <div class="sidebar-overlay" data-sidebar-close></div>
         <aside class="mobile-sidebar" aria-label="Main navigation" aria-hidden="true" inert>
             <div class="sidebar-header">
                 <div class="sidebar-brand">
-                    <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="" class="sidebar-logo" width="28" height="28">
+                    <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="" class="sidebar-logo" width="28"
+                        height="28">
                     <span>Spotiwind</span>
                 </div>
                 <button class="sidebar-close-btn" type="button" aria-label="Close menu" data-sidebar-close>
@@ -143,7 +147,8 @@
             </div>
             <div class="sidebar-profile">
                 <div class="avatar-container sidebar-profile-avatar-wrapper">
-                    <img id="sidebarUserAvatar" class="sidebar-profile-avatar" src="" alt="User Avatar" width="48" height="48" referrerpolicy="no-referrer">
+                    <img id="sidebarUserAvatar" class="sidebar-profile-avatar" src="" alt="User Avatar" width="48"
+                        height="48" referrerpolicy="no-referrer">
                     <span class="online-status offline"></span>
                 </div>
                 <div class="sidebar-profile-info">
@@ -154,8 +159,8 @@
                     <span id="sidebarUserEmail" class="sidebar-profile-email">user@example.com</span>
                     <a href="#" class="sidebar-profile-link" data-sidebar-target="account-mobile.html">
                         <span>View Profile</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="m9 18 6-6-6-6"></path>
                         </svg>
                     </a>
@@ -172,7 +177,8 @@
                 <a href="#" class="sidebar-nav-item" data-sidebar-target="search-mobile.html">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M0 0h24v24H0z" fill="none"></path>
-                        <path class="search-icon-inner-circle" fill="currentColor" d="M16 11a5 5 0 1 1-10 0a5 5 0 0 1 10 0"></path>
+                        <path class="search-icon-inner-circle" fill="currentColor"
+                            d="M16 11a5 5 0 1 1-10 0a5 5 0 0 1 10 0"></path>
                         <path fill="currentColor" fill-rule="evenodd"
                             d="M2 11a9 9 0 1 1 16.032 5.618l3.675 3.675a1 1 0 0 1-1.414 1.414l-3.675-3.675A9 9 0 0 1 2 11m9-7a7 7 0 1 0 0 14a7 7 0 0 0 0-14"
                             clip-rule="evenodd"></path>
@@ -207,31 +213,50 @@
             <section class="sidebar-music-section" aria-labelledby="yourMusicTitle">
                 <h2 id="yourMusicTitle" class="sidebar-section-title">YOUR MUSIC</h2>
                 <div class="sidebar-music-list">
-                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="tracks">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" aria-hidden="true">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"></path>
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html"
+                        data-library-initial-tab="tracks">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path
+                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z">
+                            </path>
                         </svg>
                         <span>Liked Songs</span>
-                        <span class="sidebar-music-meta"><span id="likedSongsCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        <span class="sidebar-music-meta"><span id="likedSongsCount">0</span><svg viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" aria-hidden="true">
+                                <path d="m9 18 6-6-6-6"></path>
+                            </svg></span>
                     </a>
-                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="download">
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html"
+                        data-library-initial-tab="download">
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"
                             aria-hidden="true">
                             <path d="M0 0h24v24H0z" fill="none"></path>
-                            <path fill="currentColor" d="m12 16l-5-5l1.4-1.45l2.6 2.6V4h2v8.15l2.6-2.6L17 11zm-6 4q-.825 0-1.412-.587T4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413T18 20z"></path>
+                            <path fill="currentColor"
+                                d="m12 16l-5-5l1.4-1.45l2.6 2.6V4h2v8.15l2.6-2.6L17 11zm-6 4q-.825 0-1.412-.587T4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413T18 20z">
+                            </path>
                         </svg>
                         <span>Downloads</span>
-                        <span class="sidebar-music-meta"><span id="sidebarDownloadsCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        <span class="sidebar-music-meta"><span id="sidebarDownloadsCount">0</span><svg
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m9 18 6-6-6-6"></path>
+                            </svg></span>
                     </a>
-                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html" data-library-initial-tab="overview">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" aria-hidden="true">
+                    <a href="#" class="sidebar-music-item" data-sidebar-target="library-mobile.html"
+                        data-library-initial-tab="overview">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="9"></circle>
                             <polyline points="12 7 12 12 15 14"></polyline>
                         </svg>
                         <span>Recently Played</span>
-                        <span class="sidebar-music-meta"><span id="sidebarRecentCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+                        <span class="sidebar-music-meta"><span id="sidebarRecentCount">0</span><svg viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" aria-hidden="true">
+                                <path d="m9 18 6-6-6-6"></path>
+                            </svg></span>
                     </a>
                 </div>
             </section>
@@ -239,8 +264,8 @@
                 <div class="sidebar-section-heading">
                     <h2 id="yourPlaylistsTitle" class="sidebar-section-title">YOUR PLAYLISTS</h2>
                     <button class="sidebar-add-playlist-btn" type="button" aria-label="Create playlist">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
                         </svg>
@@ -249,7 +274,8 @@
                 <div class="sidebar-playlist-list" id="sidebarPlaylistList">
                     <!-- Dynamic playlists will be rendered here -->
                 </div>
-                <a href="#" class="sidebar-see-all-playlists hidden" id="sidebarSeeAllPlaylists" data-sidebar-target="library-mobile.html" data-library-initial-tab="playlists">
+                <a href="#" class="sidebar-see-all-playlists hidden" id="sidebarSeeAllPlaylists"
+                    data-sidebar-target="library-mobile.html" data-library-initial-tab="playlists">
                     <span>See all playlists</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
@@ -262,7 +288,9 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
                     </svg>
                     <span>Settings</span>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -680,7 +708,8 @@
             <div class="footer-container">
                 <div class="footer-left">
                     <div class="footer-brand">
-                        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo">
+                        <img src="../../public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo" class="footer-logo"
+                            width="24" height="24">
                         <span class="footer-brand-name">Spotiwind</span>
                     </div>
                     <p class="footer-desc">Find the best music for every moment of your life.</p>
@@ -773,7 +802,7 @@
     <!-- Mobile Player Bar -->
     <div class="mobile-player-bar" id="mobilePlayerBar">
         <div class="mobile-player-left">
-            <img src="" alt="" id="mobileTrackCover" class="mobile-track-cover">
+            <img src="" alt="" id="mobileTrackCover" class="mobile-track-cover" width="40" height="40">
             <div class="mobile-track-info">
                 <div id="mobileTrackName" class="mobile-track-name">Track Name</div>
                 <div id="mobileTrackArtist" class="mobile-track-artist">Artist Name</div>
@@ -825,7 +854,7 @@
 
         <div class="full-player-content">
             <div class="full-cover-wrapper">
-                <img src="" alt="" id="fullTrackCover" class="full-track-cover">
+                <img src="" alt="" id="fullTrackCover" class="full-track-cover" width="300" height="300">
             </div>
 
             <div class="full-track-meta">
@@ -984,7 +1013,8 @@
         <div class="mix-detail-sheet">
             <header class="mix-detail-top-nav">
                 <button id="closeMixDetailBtn" class="mix-detail-back-btn" type="button" aria-label="Back">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
                 </button>
@@ -996,18 +1026,16 @@
                     <!-- Populated dynamically: cover, badge, title, subtitle, duration -->
                 </div>
                 <div class="mix-detail-actions">
+                    <button id="mixDetailShuffleBtn" class="mix-detail-action-icon-btn" aria-label="Shuffle">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor"
+                                d="M2 16.25a.75.75 0 0 0 0 1.5zm8.748-2.163l-.643-.386zm2.504-4.174l.643.386zM22 7l.53.53a.75.75 0 0 0 0-1.06zm-2.53 1.47a.75.75 0 0 0 1.06 1.06zm1.06-4a.75.75 0 1 0-1.06 1.06zm-5.31 2.92l-.369-.653zM2 17.75h3.603v-1.5H2zm9.39-3.277l2.505-4.174l-1.286-.772l-2.504 4.174zm7.007-6.723H22v-1.5h-3.603zm3.073-1.28l-2 2l1.06 1.06l2-2zm1.06 0l-2-2l-1.06 1.06l2 2zm-8.635 3.829c.434-.724.734-1.22 1.006-1.589c.263-.355.468-.543.689-.668l-.739-1.305c-.467.264-.82.627-1.155 1.08c-.326.44-.668 1.011-1.087 1.71zm4.502-4.049c-.815 0-1.48 0-2.025.052c-.562.055-1.054.17-1.521.435l.739 1.305c.22-.125.487-.204.927-.247c.456-.044 1.036-.045 1.88-.045zM5.603 17.75c.815 0 1.48 0 2.025-.052c.562-.055 1.054-.17 1.521-.435l-.739-1.305c-.22.125-.487.204-.927.247c-.456.044-1.036.045-1.88.045zm4.502-4.049c-.435.724-.734 1.22-1.006 1.589c-.263.355-.468.543-.689.668l.74 1.305c.466-.264.819-.627 1.154-1.08c.326-.44.668-1.011 1.087-1.71zM2 6.25a.75.75 0 0 0 0 1.5zM22 17l.53.53a.75.75 0 0 0 0-1.06zm-1.47-2.53a.75.75 0 1 0-1.06 1.06zm-1.06 4a.75.75 0 1 0 1.06 1.06zm-3.345-1.525l.144-.736zm-1.682-2.33a.75.75 0 1 0-1.286.77zm.025 1.391l.558-.501zm-6.593-8.95l.143-.737zm1.682 2.33a.75.75 0 0 0 1.286-.772zm-.025-1.393l-.558.502zM2 7.75h4.668v-1.5H2zm15.332 10H22v-1.5h-4.668zm5.198-1.28l-2-2l-1.06 1.06l2 2zm-1.06 0l-2 2l1.06 1.06l2-2zm-4.138-.22c-.645 0-.867-.003-1.063-.041l-.287 1.472c.372.072.765.069 1.35.069zm-4.175-.864c.3.502.5.84.754 1.122l1.115-1.003c-.134-.149-.25-.337-.583-.89zm3.112.823a2.25 2.25 0 0 1-1.243-.704l-1.115 1.003a3.75 3.75 0 0 0 2.071 1.173zM6.668 7.75c.645 0 .867.003 1.063.041l.287-1.472c-.372-.072-.765-.069-1.35-.069zm4.175.864c-.3-.502-.5-.84-.754-1.122L8.974 8.495c.134.149.25.337.583.89zm-3.112-.823c.48.094.916.34 1.243.704l1.115-1.003a3.75 3.75 0 0 0-2.071-1.173z" />
+                        </svg>
+                    </button>
                     <button id="mixDetailPlayAllBtn" class="mix-detail-play-btn" aria-label="Play Mix">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                    </button>
-                    <button id="mixDetailShuffleBtn" class="mix-detail-action-icon-btn" aria-label="Shuffle">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="16 3 21 3 21 8"></polyline>
-                            <line x1="4" y1="20" x2="21" y2="3"></line>
-                            <polyline points="21 16 21 21 16 21"></polyline>
-                            <line x1="15" y1="15" x2="21" y2="21"></line>
-                            <line x1="4" y1="4" x2="9" y2="9"></line>
                         </svg>
                     </button>
                 </div>
@@ -1024,7 +1052,8 @@
             <div class="playlist-modal-header">
                 <h2 id="createPlaylistTitle" class="playlist-modal-title">Create New Playlist</h2>
                 <button class="playlist-modal-close-btn" type="button" aria-label="Close modal">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -1033,14 +1062,8 @@
             <form id="createPlaylistForm" class="playlist-modal-form" autocomplete="off">
                 <div class="playlist-input-wrapper">
                     <label for="playlistNameInput" class="playlist-input-label">Playlist Name</label>
-                    <input 
-                        type="text" 
-                        id="playlistNameInput" 
-                        class="playlist-name-input" 
-                        placeholder="e.g. My Favorite Mix" 
-                        maxlength="50" 
-                        required
-                    />
+                    <input type="text" id="playlistNameInput" class="playlist-name-input"
+                        placeholder="e.g. My Favorite Mix" maxlength="50" required />
                 </div>
                 <div class="playlist-modal-actions">
                     <button type="button" class="playlist-btn-cancel">Cancel</button>
@@ -1055,12 +1078,13 @@
     <!-- Sidebar Avatar Fullscreen Square Preview -->
     <div id="sidebarAvatarPreviewModal" class="avatar-preview-modal hidden" aria-hidden="true">
         <div class="avatar-preview-backdrop"></div>
-        
+
         <!-- Header Mode Pratinjau Gelap -->
         <header class="avatar-preview-header">
             <div class="avatar-preview-header-left">
                 <button id="sidebarAvatarPreviewBackBtn" class="preview-header-btn" type="button" aria-label="Kembali">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
                         <line x1="19" y1="12" x2="5" y2="12"></line>
                         <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
@@ -1068,13 +1092,17 @@
                 <span class="preview-header-title">Foto profile</span>
             </div>
             <div class="avatar-preview-header-right">
-                <button id="sidebarAvatarPreviewEditBtn" class="preview-header-btn" type="button" aria-label="Edit foto">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <button id="sidebarAvatarPreviewEditBtn" class="preview-header-btn" type="button"
+                    aria-label="Edit foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
                         <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
                     </svg>
                 </button>
-                <button id="sidebarAvatarPreviewShareBtn" class="preview-header-btn" type="button" aria-label="Bagikan foto">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <button id="sidebarAvatarPreviewShareBtn" class="preview-header-btn" type="button"
+                    aria-label="Bagikan foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
                         <circle cx="18" cy="5" r="3"></circle>
                         <circle cx="6" cy="12" r="3"></circle>
                         <circle cx="18" cy="19" r="3"></circle>
@@ -1087,11 +1115,13 @@
 
         <div class="avatar-preview-dialog" role="dialog" aria-modal="true" aria-label="Foto Profil">
             <div class="avatar-preview-square-wrapper">
-                <img id="sidebarAvatarPreviewImg" src="" alt="Foto Profil" class="avatar-preview-square-img">
+                <img id="sidebarAvatarPreviewImg" src="" alt="Foto Profil" class="avatar-preview-square-img" width="160"
+                    height="160">
             </div>
         </div>
     </div>
 
     <script type="module" src="../assets/js/home-mobile.js"></script>
 </body>
+
 </html>

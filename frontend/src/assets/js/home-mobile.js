@@ -32,6 +32,8 @@ let trendingPlaylist = []; // Buffer to store the list of popular songs
 let newReleasesPlaylist = []; // Buffer to store the list of new releases
 let madeForYouMixes = []; // Buffer to store the 10 Made for You mixes
 let activeMixId = null; // Track the Mix currently playing so only that card stays active
+let isMixDetailShuffleActive = false; // Track whether shuffle is toggled on in the Mix Detail modal
+let currentPlaybackContext = null; // Track current playback context (e.g. made-for-you, trending, etc.)
 let searchPlaylist = []; // Buffer to store search results
 let popularPlaylist = []; // Buffer to store Popular Searches song list for Up Next
 let indonesianSongsPlaylist = []; // Buffer for all local songs (for search)
@@ -340,10 +342,10 @@ const syncActiveSongUI = () => {
         // [FIX] Only the active mix card should remain highlighted, even if multiple mixes contain the same song
         document.querySelectorAll('.mix-card').forEach(mixCard => {
             const mixId = mixCard.dataset.mixId;
-            const isCurrentMix = activeMixId ? mixId === activeMixId : false;
-            const mixData = (typeof madeForYouMixes !== 'undefined' ? madeForYouMixes : []).find(m => m.id === mixId);
-            const matchCurrentSong = mixData && mixData.songs && mixData.songs.some(s => areSameSongs(s, currentSongData));
-            if (isCurrentMix && matchCurrentSong) {
+            const isCurrentMix = activeMixId ? String(mixId) === String(activeMixId) : false;
+            const mixData = (typeof madeForYouMixes !== 'undefined' ? madeForYouMixes : []).find(m => String(m.id) === String(mixId));
+            const matchCurrentSong = isCurrentMix && mixData && mixData.songs && mixData.songs.some(s => areSameSongs(s, currentSongData));
+            if (matchCurrentSong) {
                 mixCard.classList.add('is-active-song');
                 if (isPaused) mixCard.classList.add('is-paused');
                 const overlay = mixCard.querySelector('.play-overlay');
@@ -359,8 +361,9 @@ const syncActiveSongUI = () => {
             const rowAudio = row.dataset.songAudio;
             if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
                 row.classList.add('is-active-song');
-                const idxEl = row.querySelector('.mix-track-idx');
-                if (idxEl) idxEl.innerHTML = isPlaying ? '❚❚' : '▶';
+                if (isPaused) row.classList.add('is-paused');
+                const playIcon = row.querySelector('.mix-track-play-icon');
+                if (playIcon) playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
                 if (mixDetailPlayAllBtn) {
                     mixDetailPlayAllBtn.innerHTML = isPlaying 
                         ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
@@ -491,7 +494,7 @@ const renderUpNext = () => {
         return `
         <div class="up-next-item ${isActive ? 'active' : ''}" 
             style="animation-delay: ${idx * 0.05}s; view-transition-name: up-next-item-${song.id};" 
-            onclick="playPreview(null, '${song.audio}', '${safeTitle}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration}, null)">
+            onclick="playPreview(null, '${song.audio}', '${safeTitle}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration}, '${currentPlaybackContext || ''}', null, '${activeMixId || ''}')">
             <img src="${song.cover}" class="up-next-cover" alt="${song.name}">
             <div class="up-next-info">
                 <div class="up-next-name">${song.name}</div>
@@ -548,7 +551,7 @@ const triggerSongByIndex = (index) => {
                      getSongElements(song)[0];
     const btn = activeEl?.querySelector('.play-overlay');
 
-    window.playPreview(btn, song.audio, song.name, song.artist, song.cover, song.id, song.duration);
+    window.playPreview(btn, song.audio, song.name, song.artist, song.cover, song.id, song.duration, currentPlaybackContext, currentPlaylist, activeMixId);
 };
  
 /**
@@ -1101,10 +1104,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
         const totalMin = Math.round(totalSec / 60);
 
+        // Build cover area: 2x2 collage if ≥2 unique covers, else single image
+        const imgs = targetMix.coverImages || (targetMix.cover ? [targetMix.cover] : []);
+        let coverContent;
+        if (imgs.length >= 2) {
+            const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
+            coverContent = `
+                <div class="mix-collage">
+                    ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="90" height="67" loading="lazy"></div>`).join('')}
+                </div>`;
+        } else {
+            coverContent = `<img src="${imgs[0] || targetMix.cover || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${targetMix.title}" width="180" height="135" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
+        }
+
         header.innerHTML = `
             <div class="mix-detail-header-content">
                 <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
-                    <img src="${targetMix.cover}" alt="${targetMix.title}" loading="lazy">
+                    ${coverContent}
+                    <div class="mix-overlay-gradient"></div>
                     <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
                 </div>
                 <span class="mix-detail-hero-badge">${targetMix.tag}</span>
@@ -1119,10 +1136,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tracklist.innerHTML = targetMix.songs.map((song, idx) => {
             const isCurrent = currentSongData && areSameSongs(currentSongData, song);
             const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
+            const isPaused = isCurrent && activeAudio && activeAudio.paused;
             const min = Math.floor((song.duration || 0) / 60);
             const sec = String((song.duration || 0) % 60).padStart(2, '0');
             return `
-            <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''}" 
+            <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" 
                  data-song-id="${song.id}"
                  data-song-audio="${song.audio}"
                  data-song-name="${song.name}"
@@ -1131,8 +1149,13 @@ document.addEventListener('DOMContentLoaded', () => {
                  data-song-duration="${song.duration || 0}"
                  data-mix-id="${targetMix.id}"
                  data-song-idx="${idx}">
-                <span class="mix-track-idx">${isCurrent ? (isPlaying ? '❚❚' : '▶') : (idx + 1)}</span>
-                <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" loading="lazy">
+                <span class="mix-track-idx">${idx + 1}</span>
+                <div class="mix-track-cover-wrapper">
+                    <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" width="44" height="44" loading="lazy">
+                    <div class="mix-track-play-icon" aria-hidden="true">
+                        ${isCurrent && isPlaying ? PAUSE_ICON : PLAY_ICON}
+                    </div>
+                </div>
                 <div class="mix-track-info">
                     <h4 class="mix-track-name">${song.name}</h4>
                     <p class="mix-track-artist">${song.artist}</p>
@@ -1148,6 +1171,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Move focus into the modal for accessibility
         const closeBtn = modal.querySelector('#closeMixDetailBtn');
         if (closeBtn) closeBtn.focus();
+        const shuffleBtn = modal.querySelector('#mixDetailShuffleBtn');
+        if (shuffleBtn) shuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
         syncActiveSongUI();
     };
 
@@ -1229,7 +1254,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncActiveSongUI();
                 return;
             }
-            const firstSong = activeDetailMix.songs[0];
+            const playlistToPlay = isMixDetailShuffleActive
+                ? [...activeDetailMix.songs].sort(() => 0.5 - Math.random())
+                : [...activeDetailMix.songs];
+            const firstSong = playlistToPlay[0];
             window.playPreview(
                 null,
                 firstSong.audio,
@@ -1239,30 +1267,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 firstSong.id,
                 Number(firstSong.duration) || 0,
                 'made-for-you',
-                activeDetailMix.songs,
+                playlistToPlay,
                 activeDetailMix.id
             );
             return;
         }
 
-        // 5. Click on Mix Detail Shuffle Button
+        // 5. Click on Mix Detail Shuffle Button -> Toggle active status, do not play yet
         const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
         if (mixDetailShuffleBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
             e.stopPropagation();
-            const shuffled = [...activeDetailMix.songs].sort(() => 0.5 - Math.random());
-            const firstSong = shuffled[0];
-            window.playPreview(
-                null,
-                firstSong.audio,
-                firstSong.name,
-                firstSong.artist,
-                firstSong.cover,
-                firstSong.id,
-                Number(firstSong.duration) || 0,
-                'made-for-you',
-                shuffled,
-                activeDetailMix.id
-            );
+            isMixDetailShuffleActive = !isMixDetailShuffleActive;
+            mixDetailShuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
             return;
         }
 
@@ -1354,6 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active') && !initialTab) {
                 return;
             }
+            closeMixDetailModal();
             if (sidebarItem.classList.contains('sidebar-nav-item')) {
                 updateSidebarActiveState(targetPage);
             }
@@ -1623,11 +1640,25 @@ window.toggleDownloadSong = async (song) => {
             return;
         }
 
-            const previousMixId = activeMixId;
+        const previousMixId = activeMixId;
         if (context === 'made-for-you') {
-            activeMixId = mixId || null;
-        } else {
+            activeMixId = mixId || activeMixId || (madeForYouMixes.find(m => m.songs && m.songs.some(s => areSameSongs(s, targetSong)))?.id) || null;
+            currentPlaybackContext = 'made-for-you';
+        } else if (context) {
             activeMixId = null;
+            currentPlaybackContext = context;
+        } else {
+            // Context was not explicitly provided (e.g. from playNext / queue / loop):
+            // Check if the song is still in the active mix to preserve activeMixId
+            if (activeMixId) {
+                const activeMix = madeForYouMixes.find(m => String(m.id) === String(activeMixId));
+                if (activeMix && activeMix.songs && activeMix.songs.some(s => areSameSongs(s, targetSong))) {
+                    currentPlaybackContext = 'made-for-you';
+                } else {
+                    activeMixId = null;
+                    currentPlaybackContext = null;
+                }
+            }
         }
 
         const songId = String(id);
@@ -2208,6 +2239,13 @@ window.toggleDownloadSong = async (song) => {
      * Function to render one Made for You mix card
      */
     const createMixCardHTML = (mix) => {
+        const isCurrentMix = activeMixId ? String(mix.id) === String(activeMixId) : false;
+        const matchCurrentSong = isCurrentMix && currentSongData && mix.songs && mix.songs.some(s => areSameSongs(s, currentSongData));
+        const hasAudio = activeAudio && Boolean(activeAudio.src);
+        const isPlaying = matchCurrentSong && hasAudio && !activeAudio.paused && !activeAudio.ended;
+        const isPaused = matchCurrentSong && hasAudio && activeAudio.paused && !activeAudio.ended;
+        const isActive = isPlaying || isPaused;
+
         // Build cover area: 2x2 collage if ≥2 unique covers, else single image
         const imgs = mix.coverImages || (mix.cover ? [mix.cover] : []);
         let coverContent;
@@ -2215,13 +2253,13 @@ window.toggleDownloadSong = async (song) => {
             const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
             coverContent = `
                 <div class="mix-collage">
-                    ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" loading="lazy"></div>`).join('')}
+                    ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="80" height="60" loading="lazy"></div>`).join('')}
                 </div>`;
         } else {
-            coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+            coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" width="160" height="120" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
         }
         return `
-        <div class="song-card mix-card" data-mix-id="${mix.id}" data-context="made-for-you">
+        <div class="song-card mix-card ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-mix-id="${mix.id}" data-context="made-for-you">
             <div class="song-cover mix-cover" style="background: ${mix.gradient};">
                 ${coverContent}
                 <div class="mix-overlay-gradient"></div>
@@ -2229,7 +2267,7 @@ window.toggleDownloadSong = async (song) => {
                 <div class="mix-color-strip" style="background: ${mix.accentColor};"></div>
                 <button class="play-overlay mix-play-btn" aria-label="Play ${mix.title}" 
                     data-mix-id="${mix.id}" data-context="made-for-you">
-                    ${PLAY_ICON}
+                    ${isPlaying ? PAUSE_ICON : PLAY_ICON}
                 </button>
             </div>
             <div class="song-info mix-info">
@@ -2351,9 +2389,12 @@ window.toggleDownloadSong = async (song) => {
             const targetPage = item.dataset.target;
             const currentActive = document.querySelector('.mobile-bottom-nav .nav-item.active');
 
-            // [FIX] Revert logic: If the clicked item is already active, do nothing.
+            // [FIX] Revert logic: If the clicked item is already active, do nothing (keep modal open if viewing mix detail).
             // This prevents navigation when on a sub-page (like an artist page).
             if (currentActive === item) return;
+
+            // Tutup modal mix detail jika berpindah ke tab/halaman lain
+            closeMixDetailModal();
 
             // Only navigate if a different item is clicked
             if (currentActive) currentActive.classList.remove('active');
@@ -2822,6 +2863,8 @@ window.toggleDownloadSong = async (song) => {
     };
 
     const loadPageContent = async (page, options = {}) => {
+        // Selalu tutup mix-detail-modal saat terjadi pemuatan / perpindahan halaman
+        closeMixDetailModal();
         const contentContainer = document.querySelector('.app-container');
         if (!contentContainer) return;
         const navigationId = ++pageLoadSequence;
@@ -3342,6 +3385,7 @@ window.toggleDownloadSong = async (song) => {
 
     window.navigateToAuthPage = navigateToAuthPage;
     window.loadPageContent = loadPageContent;
+    window.closeMixDetailModal = closeMixDetailModal;
 
     // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
     const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke home-desktop.html

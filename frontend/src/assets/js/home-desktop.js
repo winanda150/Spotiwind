@@ -40,6 +40,8 @@ let desktopMadeForYouMixes = []; // Buffer to store 10 Made for You mixes on des
 let desktopNewReleasesPlaylist = []; // Buffer to store new releases on desktop
 let currentSongIndex = -1;
 let activeMixId = null; // Track the active Made for You mix so overlapping songs do not cross-switch between mixes
+let isDesktopMixDetailShuffleActive = false; // Track whether shuffle is toggled on in the desktop Mix Detail modal
+let currentDesktopPlaybackContext = null; // Track current playback context (e.g. made-for-you, trending, etc.)
 let isShuffle = false;
 let isRepeat = false;
 let isDragging = false;
@@ -184,7 +186,7 @@ const triggerSongByIndex = (index, context = null) => {
     if (!song) return;
 
     const btn = document.querySelector(`.song-card[data-id="${song.id}"] .play-overlay`);
-    window.playPreview(btn, song.audio, song.name, song.artist, song.cover, song.id, song.duration || 0, context);
+    window.playPreview(btn, song.audio, song.name, song.artist, song.cover, song.id, song.duration || 0, context || currentDesktopPlaybackContext, currentPlaylist, activeMixId);
 };
 
 /**
@@ -362,9 +364,22 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     );
 
     if (context === 'made-for-you') {
-        activeMixId = mixId || null;
-    } else {
+        activeMixId = mixId || activeMixId || (desktopMadeForYouMixes.find(m => m.songs && m.songs.some(s => String(s.id) === songId || (s.audio && s.audio === audioUrl)))?.id) || null;
+        currentDesktopPlaybackContext = 'made-for-you';
+    } else if (context) {
         activeMixId = null;
+        currentDesktopPlaybackContext = context;
+    } else {
+        // Context was not explicitly provided (e.g. from playNext / queue / loop):
+        if (activeMixId) {
+            const activeMix = desktopMadeForYouMixes.find(m => String(m.id) === String(activeMixId));
+            if (activeMix && activeMix.songs && activeMix.songs.some(s => String(s.id) === songId || (s.audio && s.audio === audioUrl))) {
+                currentDesktopPlaybackContext = 'made-for-you';
+            } else {
+                activeMixId = null;
+                currentDesktopPlaybackContext = null;
+            }
+        }
     }
 
     if (isSameSong) {
@@ -716,6 +731,13 @@ const fetchTopArtists = async () => {
  * Renderer function for a single Made for You mix card on desktop
  */
 const createMixCardHTML = (mix) => {
+    const isCurrentMix = activeMixId ? String(mix.id) === String(activeMixId) : false;
+    const matchCurrentSong = isCurrentMix && currentSongData && mix.songs && mix.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+    const hasAudio = activeAudio && Boolean(activeAudio.src);
+    const isPlaying = matchCurrentSong && hasAudio && !activeAudio.paused && !activeAudio.ended;
+    const isPaused = matchCurrentSong && hasAudio && activeAudio.paused && !activeAudio.ended;
+    const isActive = isPlaying || isPaused;
+
     // Build cover area: 2x2 collage if ≥2 unique covers, else single image
     const imgs = mix.coverImages || (mix.cover ? [mix.cover] : []);
     let coverContent;
@@ -723,13 +745,13 @@ const createMixCardHTML = (mix) => {
         const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
         coverContent = `
             <div class="mix-collage">
-                ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" loading="lazy"></div>`).join('')}
+                ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="95" height="72" loading="lazy"></div>`).join('')}
             </div>`;
     } else {
-        coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" style="width:100%; height:100%; object-fit:cover;" loading="lazy">`;
+        coverContent = `<img src="${imgs[0] || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${mix.title}" width="190" height="145" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
     }
     return `
-    <div class="song-card mix-card" data-mix-id="${mix.id}" data-context="made-for-you">
+    <div class="song-card mix-card ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-mix-id="${mix.id}" data-context="made-for-you">
         <div class="song-cover mix-cover" style="background: ${mix.gradient};">
             ${coverContent}
             <div class="mix-overlay-gradient"></div>
@@ -737,7 +759,7 @@ const createMixCardHTML = (mix) => {
             <div class="mix-color-strip" style="background: ${mix.accentColor};"></div>
             <button class="play-overlay mix-play-btn" aria-label="Play ${mix.title}" 
                 data-mix-id="${mix.id}" data-context="made-for-you">
-                ${PLAY_ICON}
+                ${isPlaying ? PAUSE_ICON : PLAY_ICON}
             </button>
         </div>
         <div class="song-info mix-info">
@@ -876,8 +898,10 @@ const syncActiveDesktopUI = () => {
         // Highlight active mix cards
         document.querySelectorAll('.mix-card').forEach(mixCard => {
             const mixId = mixCard.dataset.mixId;
-            const mixData = desktopMadeForYouMixes.find(m => m.id === mixId);
-            if (mixData && mixData.songs && mixData.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio))) {
+            const isCurrentMix = activeMixId ? String(mixId) === String(activeMixId) : false;
+            const mixData = desktopMadeForYouMixes.find(m => String(m.id) === String(mixId));
+            const matchCurrentSong = isCurrentMix && mixData && mixData.songs && mixData.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+            if (matchCurrentSong) {
                 mixCard.classList.add('is-active-song');
                 if (isPaused) mixCard.classList.add('is-paused');
                 const overlay = mixCard.querySelector('.play-overlay');
@@ -893,8 +917,9 @@ const syncActiveDesktopUI = () => {
             const rowAudio = row.dataset.songAudio;
             if (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio)) {
                 row.classList.add('is-active-song');
-                const idxEl = row.querySelector('.mix-track-idx');
-                if (idxEl) idxEl.innerHTML = isPlaying ? '❚❚' : '▶';
+                if (isPaused) row.classList.add('is-paused');
+                const playIcon = row.querySelector('.mix-track-play-icon');
+                if (playIcon) playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
                 if (mixDetailPlayAllBtn) {
                     mixDetailPlayAllBtn.innerHTML = isPlaying 
                         ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
@@ -919,10 +944,24 @@ const openDesktopMixDetailModal = (mixId) => {
     const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
     const totalMin = Math.round(totalSec / 60);
 
+    // Build cover area: 2x2 collage if ≥2 unique covers, else single image
+    const imgs = targetMix.coverImages || (targetMix.cover ? [targetMix.cover] : []);
+    let coverContent;
+    if (imgs.length >= 2) {
+        const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
+        coverContent = `
+            <div class="mix-collage">
+                ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="95" height="72" loading="lazy"></div>`).join('')}
+            </div>`;
+    } else {
+        coverContent = `<img src="${imgs[0] || targetMix.cover || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${targetMix.title}" width="190" height="145" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
+    }
+
     header.innerHTML = `
         <div class="mix-detail-header-content">
             <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
-                <img src="${targetMix.cover}" alt="${targetMix.title}" loading="lazy">
+                ${coverContent}
+                <div class="mix-overlay-gradient"></div>
                 <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
             </div>
             <div class="mix-detail-hero-info">
@@ -939,10 +978,11 @@ const openDesktopMixDetailModal = (mixId) => {
     tracklist.innerHTML = targetMix.songs.map((song, idx) => {
         const isCurrent = currentSongData && (String(currentSongData.id) === String(song.id) || (song.audio && currentSongData.audio === song.audio));
         const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
+        const isPaused = isCurrent && activeAudio && activeAudio.paused;
         const min = Math.floor((song.duration || 0) / 60);
         const sec = String((song.duration || 0) % 60).padStart(2, '0');
         return `
-        <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''}" 
+        <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" 
              data-song-id="${song.id}"
              data-song-audio="${song.audio}"
              data-song-name="${song.name}"
@@ -951,8 +991,13 @@ const openDesktopMixDetailModal = (mixId) => {
              data-song-duration="${song.duration || 0}"
              data-mix-id="${targetMix.id}"
              data-song-idx="${idx}">
-            <span class="mix-track-idx">${isCurrent ? (isPlaying ? '❚❚' : '▶') : (idx + 1)}</span>
-            <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" loading="lazy">
+            <span class="mix-track-idx">${idx + 1}</span>
+            <div class="mix-track-cover-wrapper">
+                <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" width="44" height="44" loading="lazy">
+                <div class="mix-track-play-icon" aria-hidden="true">
+                    ${isCurrent && isPlaying ? PAUSE_ICON : PLAY_ICON}
+                </div>
+            </div>
             <div class="mix-track-info">
                 <h4 class="mix-track-name">${song.name}</h4>
                 <p class="mix-track-artist">${song.artist}</p>
@@ -967,6 +1012,8 @@ const openDesktopMixDetailModal = (mixId) => {
     // Move focus into the modal for accessibility
     const closeBtn = modal.querySelector('#closeMixDetailBtn');
     if (closeBtn) closeBtn.focus();
+    const shuffleBtn = modal.querySelector('#mixDetailShuffleBtn');
+    if (shuffleBtn) shuffleBtn.classList.toggle('is-active', isDesktopMixDetailShuffleActive);
     syncActiveDesktopUI();
 };
 
@@ -1052,8 +1099,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncActiveDesktopUI();
                 return;
             }
-            const firstSong = activeDesktopDetailMix.songs[0];
-            currentPlaylist = [...activeDesktopDetailMix.songs];
+            const playlistToPlay = isDesktopMixDetailShuffleActive
+                ? [...activeDesktopDetailMix.songs].sort(() => 0.5 - Math.random())
+                : [...activeDesktopDetailMix.songs];
+            const firstSong = playlistToPlay[0];
+            currentPlaylist = [...playlistToPlay];
             window.playPreview(
                 null,
                 firstSong.audio,
@@ -1062,28 +1112,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 firstSong.cover,
                 firstSong.id,
                 Number(firstSong.duration) || 0,
-                'made-for-you'
+                'made-for-you',
+                playlistToPlay,
+                activeDesktopDetailMix.id
             );
             return;
         }
 
-        // 5. Click on Mix Detail Shuffle Button
+        // 5. Click on Mix Detail Shuffle Button -> Toggle active status, do not play yet
         const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
         if (mixDetailShuffleBtn && activeDesktopDetailMix && activeDesktopDetailMix.songs.length > 0) {
             e.stopPropagation();
-            const shuffled = [...activeDesktopDetailMix.songs].sort(() => 0.5 - Math.random());
-            const firstSong = shuffled[0];
-            currentPlaylist = [...shuffled];
-            window.playPreview(
-                null,
-                firstSong.audio,
-                firstSong.name,
-                firstSong.artist,
-                firstSong.cover,
-                firstSong.id,
-                Number(firstSong.duration) || 0,
-                'made-for-you'
-            );
+            isDesktopMixDetailShuffleActive = !isDesktopMixDetailShuffleActive;
+            mixDetailShuffleBtn.classList.toggle('is-active', isDesktopMixDetailShuffleActive);
             return;
         }
 

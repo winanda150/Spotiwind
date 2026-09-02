@@ -42,7 +42,9 @@ html::-webkit-scrollbar-thumb:hover {
     background: rgba(185, 30, 201, 0.7);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -250,7 +252,8 @@ body.is-desktop-auth-view .bottom-player-bar {
 
 .nav-item:hover svg,
 .nav-item.active svg {
-    fill: currentColor; /* Pertahankan ini untuk ikon lain (Home, Library) */
+    fill: currentColor;
+    /* Pertahankan ini untuk ikon lain (Home, Library) */
     transition: all 0.3s ease;
 }
 
@@ -268,7 +271,8 @@ body.is-desktop-auth-view .bottom-player-bar {
 
 .nav-item:nth-child(2):hover .search-icon-inner-circle,
 .nav-item:nth-child(2).active .search-icon-inner-circle {
-    fill: currentColor; /* Isi lingkaran dalam saat hover/active */
+    fill: currentColor;
+    /* Isi lingkaran dalam saat hover/active */
 }
 
 .main-content {
@@ -630,7 +634,8 @@ body.player-active .right-sidebar {
     margin-right: 10px;
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Penting untuk memicu ellipsis pada anak elemen */
+    min-width: 0;
+    /* Penting untuk memicu ellipsis pada anak elemen */
 }
 
 .now-playing-title {
@@ -742,9 +747,17 @@ body.player-active .right-sidebar {
 }
 
 @keyframes control-pop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .control-btn:hover {
@@ -777,8 +790,10 @@ body.player-active .right-sidebar {
 /* Hanya meredupkan icon SVG di dalamnya dan memberi warna abu-abu */
 .play-pause-btn.btn-disabled svg,
 .play-pause-btn.btn-loading svg {
-    color: #d1d5db !important; /* Warna abu-abu terang */
-    opacity: 0.6; /* Membuat icon tampak redup */
+    color: #d1d5db !important;
+    /* Warna abu-abu terang */
+    opacity: 0.6;
+    /* Membuat icon tampak redup */
 }
 
 /* Animasi loading border putih pada tombol play sidebar */
@@ -796,7 +811,7 @@ body.player-active .right-sidebar {
 .play-overlay.btn-loading {
     pointer-events: none !important;
     overflow: visible;
-    background-color: #ffffff !important; 
+    background-color: #ffffff !important;
 }
 
 .play-overlay.btn-loading svg {
@@ -853,12 +868,10 @@ body.is-dragging-progress .progress-thumb {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.3) 50%,
-        rgba(255, 255, 255, 0) 100%
-    );
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0) 100%);
     background-size: 200% 100%;
     animation: shimmer 2s infinite linear;
 }
@@ -867,6 +880,7 @@ body.is-dragging-progress .progress-thumb {
     0% {
         background-position: -200% 0;
     }
+
     100% {
         background-position: 200% 0;
     }
@@ -882,7 +896,8 @@ body.is-dragging-progress .progress-thumb {
 
 /* Equalizer Animation (3 bars) */
 .equalizer {
-    display: none; /* Sembunyikan secara default */
+    display: none;
+    /* Sembunyikan secara default */
     align-items: flex-end;
     gap: 2px;
     width: 14px;
@@ -914,28 +929,36 @@ body.is-dragging-progress .progress-thumb {
 .equalizer span {
     width: 3px;
     background: var(--primary-gradient);
-    background-size: 14px 100%; /* Sesuai lebar container equalizer */
+    background-size: 14px 100%;
+    /* Sesuai lebar container equalizer */
     border-radius: 1px;
     animation: bounce 0.5s ease-in-out infinite alternate;
     flex-shrink: 0;
 }
 
-.equalizer span:nth-child(1) { 
-    background-position: left; 
-    animation-delay: -0.2s; 
+.equalizer span:nth-child(1) {
+    background-position: left;
+    animation-delay: -0.2s;
 }
-.equalizer span:nth-child(2) { 
-    background-position: center; 
-    animation-delay: 0s; 
+
+.equalizer span:nth-child(2) {
+    background-position: center;
+    animation-delay: 0s;
 }
-.equalizer span:nth-child(3) { 
-    background-position: right; 
-    animation-delay: -0.6s; 
+
+.equalizer span:nth-child(3) {
+    background-position: right;
+    animation-delay: -0.6s;
 }
 
 @keyframes bounce {
-    from { height: 4px; }
-    to { height: 12px; }
+    from {
+        height: 4px;
+    }
+
+    to {
+        height: 12px;
+    }
 }
 
 
@@ -1303,7 +1326,7 @@ body.is-dragging-progress .progress-thumb {
 
 .song-cover {
     width: 100%;
-    aspect-ratio: 4 / 3; 
+    aspect-ratio: 4 / 3;
     margin-bottom: 0.75rem;
     /* Sedikit mengurangi jarak bawah agar proporsional */
     overflow: hidden;
@@ -1335,7 +1358,8 @@ body.is-dragging-progress .progress-thumb {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Mencegah card melebar akibat teks panjang */
+    min-width: 0;
+    /* Mencegah card melebar akibat teks panjang */
 }
 
 .song-name {
@@ -1515,7 +1539,8 @@ body.is-dragging-progress .progress-thumb {
 }
 
 /* Skeleton Loading Styles */
-.song-card-skeleton, .artist-card-skeleton {
+.song-card-skeleton,
+.artist-card-skeleton {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: 1.25rem;
@@ -1523,14 +1548,16 @@ body.is-dragging-progress .progress-thumb {
     flex: 0 0 180px;
     display: flex;
     flex-direction: column;
-    position: relative; /* For shimmer animation */
+    position: relative;
+    /* For shimmer animation */
 }
 
 .artist-card-skeleton {
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 0;
-    height: 200px; /* Match approximate height */
+    height: 200px;
+    /* Match approximate height */
 }
 
 .skeleton {
@@ -1552,8 +1579,13 @@ body.is-dragging-progress .progress-thumb {
 }
 
 @keyframes shimmer-skeleton {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .song-card-skeleton .skeleton-cover {
@@ -1563,11 +1595,33 @@ body.is-dragging-progress .progress-thumb {
     border-bottom: 1px solid var(--glass-border);
 }
 
-.song-card-skeleton .skeleton-info { padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.song-card-skeleton .skeleton-title { width: 80%; height: 14px; }
-.song-card-skeleton .skeleton-artist { width: 50%; height: 12px; }
-.artist-card-skeleton .skeleton-photo { width: 120px; height: 120px; border-radius: 50%; }
-.artist-card-skeleton .skeleton-name { width: 60%; height: 14px; }
+.song-card-skeleton .skeleton-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.song-card-skeleton .skeleton-title {
+    width: 80%;
+    height: 14px;
+}
+
+.song-card-skeleton .skeleton-artist {
+    width: 50%;
+    height: 12px;
+}
+
+.artist-card-skeleton .skeleton-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+}
+
+.artist-card-skeleton .skeleton-name {
+    width: 60%;
+    height: 14px;
+}
 
 /* Bottom Player Bar Styles */
 .bottom-player-bar {
@@ -1600,7 +1654,8 @@ body.is-dragging-progress .progress-thumb {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 0.75rem; /* Memberikan jarak antar elemen yang lebih rapat dan konsisten */
+    gap: 0.75rem;
+    /* Memberikan jarak antar elemen yang lebih rapat dan konsisten */
     min-width: 0;
 }
 
@@ -1647,7 +1702,8 @@ body.is-dragging-progress .progress-thumb {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Tetap dibutuhkan agar ellipsis (titik tiga) bekerja saat teks panjang */
+    min-width: 0;
+    /* Tetap dibutuhkan agar ellipsis (titik tiga) bekerja saat teks panjang */
 }
 
 .bottom-track-name {
@@ -1825,6 +1881,7 @@ body.is-dragging-volume .volume-level {
     flex-direction: column;
     gap: 1rem;
 }
+
 .page-transition-overlay.fade-out {
     opacity: 0;
     visibility: hidden;
@@ -1832,8 +1889,17 @@ body.is-dragging-volume .volume-level {
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.9; }
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
 }
 
 /* Sembunyikan konten secara instan saat transisi */
@@ -1930,10 +1996,11 @@ body.is-dragging-volume .volume-level {
     z-index: 2;
 }
 
-.mix-card .mix-overlay-gradient {
+.mix-card .mix-overlay-gradient,
+.mix-detail-hero-cover-wrapper .mix-overlay-gradient {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.7) 100%);
     pointer-events: none;
     z-index: 1;
 }
@@ -1943,12 +2010,14 @@ body.is-dragging-volume .volume-level {
     color: var(--text-muted);
     line-height: 1.35;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.mix-card .mix-color-strip {
+.mix-card .mix-color-strip,
+.mix-detail-hero-cover-wrapper .mix-color-strip {
     position: absolute;
     bottom: 0;
     left: 0;
@@ -1967,11 +2036,13 @@ body.is-dragging-volume .volume-level {
     height: 100%;
     position: absolute;
     inset: 0;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-collage-cell {
     overflow: hidden;
     display: flex;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-collage-cell img {
@@ -1980,6 +2051,7 @@ body.is-dragging-volume .volume-level {
     object-fit: cover;
     display: block;
     filter: brightness(0.92);
+    aspect-ratio: 4 / 3;
 }
 
 /* =============================================
@@ -2006,9 +2078,9 @@ body.is-dragging-volume .volume-level {
 .mix-detail-modal .mix-detail-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 .mix-detail-sheet {
@@ -2019,10 +2091,10 @@ body.is-dragging-volume .volume-level {
     width: 720px;
     max-width: 90vw;
     max-height: 85vh;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: radial-gradient(circle at 50% 0%, rgba(185, 30, 201, 0.15), transparent 70%), var(--bg-dark, #0f172a);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
     border-radius: 16px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(185, 30, 201, 0.2);
     overflow: hidden;
 }
 
@@ -2031,7 +2103,7 @@ body.is-dragging-volume .volume-level {
     top: 16px;
     right: 16px;
     background: rgba(255, 255, 255, 0.08);
-    border: none;
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
     color: #ffffff;
     cursor: pointer;
     display: flex;
@@ -2041,11 +2113,12 @@ body.is-dragging-volume .volume-level {
     height: 36px;
     border-radius: 50%;
     z-index: 10;
-    transition: background 0.2s, transform 0.2s;
+    transition: background 0.2s, transform 0.2s, border-color 0.2s;
 }
 
 .mix-detail-close-btn:hover {
     background: rgba(255, 255, 255, 0.18);
+    border-color: var(--accent-color, #B91EC9);
     transform: scale(1.05);
 }
 
@@ -2066,9 +2139,10 @@ body.is-dragging-volume .volume-level {
     position: relative;
     width: 190px;
     height: 145px;
+    aspect-ratio: 4 / 3;
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 25px rgba(185, 30, 201, 0.25);
     flex-shrink: 0;
     border: 1px solid rgba(255, 255, 255, 0.15);
 }
@@ -2077,6 +2151,7 @@ body.is-dragging-volume .volume-level {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    aspect-ratio: 4 / 3;
 }
 
 .mix-detail-hero-info {
@@ -2086,9 +2161,10 @@ body.is-dragging-volume .volume-level {
 
 .mix-detail-hero-badge {
     display: inline-block;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
     font-size: 0.7rem;
     font-weight: 800;
@@ -2109,14 +2185,14 @@ body.is-dragging-volume .volume-level {
 
 .mix-detail-hero-desc {
     font-size: 0.9rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     margin: 0 0 0.75rem;
     line-height: 1.4;
 }
 
 .mix-detail-hero-meta {
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--text-muted, #9ca3af);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -2125,9 +2201,9 @@ body.is-dragging-volume .volume-level {
 .mix-detail-actions {
     display: flex;
     align-items: center;
-    gap: 1.25rem;
+    justify-content: space-between;
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
     margin-bottom: 1.25rem;
 }
 
@@ -2135,35 +2211,59 @@ body.is-dragging-volume .volume-level {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: #22c55e;
-    color: #000000;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    color: #ffffff;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
-    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: 0 8px 24px rgba(185, 30, 201, 0.45);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .mix-detail-play-btn:hover {
     transform: scale(1.06);
-    background: #16a34a;
+    box-shadow: 0 10px 28px rgba(185, 30, 201, 0.6);
+}
+
+.mix-detail-play-btn:active {
+    transform: scale(0.94);
 }
 
 .mix-detail-action-icon-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    padding: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    color: var(--text-muted, #9ca3af);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     border-radius: 50%;
-    transition: color 0.2s;
+    transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
 }
 
-.mix-detail-action-icon-btn:hover,
+.mix-detail-action-icon-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mix-detail-action-icon-btn:active {
+    transform: scale(0.92);
+}
+
 .mix-detail-action-icon-btn.is-active {
-    color: #22c55e;
+    color: #ffffff;
+    background: rgba(185, 30, 201, 0.3);
+    border-color: var(--accent-color, #B91EC9);
+    box-shadow: 0 0 16px rgba(185, 30, 201, 0.5);
+}
+
+.mix-detail-action-icon-btn.is-active svg {
+    color: #ffffff;
 }
 
 .mix-track-row {
@@ -2173,7 +2273,8 @@ body.is-dragging-volume .volume-level {
     padding: 0.75rem 1rem;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .mix-track-row:hover {
@@ -2181,29 +2282,69 @@ body.is-dragging-volume .volume-level {
 }
 
 .mix-track-row.is-active-song {
-    background: rgba(34, 197, 94, 0.12);
+    background: rgba(185, 30, 201, 0.15) !important;
+    border-color: var(--accent-color, #B91EC9) !important;
 }
 
 .mix-track-row.is-active-song .mix-track-name {
-    color: #22c55e;
+    color: #22c55e !important;
     font-weight: 700;
+}
+
+.mix-track-row.is-active-song .mix-track-idx {
+    color: var(--accent-color, #B91EC9);
 }
 
 .mix-track-idx {
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     width: 24px;
     text-align: center;
     flex-shrink: 0;
 }
 
-.mix-track-cover {
+.mix-track-cover-wrapper {
+    position: relative;
     width: 44px;
     height: 44px;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.mix-track-cover {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
     border-radius: 6px;
     object-fit: cover;
-    flex-shrink: 0;
+    display: block;
+}
+
+.mix-track-play-icon {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: #ffffff;
+    border-radius: 6px;
+}
+
+.mix-track-play-icon svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.mix-track-row:hover .mix-track-play-icon,
+.mix-track-row.is-active-song .mix-track-play-icon {
+    opacity: 1;
 }
 
 .mix-track-info {
@@ -2223,7 +2364,7 @@ body.is-dragging-volume .volume-level {
 
 .mix-track-artist {
     font-size: 0.78rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     margin: 2px 0 0;
     white-space: nowrap;
     overflow: hidden;
@@ -2232,9 +2373,9 @@ body.is-dragging-volume .volume-level {
 
 .mix-track-duration {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: var(--text-muted, #9ca3af);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+    margin-right: 0.35rem;
+    padding-left: 0.5rem;
 }
-
-
