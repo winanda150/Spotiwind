@@ -15,7 +15,7 @@ import { getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArti
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { downloadMp3ToDevice, getCachedAudioBlobUrl } from '../../services/offlineAudioService.js';
-import { recordRecentlyPlayed, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordRecentlyPlayed, subscribeRecentlyPlayed, getRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { recordTrackPlay, subscribePopularTracks } from '../../services/popularTrackService.js';
 import { recordArtistPlay, subscribeTopArtists } from '../../services/topArtistService.js';
 import { getMadeForYouMixes } from '../../services/madeForYouService.js';
@@ -240,7 +240,7 @@ const isSameSongForContext = (currentSong, targetSong, context = null, contextMi
 
 const getSongElements = (song) => {
     if (!song) return [];
-    const elements = Array.from(document.querySelectorAll('[data-id], [data-song-id], .library-song-item, .popular-search-card, .dropdown-item, .song-card, .artist-song-list-item'));
+    const elements = Array.from(document.querySelectorAll('[data-id], [data-song-id], .library-song-item, .popular-search-card, .dropdown-item, .song-card, .artist-song-list-item, .recent-track-row'));
     return elements.filter(element => {
         // Exclude mix cards and mix track rows because they are strictly scoped by activeMixId
         if (element.classList.contains('mix-card') || element.classList.contains('mix-track-row')) {
@@ -248,8 +248,8 @@ const getSongElements = (song) => {
         }
         const id = element.dataset.id || element.dataset.songId || element.dataset.popularId;
         const audio = element.dataset.audio || element.dataset.songAudio || element.querySelector('.play-overlay')?.dataset?.audio;
-        const name = element.dataset.name || element.dataset.songName || element.querySelector('.song-name, .library-song-name, .dropdown-song-name, .popular-search-title-row strong, .item-name')?.textContent;
-        const artist = element.dataset.artist || element.dataset.songArtist || element.querySelector('.song-artist, .library-song-artist, .dropdown-song-artist, .popular-search-info span, .item-artist')?.textContent;
+        const name = element.dataset.name || element.dataset.songName || element.querySelector('.song-name, .library-song-name, .dropdown-song-name, .popular-search-title-row strong, .item-name, .recent-track-name')?.textContent;
+        const artist = element.dataset.artist || element.dataset.songArtist || element.querySelector('.song-artist, .library-song-artist, .dropdown-song-artist, .popular-search-info span, .item-artist, .recent-track-artist')?.textContent;
         return areSameSongs(song, { id, audio, name, artist });
     });
 };
@@ -269,7 +269,7 @@ const syncActiveSongUI = () => {
         if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
     });
 
-    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon').forEach(el => {
+    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon').forEach(el => {
         el.innerHTML = PLAY_ICON;
     });
 
@@ -294,7 +294,7 @@ const syncActiveSongUI = () => {
             if (overlay) {
                 overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
             }
-            const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon');
+            const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .recent-track-play-icon');
             if (playIcon) {
                 playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
             }
@@ -835,6 +835,44 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Click handler for Recently Played Vertical Row Item
+        const recentRow = e.target.closest('.recent-track-row');
+        if (recentRow) {
+            const optionsBtn = e.target.closest('.recent-track-options-btn');
+            if (optionsBtn) {
+                e.stopPropagation();
+                const d = recentRow.dataset;
+                initSongOptionsSheet({
+                    id: d.id,
+                    name: d.name,
+                    artist: d.artist,
+                    cover: d.cover,
+                    audio: d.audio,
+                    duration: Number(d.duration) || 0
+                });
+                return;
+            }
+
+            e.stopPropagation();
+            const d = recentRow.dataset;
+            const playOverlay = recentRow.querySelector('.recent-track-play-icon');
+            const recentSongs = homeRecentlyPlayedListCache || [];
+            window.playPreview(playOverlay, d.audio, d.name, d.artist, d.cover, d.id, Number(d.duration) || 0, 'recently-played', recentSongs);
+            return;
+        }
+
+        const seeAllRecentBtn = e.target.closest('#seeAllRecentHomeBtn');
+        if (seeAllRecentBtn) {
+            e.preventDefault();
+            const libraryNav = document.querySelector('.mobile-bottom-nav .nav-item[data-target="library-mobile.html"]');
+            if (libraryNav) {
+                libraryNav.click();
+            } else if (typeof window.navigateToLibraryPage === 'function') {
+                window.navigateToLibraryPage('overview');
+            }
+            return;
+        }
+
         const artistCard = e.target.closest('.artist-card');
         if (artistCard) {
             e.preventDefault();
@@ -1120,10 +1158,13 @@ window.toggleDownloadSong = toggleDownloadSong;
                 const libSongs = typeof window.getLibraryPlaylist === 'function' ? window.getLibraryPlaylist() : [];
                 baseQueue = Array.isArray(libSongs) ? [...libSongs] : [];
             } else if (context === 'account-recent' || context === 'recently-played' || context === 'recent') {
-                let allRecentSongs = [];
-                try {
-                    const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
-                    const list = JSON.parse(raw);
+                if (Array.isArray(customPlaylist) && customPlaylist.length > 0) {
+                    baseQueue = [...customPlaylist];
+                } else {
+                    let allRecentSongs = [];
+                    try {
+                        const raw = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+                        const list = JSON.parse(raw);
                     allRecentSongs = (Array.isArray(list) ? list : []).map(s => ({
                         id: String(s.id),
                         audio: s.audio,
@@ -1172,6 +1213,7 @@ window.toggleDownloadSong = toggleDownloadSong;
                     baseQueue = [targetSong, ...allRecentSongs.filter(s => !areSameSongs(s, targetSong))];
                 }
             }
+        }
 
             if (baseQueue.length === 0) {
                 baseQueue = [targetSong];
@@ -2352,6 +2394,102 @@ window.toggleDownloadSong = toggleDownloadSong;
         showSkeletonLoader('#madeForYouGrid', 'song', 10);
     };
 
+    let homeRecentlyPlayedListCache = [];
+
+    /**
+     * Render Recently Played songs in vertical layout (Max 3 items)
+     */
+    const renderHomeRecentlyPlayed = () => {
+        const container = document.getElementById('homeRecentlyPlayedList');
+        if (!container) return;
+
+        try {
+            const rawSongs = getRecentlyPlayed();
+            const validSongs = (Array.isArray(rawSongs) ? rawSongs : [])
+                .filter(s => s && (s.id || s.audio) && s.audio)
+                .slice(0, 3); // Hanya 3 lagu terbaru sesuai permintaan
+
+            homeRecentlyPlayedListCache = validSongs;
+
+            if (validSongs.length === 0) {
+                container.innerHTML = `
+                    <div class="recent-empty-state">
+                        <div class="recent-empty-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <h3 class="recent-empty-title">No recently played songs</h3>
+                        <p class="recent-empty-desc">Songs you play will appear here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const isSameList = homeRecentlyPlayedListCache.length === validSongs.length &&
+                validSongs.every((s, i) => String(s.id) === String(homeRecentlyPlayedListCache[i]?.id));
+
+            homeRecentlyPlayedListCache = validSongs;
+
+            if (isSameList && container.querySelector('.recent-track-row')) {
+                syncActiveSongUI();
+                return;
+            }
+
+            const isAudioPlaying = activeAudio && !activeAudio.paused && !activeAudio.ended;
+
+            container.innerHTML = validSongs.map(song => {
+                const isActive = areSameSongs(song, currentSongData);
+                const isPaused = isActive && activeAudio.paused;
+                const safeName = (song.name || song.title || 'Untitled').replace(/"/g, '&quot;');
+                const safeArtist = (song.artist || 'Unknown Artist').replace(/"/g, '&quot;');
+                const cover = song.cover || '../../public/Elemen/Logo/Spotiwind.webp';
+                const durationFormatted = formatTime(song.duration || 0);
+
+                return `
+                    <div class="recent-track-row ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}"
+                        data-id="${song.id}"
+                        data-audio="${song.audio}"
+                        data-name="${safeName}"
+                        data-artist="${safeArtist}"
+                        data-cover="${cover}"
+                        data-duration="${song.duration || 0}"
+                        data-context="recently-played">
+                        <div class="recent-track-cover-wrapper">
+                            <img src="${cover}" alt="${safeName}" class="recent-track-cover" width="46" height="46" loading="lazy">
+                            <div class="recent-track-play-icon" aria-hidden="true">
+                                ${isActive && isAudioPlaying ? PAUSE_ICON : PLAY_ICON}
+                            </div>
+                        </div>
+                        <div class="recent-track-info">
+                            <h4 class="recent-track-name">${safeName}</h4>
+                            <p class="recent-track-artist">${safeArtist}</p>
+                        </div>
+                        <div class="recent-track-right">
+                            <span class="recent-track-duration">${durationFormatted}</span>
+                            <button class="recent-track-options-btn" type="button" aria-label="More options for ${safeName}">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <circle cx="12" cy="12" r="1.5" />
+                                    <circle cx="12" cy="5" r="1.5" />
+                                    <circle cx="12" cy="19" r="1.5" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            syncActiveSongUI();
+        } catch (e) {
+            console.warn("Failed to render home recently played:", e);
+        }
+    };
+
+    window.addEventListener('recently-played-updated', () => {
+        renderHomeRecentlyPlayed();
+    }, { passive: true });
+
     // [FIX] Pindahkan definisi initializeData ke lingkup yang lebih tinggi (global)
     // agar dapat diakses oleh loadPageContent saat memulihkan halaman Home.
     const initializeData = () => {
@@ -2360,6 +2498,7 @@ window.toggleDownloadSong = toggleDownloadSong;
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
         fetchWithContinuousRetry(fetchMadeForYou);
+        renderHomeRecentlyPlayed();
         loadLocalCatalogData(); // Load catalog data in background for search & artist pages
     };
 
@@ -2555,11 +2694,13 @@ window.spotiwind = {
             }
             recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid, () => {
                 updateSidebarMusicCounts();
+                renderHomeRecentlyPlayed();
             });
             setupUnreadNotificationsListener(user.uid);
             setupUserPresence(user);
         } else {
             initializeGuestUI();
+            renderHomeRecentlyPlayed();
             if (recentlyPlayedUnsubscribe) {
                 recentlyPlayedUnsubscribe();
                 recentlyPlayedUnsubscribe = null;

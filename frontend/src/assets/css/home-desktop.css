@@ -917,6 +917,7 @@ body.is-dragging-progress .progress-thumb {
 
 /* Warna hijau untuk lagu aktif di grid dan dropdown */
 .is-active-song .song-name,
+.is-active-song .recent-track-name,
 .dropdown-item.is-active-song {
     color: #22c55e !important;
 }
@@ -2369,4 +2370,239 @@ body.is-dragging-volume .volume-level {
     flex-shrink: 0;
     margin-right: 0.35rem;
     padding-left: 0.5rem;
+}
+
+/* ==========================================================================
+   Recently Played Section (Vertical Layout - Max 3 Items)
+   ========================================================================== */
+
+.recently-played-section {
+    margin-top: -1.5rem;
+    margin-bottom: 3rem;
+}
+
+.recently-played-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.recent-track-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s ease;
+    user-select: none;
+}
+
+.recent-track-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-color, #B91EC9);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.recent-track-row:active {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.recent-track-row.is-active-song {
+    background: rgba(185, 30, 201, 0.15) !important;
+    border-color: var(--accent-color, #B91EC9) !important;
+    box-shadow: 0 4px 20px rgba(185, 30, 201, 0.15);
+}
+
+.recent-track-row.is-active-song .recent-track-name {
+    color: #22c55e !important;
+}
+
+.recent-track-cover-wrapper {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.recent-track-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.recent-track-play-icon {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    color: #ffffff;
+    border-radius: 10px;
+}
+
+.recent-track-play-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.recent-track-row:hover .recent-track-play-icon,
+.recent-track-row.is-active-song .recent-track-play-icon {
+    opacity: 1;
+}
+
+.recent-track-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.recent-track-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+}
+
+.recent-track-artist {
+    font-size: 0.8rem;
+    color: var(--text-muted, #9ca3af);
+    margin: 3px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.recent-track-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.recent-track-duration {
+    font-size: 0.8rem;
+    color: var(--text-muted, #9ca3af);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Skeleton loader desktop */
+.recent-track-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 14px;
+}
+
+.skeleton-recent-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-recent-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.skeleton-recent-title {
+    width: 40%;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-recent-artist {
+    width: 25%;
+    height: 11px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-recent-meta {
+    width: 40px;
+    height: 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Empty state desktop */
+.recent-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    text-align: center;
+    gap: 0.6rem;
+}
+
+.recent-empty-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted, #9ca3af);
+    margin-bottom: 0.25rem;
+}
+
+.recent-empty-icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+.recent-empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+}
+
+.recent-empty-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted, #9ca3af);
+    margin: 0;
+    max-width: 320px;
 }

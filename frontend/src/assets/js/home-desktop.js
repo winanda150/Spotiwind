@@ -13,7 +13,7 @@ import { isUserPremium } from '../../services/profileService.js';
 import { retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
-import { recordRecentlyPlayed, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordRecentlyPlayed, subscribeRecentlyPlayed, getRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { recordTrackPlay, subscribePopularTracks } from '../../services/popularTrackService.js';
 import { recordArtistPlay, subscribeTopArtists } from '../../services/topArtistService.js';
 import { getMadeForYouMixes } from '../../services/madeForYouService.js';
@@ -344,6 +344,9 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     }
 
     // Context-aware playlist management
+    if (context === 'recently-played' && Array.isArray(customPlaylist) && customPlaylist.length > 0) {
+        currentPlaylist = [...customPlaylist];
+    }
     if (context && currentPlaylist.length > 0) {
         const queueState = setContextPlaylist(currentPlaylist, songId);
         currentPlaylist = queueState.playlist;
@@ -783,6 +786,95 @@ const fetchTrendingMusic = async () => {
     });
 };
 
+let desktopRecentlyPlayedListCache = [];
+
+/**
+ * Render Recently Played songs in vertical layout (Max 3 items) on Desktop
+ */
+const renderDesktopRecentlyPlayed = () => {
+    const container = document.getElementById('desktopRecentlyPlayedList');
+    if (!container) return;
+
+    try {
+        const rawSongs = getRecentlyPlayed();
+        const validSongs = (Array.isArray(rawSongs) ? rawSongs : [])
+            .filter(s => s && (s.id || s.audio) && s.audio)
+            .slice(0, 3); // Batas maksimal 3 lagu terbaru sesuai permintaan
+
+        desktopRecentlyPlayedListCache = validSongs;
+
+        if (validSongs.length === 0) {
+            container.innerHTML = `
+                <div class="recent-empty-state">
+                    <div class="recent-empty-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="recent-empty-title">No recently played songs</h3>
+                    <p class="recent-empty-desc">Songs you listen to will show up here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const isSameList = desktopRecentlyPlayedListCache.length === validSongs.length &&
+            validSongs.every((s, i) => String(s.id) === String(desktopRecentlyPlayedListCache[i]?.id));
+
+        desktopRecentlyPlayedListCache = validSongs;
+
+        if (isSameList && container.querySelector('.recent-track-row')) {
+            syncActiveDesktopUI();
+            return;
+        }
+
+        const isAudioPlaying = activeAudio && !activeAudio.paused && !activeAudio.ended;
+
+        container.innerHTML = validSongs.map(song => {
+            const isActive = areSameSongs(song, currentSongData);
+            const isPaused = isActive && activeAudio.paused;
+            const safeName = (song.name || song.title || 'Untitled').replace(/"/g, '&quot;');
+            const safeArtist = (song.artist || 'Unknown Artist').replace(/"/g, '&quot;');
+            const cover = song.cover || '../../public/Elemen/Logo/Spotiwind.webp';
+            const durationFormatted = formatTime(song.duration || 0);
+
+            return `
+                <div class="recent-track-row ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}"
+                    data-id="${song.id}"
+                    data-audio="${song.audio}"
+                    data-name="${safeName}"
+                    data-artist="${safeArtist}"
+                    data-cover="${cover}"
+                    data-duration="${song.duration || 0}"
+                    data-context="recently-played">
+                    <div class="recent-track-cover-wrapper">
+                        <img src="${cover}" alt="${safeName}" class="recent-track-cover" width="48" height="48" loading="lazy">
+                        <div class="recent-track-play-icon" aria-hidden="true">
+                            ${isActive && isAudioPlaying ? PAUSE_ICON : PLAY_ICON}
+                        </div>
+                    </div>
+                    <div class="recent-track-info">
+                        <h4 class="recent-track-name">${safeName}</h4>
+                        <p class="recent-track-artist">${safeArtist}</p>
+                    </div>
+                    <div class="recent-track-right">
+                        <span class="recent-track-duration">${durationFormatted}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        syncActiveDesktopUI();
+    } catch (e) {
+        console.warn("Failed to render desktop recently played:", e);
+    }
+};
+
+window.addEventListener('recently-played-updated', () => {
+    renderDesktopRecentlyPlayed();
+}, { passive: true });
+
 let activeDesktopDetailMix = null;
 
 const syncActiveDesktopUI = () => {
@@ -794,9 +886,9 @@ const syncActiveDesktopUI = () => {
         el.classList.remove('is-active-song', 'is-paused');
     });
 
-    document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
+    document.querySelectorAll('.play-overlay, .play-pause-btn, .recent-track-play-icon').forEach(el => {
         el.classList.remove('btn-loading');
-        if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
+        if (el.classList.contains('play-overlay') || el.classList.contains('recent-track-play-icon')) el.innerHTML = PLAY_ICON;
     });
 
     const mixDetailPlayAllBtn = document.getElementById('mixDetailPlayAllBtn');
@@ -809,17 +901,19 @@ const syncActiveDesktopUI = () => {
 
     if (isPlaying || isPaused) {
         // Highlight active individual songs
-        document.querySelectorAll('[data-id], .song-card, .dropdown-item').forEach(el => {
+        document.querySelectorAll('[data-id], .song-card, .dropdown-item, .recent-track-row').forEach(el => {
             if (el.classList.contains('mix-card') || el.classList.contains('mix-track-row')) return;
             const cardId = el.dataset.id;
             const cardAudio = el.dataset.audio || el.querySelector('.play-overlay')?.dataset?.audio;
-            const cardName = el.dataset.name || el.querySelector('.song-name, .dropdown-song-name, .item-name')?.textContent;
-            const cardArtist = el.dataset.artist || el.querySelector('.song-artist, .dropdown-song-artist, .item-artist')?.textContent;
+            const cardName = el.dataset.name || el.querySelector('.song-name, .dropdown-song-name, .item-name, .recent-track-name')?.textContent;
+            const cardArtist = el.dataset.artist || el.querySelector('.song-artist, .dropdown-song-artist, .item-artist, .recent-track-artist')?.textContent;
             if (areSameSongs(currentSongData, { id: cardId, audio: cardAudio, name: cardName, artist: cardArtist })) {
                 el.classList.add('is-active-song');
                 if (isPaused) el.classList.add('is-paused');
                 const overlay = el.querySelector('.play-overlay');
                 if (overlay) overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+                const recentPlayIcon = el.querySelector('.recent-track-play-icon');
+                if (recentPlayIcon) recentPlayIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
             }
         });
 
@@ -1003,6 +1097,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     'made-for-you'
                 );
             }
+            return;
+        }
+
+        // Click handler for Recently Played Vertical Row Item
+        const recentRow = e.target.closest('.recent-track-row');
+        if (recentRow) {
+            e.stopPropagation();
+            const { id, audio, name, artist, cover, duration } = recentRow.dataset;
+            const playIcon = recentRow.querySelector('.recent-track-play-icon');
+            window.playPreview(
+                playIcon,
+                audio,
+                name,
+                artist,
+                cover,
+                id,
+                Number(duration) || 0,
+                'recently-played',
+                desktopRecentlyPlayedListCache
+            );
+            return;
+        }
+
+        const seeAllRecentBtn = e.target.closest('#seeAllRecentDesktopBtn');
+        if (seeAllRecentBtn) {
+            e.preventDefault();
+            const libraryNav = document.querySelector('.sidebar-nav a[href*="library"], .nav-menu a[href*="library"], .nav-item:nth-child(4)');
+            if (libraryNav) libraryNav.click();
             return;
         }
 
@@ -1515,6 +1637,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchWithContinuousRetry(fetchTrendingMusic);
         fetchWithContinuousRetry(fetchTopArtists);
         fetchWithContinuousRetry(fetchMadeForYou);
+        renderDesktopRecentlyPlayed();
     };
 
     const initializeDesktopUserUI = async (user) => {
@@ -1535,7 +1658,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (recentlyPlayedUnsubscribe) {
                 recentlyPlayedUnsubscribe();
             }
-            recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid);
+            recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid, () => {
+                renderDesktopRecentlyPlayed();
+            });
 
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
@@ -1618,6 +1743,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 playlistUnsubscribe = null;
             }
             if (document.getElementById('premiumBadge')) document.getElementById('premiumBadge').classList.add('hidden');
+            renderDesktopRecentlyPlayed();
+            if (recentlyPlayedUnsubscribe) {
+                recentlyPlayedUnsubscribe();
+                recentlyPlayedUnsubscribe = null;
+            }
         }
     };
 
