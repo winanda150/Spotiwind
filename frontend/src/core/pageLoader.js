@@ -269,8 +269,17 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
             }
         }
 
+        // Sinkronisasi status lagu aktif segera setelah snapshot DOM Home dipulihkan
+        if (typeof window.syncActiveSongUI === 'function') {
+            window.syncActiveSongUI();
+        }
+
         if (typeof context.onHomeMounted === 'function') {
             context.onHomeMounted();
+        }
+
+        if (typeof window.syncActiveSongUI === 'function') {
+            window.syncActiveSongUI();
         }
 
         // Multi-phase scroll restoration to ensure accurate positioning even during layout reflow
@@ -300,6 +309,10 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
 
         contentContainer.style.opacity = '1';
         currentPageUrl = 'home-mobile.html';
+
+        if (typeof window.syncActiveSongUI === 'function') {
+            requestAnimationFrame(window.syncActiveSongUI);
+        }
         return;
     }
 
@@ -379,7 +392,7 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
                 const notificationsModule = await import('../assets/js/notifications-mobile.js');
                 activePageCleanup = notificationsModule.cleanupNotifications;
                 if (typeof notificationsModule.initNotificationsPage === 'function') {
-                    notificationsModule.initNotificationsPage();
+                    notificationsModule.initNotificationsPage(previousPageUrl);
                 }
             } else if (page.includes('library-mobile.html')) {
                 const libraryModule = await import('../assets/js/library-mobile.js');

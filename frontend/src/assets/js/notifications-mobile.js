@@ -159,18 +159,33 @@ export const cleanupNotifications = () => {
     }
 };
 
-export const initNotificationsPage = () => {
+export const initNotificationsPage = (previousPage = null) => {
     cleanupNotifications();
     const container = document.querySelector('.notification-list-container'); // Get fresh reference
 
     // Add back button listener
-    const backBtn = document.getElementById('backToHomeBtn');
+    const backBtn = document.getElementById('backToHomeBtn') || document.querySelector('.notification-page-header .back-btn');
     if (backBtn) {
-        backBtn.addEventListener('click', (e) => {
+        backBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             cleanupNotifications();
+
+            const resolvedPrevious = previousPage || (typeof window.getPreviousPageUrl === 'function' ? window.getPreviousPageUrl() : null);
+            const targetPage = (resolvedPrevious && !resolvedPrevious.includes('notifications'))
+                ? resolvedPrevious
+                : 'home-mobile.html';
+
+            // Sinkronisasi status aktif item bottom nav
+            document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
+            const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${targetPage}"]`);
+            if (targetNavItem) targetNavItem.classList.add('active');
+
             if (typeof window.loadPageContent === 'function') {
-                window.loadPageContent('home-mobile.html', { pushState: true });
+                await window.loadPageContent(targetPage, { pushState: true });
+            } else if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'home-mobile.html';
             }
         });
     }

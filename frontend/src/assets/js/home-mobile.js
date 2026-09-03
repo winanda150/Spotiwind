@@ -1570,6 +1570,14 @@ window.toggleDownloadSong = toggleDownloadSong;
 
         const skeletons = grid.querySelectorAll(skeletonSelector);
 
+        // Jika tidak ada skeleton (misal halaman dipulihkan dari cache snapshot DOM),
+        // langsung ganti konten agar tidak menduplikasi kartu di bawah kartu lama
+        if (skeletons.length === 0) {
+            grid.innerHTML = items.map(item => itemRenderer(item, context)).join('');
+            syncActiveSongUI();
+            return;
+        }
+
         for (let i = items.length; i < skeletons.length; i++) {
             skeletons[i].remove();
         }
@@ -1662,7 +1670,16 @@ window.toggleDownloadSong = toggleDownloadSong;
             const mixes = await getMadeForYouMixes();
             if (!mixes || mixes.length === 0) return false;
             madeForYouMixes = mixes;
-            renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton', 'made-for-you');
+            const hasSkeletons = Boolean(document.querySelector(`${gridSelector} .song-card-skeleton`));
+            if (hasSkeletons) {
+                renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton', 'made-for-you');
+            } else {
+                const grid = document.querySelector(gridSelector);
+                if (grid) {
+                    grid.innerHTML = mixes.map(mix => createMixCardHTML(mix)).join('');
+                    syncActiveSongUI();
+                }
+            }
             return true;
         } catch (error) {
             console.error("Failed to load Made for You mixes:", error);
@@ -1731,10 +1748,11 @@ window.toggleDownloadSong = toggleDownloadSong;
                     `;
                 } else {
                     trendingPlaylist = rawSongs;
-                    if (isFirstLoad) {
+                    const hasSkeletons = Boolean(grid.querySelector('.song-card-skeleton'));
+                    if (isFirstLoad && hasSkeletons) {
                         renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton', 'trending');
                     } else {
-                        // Realtime update: update grid directly and sync UI
+                        // Realtime update atau pemulihan DOM: update grid langsung dan sinkronkan UI
                         grid.innerHTML = rawSongs.map(song => createSongCardHTML(song, 'trending')).join('');
                         syncActiveSongUI();
                     }
@@ -2179,6 +2197,7 @@ window.toggleDownloadSong = toggleDownloadSong;
             artistData: artistDataForPageLoad,
             onHomeMounted: () => {
                 initializeHomeContent();
+                syncActiveSongUI();
                 initializeData();
                 const user = auth.currentUser;
                 if (user) {
@@ -2590,6 +2609,8 @@ window.spotiwind = {
             onHomeMounted: () => {
                 // Callback when home is restored (e.g. from sub-page back to home)
                 initializeHomeContent();
+                syncActiveSongUI();
+                initializeData();
             }
         };
 

@@ -524,13 +524,13 @@ const showSkeletonLoader = (gridSelector, type, count = 6) => {
  * @returns {string} - HTML string for the song card.
  */
 const createSongCardHTML = (song) => {
-    const isActive = currentSongData && String(song.id) === String(currentSongData.id);
+    const isActive = areSameSongs(song, currentSongData);
     const isPaused = activeAudio.paused;
     const safeName = song.name.replace(/'/g, "\\'");
     const safeArtist = song.artist.replace(/'/g, "\\'");
 
     return `
-    <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && isPaused ? 'is-paused' : ''}" data-id="${song.id}">
+    <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && isPaused ? 'is-paused' : ''}" data-id="${song.id}" data-audio="${song.audio}">
         <div class="song-cover">
             <img src="${song.cover}" alt="${song.name}" style="width:100%; height:100%; object-fit:cover;">
             <button class="play-overlay" aria-label="Play ${song.name}"
@@ -809,12 +809,18 @@ const syncActiveDesktopUI = () => {
 
     if (isPlaying || isPaused) {
         // Highlight active individual songs
-        document.querySelectorAll(`[data-id="${currentSongData.id}"]`).forEach(el => {
+        document.querySelectorAll('[data-id], .song-card, .dropdown-item').forEach(el => {
             if (el.classList.contains('mix-card') || el.classList.contains('mix-track-row')) return;
-            el.classList.add('is-active-song');
-            if (isPaused) el.classList.add('is-paused');
-            const overlay = el.querySelector('.play-overlay');
-            if (overlay) overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+            const cardId = el.dataset.id;
+            const cardAudio = el.dataset.audio || el.querySelector('.play-overlay')?.dataset?.audio;
+            const cardName = el.dataset.name || el.querySelector('.song-name, .dropdown-song-name, .item-name')?.textContent;
+            const cardArtist = el.dataset.artist || el.querySelector('.song-artist, .dropdown-song-artist, .item-artist')?.textContent;
+            if (areSameSongs(currentSongData, { id: cardId, audio: cardAudio, name: cardName, artist: cardArtist })) {
+                el.classList.add('is-active-song');
+                if (isPaused) el.classList.add('is-paused');
+                const overlay = el.querySelector('.play-overlay');
+                if (overlay) overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+            }
         });
 
         // Highlight active mix cards
