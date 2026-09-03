@@ -4,6 +4,9 @@ import { subscribeUserProfile, getProfileByUid, generateUserCode, setUserPremium
 import { subscribeUserFollowers, subscribeUserFollowing } from '../../services/userService.js';
 import { loadLocalCatalog } from '../../services/catalogService.js';
 import { clearRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { defaultAvatar, getHighResAvatarUrl, formatRupiah } from '../../utils/formatters.js';
+import { showToast } from '../../utils/domUtils.js';
+import { openAvatarPreviewModal, closeAvatarPreviewModal, initAvatarPreviewModal } from '../../components/modals/avatarPreviewModal.js';
 
 let unsubscribeAccountAuth = null;
 let unsubscribePlaylists = null;
@@ -42,111 +45,15 @@ let selectedPlanData = {
     price: 'Rp 29.000'
 };
 
-const defaultAvatar = (name = 'User') => `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=B91EC9&color=fff&bold=true&size=512`;
-
-// Mengubah URL Google Avatar beresolusi rendah (s96-c) menjadi resolusi HD (s512-c / s1024-c)
-export const getHighResAvatarUrl = (url, size = 512) => {
-    if (!url) return '';
-    let result = String(url).trim();
-
-    // 1. Jika foto dari Google User Content (Google Login)
-    if (result.includes('googleusercontent.com') || result.includes('google.com') || result.includes('ggpht.com')) {
-        if (/=s\d+([a-zA-Z0-9_-]*)/.test(result)) {
-            result = result.replace(/=s\d+([a-zA-Z0-9_-]*)/, `=s${size}-c`);
-        } else if (/([?&])sz=\d+/.test(result)) {
-            result = result.replace(/([?&])sz=\d+/, `$1sz=${size}`);
-        } else {
-            const hasQuery = result.includes('?');
-            if (hasQuery) {
-                const parts = result.split('?');
-                result = `${parts[0]}=s${size}-c?${parts[1]}`;
-            } else {
-                result = `${result}=s${size}-c`;
-            }
-        }
-        return result;
-    }
-
-    // 2. Jika foto dari UI Avatars
-    if (result.includes('ui-avatars.com')) {
-        if (/size=\d+/.test(result)) {
-            result = result.replace(/size=\d+/, `size=${size}`);
-        } else {
-            const sep = result.includes('?') ? '&' : '?';
-            result = `${result}${sep}size=${size}`;
-        }
-        return result;
-    }
-
-    return result;
-};
-
 let previousActiveElement = null;
 
-const showToast = (message) => {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
+const openAvatarPreview = () => openAvatarPreviewModal({
+    modalId: 'avatarPreviewModal',
+    previewImgId: 'avatarPreviewImg',
+    avatarSourceEl: document.getElementById('accountAvatar')
+});
 
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => toast.remove(), 2400);
-};
-
-const openAvatarPreview = () => {
-    const modal = document.getElementById('avatarPreviewModal');
-    const previewImg = document.getElementById('avatarPreviewImg');
-    const accountAvatar = document.getElementById('accountAvatar');
-
-    if (!modal || !accountAvatar || !previewImg) return;
-
-    previousActiveElement = document.activeElement;
-
-    previewImg.referrerPolicy = "no-referrer";
-    let imgSrc = getHighResAvatarUrl(accountAvatar.src, 1024);
-    previewImg.src = imgSrc;
-
-    modal.classList.remove('hidden');
-    modal.removeAttribute('inert');
-    void modal.offsetWidth;
-    modal.classList.add('is-active');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-};
-
-const closeAvatarPreview = () => {
-    const modal = document.getElementById('avatarPreviewModal');
-    if (!modal || modal.classList.contains('hidden')) return;
-
-    if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-    }
-
-    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        try {
-            previousActiveElement.focus();
-        } catch {
-            // Ignored
-        }
-    }
-    previousActiveElement = null;
-
-    modal.classList.remove('is-active');
-    modal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-
-    setTimeout(() => {
-        if (!modal.classList.contains('is-active')) {
-            modal.classList.add('hidden');
-        }
-    }, 280);
-};
+const closeAvatarPreview = () => closeAvatarPreviewModal('avatarPreviewModal');
 
 // ==========================================================================
 // Spotiwind PRO Modals (Subscription & Management)

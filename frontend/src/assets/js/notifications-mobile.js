@@ -163,6 +163,18 @@ export const initNotificationsPage = () => {
     cleanupNotifications();
     const container = document.querySelector('.notification-list-container'); // Get fresh reference
 
+    // Add back button listener
+    const backBtn = document.getElementById('backToHomeBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            cleanupNotifications();
+            if (typeof window.loadPageContent === 'function') {
+                window.loadPageContent('home-mobile.html', { pushState: true });
+            }
+        });
+    }
+
     unsubscribeAuth = onAuthStateChanged(auth, (user) => {
         if (user) {
             loadNotifications(user.uid);

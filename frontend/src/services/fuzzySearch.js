@@ -622,6 +622,7 @@ const singleWordFuzzyScore = (queryWord, targetWord) => {
  */
 const LOCAL_SONG_BASE = 200;
 const LOCAL_ARTIST_BASE = 200;
+const LOCAL_ALBUM_BASE = 200;
 // Small bonus so artists with EQUAL relevance edge above songs
 // (typing an artist name → artist should appear first)
 const ARTIST_STRONG_MATCH_BONUS = 15;
@@ -710,6 +711,50 @@ export const searchLocalArtists = (query, artists) => {
                 type: 'artist',
                 isLocal: true,
                 searchRank: LOCAL_ARTIST_BASE + (score * 2) + strongBonus
+            });
+        }
+    }
+
+    return results.sort((a, b) => b.searchRank - a.searchRank);
+};
+
+/**
+ * Search local albums with super-smart fuzzy matching.
+ * Scores against: album name, artist name, combined ("name artist"), and reversed.
+ * @param {string} query - raw user query
+ * @param {Array} albums - local albums array
+ * @returns {Array} scored results sorted by searchRank descending
+ */
+export const searchLocalAlbums = (query, albums) => {
+    if (!query || !albums?.length) return [];
+    const normQuery = normalize(query);
+    if (normQuery.length < 2) return [];
+
+    const results = [];
+
+    for (const album of albums) {
+        const normName = normalize(album.name);
+        const normArtist = normalize(album.artist || album.artistName || '');
+        const combined = `${normName} ${normArtist}`;
+        const reversed = `${normArtist} ${normName}`;
+
+        const scores = [
+            fuzzyScore(normQuery, normName),
+            fuzzyScore(normQuery, normArtist),
+            fuzzyScore(normQuery, combined),
+            fuzzyScore(normQuery, reversed),
+        ];
+
+        const bestScore = Math.max(...scores);
+
+        if (bestScore >= MIN_RELEVANCE_THRESHOLD) {
+            results.push({
+                ...album,
+                type: 'album',
+                isLocal: true,
+                _relevance: bestScore,
+                // Quality-amplified: score × 2 makes local albums prioritized with searchRank (200-400) vs remote (50-150)
+                searchRank: LOCAL_ALBUM_BASE + (bestScore * 2)
             });
         }
     }

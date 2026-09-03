@@ -3,14 +3,16 @@
  * Handles all logic for the artist-mobile.html page.
  */
 
+import { defaultAvatar } from '../../utils/formatters.js';
+
 // These functions are expected to be available in the global scope from home-mobile.js
 const {
-    fetchWithContinuousRetry,
+    fetchWithContinuousRetry = (fn) => (typeof fn === 'function' ? fn() : null),
     fetchLocalArtistSongs,
     fetchArtistSongs,
-    loadPageContent,
-    initializeSkeletons
-} = window.spotiwind.mobile;
+    loadPageContent = (page, opts) => (typeof window.loadPageContent === 'function' ? window.loadPageContent(page, opts) : null),
+    initializeSkeletons = () => {}
+} = (window.spotiwind && window.spotiwind.mobile) || {};
 
 let parallaxHandler = null;
 let artistPageTitleVisibilityTimeout = null;
@@ -118,7 +120,7 @@ export const initArtistPage = (artist, previousPage) => {
         heroImage.referrerPolicy = "no-referrer";
         heroImage.alt = artist.name || 'Artist';
 
-        const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name || 'Artist')}&background=B91EC9&color=fff&bold=true&size=512`;
+        const fallbackAvatar = defaultAvatar(artist.name || 'Artist');
         heroImage.onerror = () => {
             heroImage.src = fallbackAvatar;
         };
@@ -142,11 +144,20 @@ export const initArtistPage = (artist, previousPage) => {
     }
 
     // 4. Fetch and Render Songs
+    const mobileOps = (window.spotiwind && window.spotiwind.mobile) || {};
+    const retryFn = mobileOps.fetchWithContinuousRetry || fetchWithContinuousRetry;
+    const localFn = mobileOps.fetchLocalArtistSongs || fetchLocalArtistSongs;
+    const artistFn = mobileOps.fetchArtistSongs || fetchArtistSongs;
+
     const isLocalArtist = isNaN(parseInt(artist.id));
     if (isLocalArtist) {
-        fetchWithContinuousRetry(() => fetchLocalArtistSongs(artist));
+        if (typeof localFn === 'function') {
+            retryFn(() => localFn(artist));
+        }
     } else {
-        fetchWithContinuousRetry(() => fetchArtistSongs(artist.id, artist.name));
+        if (typeof artistFn === 'function') {
+            retryFn(() => artistFn(artist.id, artist.name));
+        }
     }
 
     // 5. Attach parallax scroll listener

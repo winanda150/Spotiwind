@@ -4,6 +4,28 @@ import {
     signOut
 } from "./firebase-config.js";
 
+import { toggleFavorite, isFavoriteSong } from '../../services/favoriteService.js';
+import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
+import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
+import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
+import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
+import { isUserPremium } from '../../services/profileService.js';
+import { retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
+import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
+import { searchCatalogData } from '../../services/searchService.js';
+import { recordRecentlyPlayed, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordTrackPlay, subscribePopularTracks } from '../../services/popularTrackService.js';
+import { recordArtistPlay, subscribeTopArtists } from '../../services/topArtistService.js';
+import { getMadeForYouMixes } from '../../services/madeForYouService.js';
+
+import { PLAY_ICON, PAUSE_ICON, VOLUME_PATH, MUTE_PATH } from '../../constants/icons.js';
+import { formatTime, debounce } from '../../utils/formatters.js';
+import { areSameSongs } from '../../utils/audioUtils.js';
+import { showToast, loadStylesheet, createHeartParticles } from '../../utils/domUtils.js';
+import { initFriendsActivityModal } from '../../components/modals/friendsActivityModal.js';
+import { openMixDetailModal, closeMixDetailModal } from '../../components/sheets/mixDetailSheet.js';
+import { updateAppUrl } from '../../core/pageLoader.js';
+
 let playlistUnsubscribe = null;
 let recentlyPlayedUnsubscribe = null;
 let friendActivityListeners = []; // Using an array to track multiple listeners
@@ -13,24 +35,7 @@ let hasReachedActivityEnd = false;
 let activityUpdateTimeout = null; // For activity update optimization
 let lastRecordedActivitySong = '';
 
-let allFriendsActivityData = []; // Buffer for all data from the modal
-let modalDisplayCount = 0; // Tracking the number of items rendered in the modal
-const MODAL_PAGE_SIZE = 50;
 
-import { toggleFavorite } from '../../services/favoriteService.js';
-import { isFavoriteSong } from '../../services/favoriteService.js';
-import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
-import { getFollowingIds, getFriendsActivityByIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
-import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
-import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
-import { isUserPremium } from '../../services/profileService.js';
-import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
-import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
-import { searchCatalogData } from '../../services/searchService.js';
-import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
-import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
-import { recordArtistPlay, getTopArtists as getFirestoreTopArtists, subscribeTopArtists } from '../../services/topArtistService.js';
-import { getMadeForYouMixes } from '../../services/madeForYouService.js';
 
 // Audio Controller Global (Single Instance)
 let activeAudio = new Audio();
@@ -53,39 +58,12 @@ const friendOnlineStatus = {};
 const activePresenceListeners = new Map();
 let userPresenceCleanup = null;
 
-const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-const VOLUME_PATH = "M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07";
-const MUTE_PATH = "M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6";
-
-/**
- * Helper to format seconds to MM:SS
- */
-const formatTime = (seconds) => {
-    if (isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-/**
- * Helper to debounce a function (prevents excessive calls)
- */
-const debounce = (func, delay) => {
-    let timeout;
-    return function(...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), delay);
-    };
-};
-
 // Event listener to update the progress bar and time in real-time
 const desktopProgressThumbs = document.querySelectorAll('.progress-thumb');
 const desktopTimeEls = document.querySelectorAll('.time-info span:first-child, .curr-time');
 activeAudio.addEventListener('timeupdate', () => {
     if (isDragging) return; // Don't update UI if being manually dragged
-    
+
     if (activeAudio.duration) {
         const percent = (activeAudio.currentTime / activeAudio.duration) * 100;
         desktopProgressThumbs.forEach(thumb => thumb.style.width = `${percent}%`);
@@ -210,7 +188,7 @@ const updateMyActivity = async (songName) => {
         } catch (error) {
             console.error("Failed to update activity to Firestore:", error);
         }
-    }, 5000); 
+    }, 5000);
 };
 
 /**
@@ -239,7 +217,7 @@ const checkLikedStatus = async (songId) => {
 
     try {
         const isLiked = await isFavoriteSong(cleanId);
-        
+
         // Update UI based on the actual data from the database, not the current CSS class
         if (currentSongData && String(currentSongData.id) === cleanId) {
             syncPlayerLikeButtons(isLiked);
@@ -254,39 +232,7 @@ const checkLikedStatus = async (songId) => {
     }
 };
 
-/**
- * Function to create heart particle effects
- */
-const createHeartParticles = (el) => {
-    if (!el) return;
-    
-    // Get the center position of the clicked button
-    const rect = el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
 
-    for (let i = 0; i < 6; i++) {
-        const heart = document.createElement('div');
-        heart.className = 'heart-particle';
-        heart.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" style="fill: currentColor; stroke: none;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
-        
-        heart.style.left = `${centerX}px`;
-        heart.style.top = `${centerY}px`;
-        
-        // Random variations for flight direction using CSS Variables
-        heart.style.setProperty('--x-offset', (Math.random() - 0.5) * 120);
-        heart.style.setProperty('--y-offset', (Math.random() - 0.5) * 60);
-        heart.style.setProperty('--rotate', `${(Math.random() - 0.5) * 60}deg`);
-        
-        // Random size
-        const size = Math.random() * 10 + 15;
-        heart.style.width = `${size}px`;
-        heart.style.height = `${size}px`;
-
-        document.body.appendChild(heart);
-        setTimeout(() => heart.remove(), 1000);
-    }
-};
 
 /**
  * Helper to reset play/pause button UI (Sync with Mobile)
@@ -301,7 +247,7 @@ const resetBtnUI = (btn) => {
 const toggleLike = async (e) => {
     const user = auth.currentUser;
     const btn = e.currentTarget; // The clicked button (can be from the sidebar or bottom bar)
-    
+
     if (!user) {
         alert("Please log in to save your favorite songs.");
         return;
@@ -316,7 +262,7 @@ const toggleLike = async (e) => {
 
     // 1. CHECK CURRENT STATUS
     const wasLiked = btn.classList.contains('liked');
-    
+
     // 2. OPTIMISTIC UPDATE (Change UI instantly)
     // We don't wait for Firebase to finish to make it feel very fast
     syncPlayerLikeButtons(!wasLiked);
@@ -331,13 +277,13 @@ const toggleLike = async (e) => {
         // 4. ROLLBACK IF FAILED
         // If the internet is down or permission is denied, revert the button status
         syncPlayerLikeButtons(wasLiked);
-        
+
         console.error("Firebase Save Error:", error);
-        
+
         let message = "Failed to sync with database. Check your connection.";
         if (error.code === 'permission-denied') {
             message = "Permission Denied! Check your Firestore Rules.";
-        } 
+        }
     }
 };
 
@@ -355,7 +301,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         cover,
         duration: Number(duration) || 0
     };
-    const wasSameSong = Boolean(currentSongData && (String(currentSongData.id) === songId || (audioUrl && currentSongData.audio === audioUrl)));
+    const wasSameSong = Boolean(currentSongData && areSameSongs(currentSongData, targetSong));
     const isSameSong = Boolean(
         context === 'made-for-you'
             ? (previousMixId && mixId ? String(previousMixId) === String(mixId) : true) && wasSameSong && activeAudio && activeAudio.src
@@ -414,6 +360,11 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     recordArtistPlay(currentSongData);
     currentSongIndex = currentPlaylist.findIndex(s => s.audio === audioUrl);
     syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+    window.__spotiwindCurrentPlaylist = currentPlaylist;
+    window.__spotiwindCurrentIndex = currentSongIndex;
+    window.__spotiwindCurrentSong = currentSongData;
+    window.__spotiwindContext = currentDesktopPlaybackContext;
+    window.__spotiwindActiveMixId = activeMixId;
 
     // Reset ALL song UI states (to prevent visual duplicates during fast skipping)
     document.querySelectorAll('.is-active-song, .is-paused').forEach(el => {
@@ -478,12 +429,12 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
         // Update UI Sidebars & Bottom Bar
         document.querySelector('.now-playing-card')?.classList.add('active');
         const sidebarTitle = document.querySelector('.now-playing-title');
-        const sidebarArtist = document.querySelector('.now-playing-artist'); 
+        const sidebarArtist = document.querySelector('.now-playing-artist');
         const sidebarCover = document.querySelector('.now-playing-cover');
         if (sidebarTitle) sidebarTitle.textContent = title;
         if (sidebarArtist) sidebarArtist.textContent = artist;
         if (sidebarCover) sidebarCover.style.backgroundImage = `url("${cover}")`;
-        
+
         // Update Bottom Bar
         const bottomTitle = document.getElementById('bottomTrackName');
         const bottomArtist = document.getElementById('bottomTrackArtist');
@@ -532,20 +483,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     };
 };
 
-// Notification System (Consistent with mobile script)
-const showToast = (message) => {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `<span>${message}</span>`;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
-};
+
 
 /**
  * Displays a skeleton loader inside the grid.
@@ -633,7 +571,7 @@ const renderGridProgressively = async (gridSelector, items, itemRenderer, skelet
     if (!grid) return;
 
     const skeletons = grid.querySelectorAll(skeletonSelector);
-    
+
     // Clear any excess skeletons if the number of items is less than skeletons
     for (let i = items.length; i < skeletons.length; i++) {
         skeletons[i].remove();
@@ -884,7 +822,7 @@ const syncActiveDesktopUI = () => {
             const mixId = mixCard.dataset.mixId;
             const isCurrentMix = activeMixId ? String(mixId) === String(activeMixId) : false;
             const mixData = desktopMadeForYouMixes.find(m => String(m.id) === String(mixId));
-            const matchCurrentSong = isCurrentMix && mixData && mixData.songs && mixData.songs.some(s => String(s.id) === String(currentSongData.id) || (s.audio && currentSongData.audio === s.audio));
+            const matchCurrentSong = isCurrentMix && mixData && mixData.songs && mixData.songs.some(s => areSameSongs(s, currentSongData));
             if (matchCurrentSong) {
                 mixCard.classList.add('is-active-song');
                 if (isPaused) mixCard.classList.add('is-paused');
@@ -901,13 +839,13 @@ const syncActiveDesktopUI = () => {
             const rowAudio = row.dataset.songAudio;
             const rowMixId = row.dataset.mixId;
             const isRowInActiveMix = activeMixId ? String(rowMixId) === String(activeMixId) : false;
-            if (isRowInActiveMix && (rowSongId === String(currentSongData.id) || (rowAudio && currentSongData.audio === rowAudio))) {
+            if (isRowInActiveMix && areSameSongs({ id: rowSongId, audio: rowAudio }, currentSongData)) {
                 row.classList.add('is-active-song');
                 if (isPaused) row.classList.add('is-paused');
                 const playIcon = row.querySelector('.mix-track-play-icon');
                 if (playIcon) playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
                 if (mixDetailPlayAllBtn) {
-                    mixDetailPlayAllBtn.innerHTML = isPlaying 
+                    mixDetailPlayAllBtn.innerHTML = isPlaying
                         ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
                         : `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
                 }
@@ -917,102 +855,10 @@ const syncActiveDesktopUI = () => {
 };
 
 const openDesktopMixDetailModal = (mixId) => {
-    const modal = document.getElementById('mixDetailModal');
-    const header = document.getElementById('mixDetailHeader');
-    const tracklist = document.getElementById('mixDetailTracklist');
-    if (!modal || !header || !tracklist) return;
-
-    const targetMix = desktopMadeForYouMixes.find(m => m.id === mixId);
-    if (!targetMix) return;
-
-    activeDesktopDetailMix = targetMix;
-
-    const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
-    const totalMin = Math.round(totalSec / 60);
-
-    // Build cover area: 2x2 collage if ≥2 unique covers, else single image
-    const imgs = targetMix.coverImages || (targetMix.cover ? [targetMix.cover] : []);
-    let coverContent;
-    if (imgs.length >= 2) {
-        const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
-        coverContent = `
-            <div class="mix-collage">
-                ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="95" height="72" loading="lazy"></div>`).join('')}
-            </div>`;
-    } else {
-        coverContent = `<img src="${imgs[0] || targetMix.cover || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${targetMix.title}" width="190" height="145" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
-    }
-
-    header.innerHTML = `
-        <div class="mix-detail-header-content">
-            <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
-                ${coverContent}
-                <div class="mix-overlay-gradient"></div>
-                <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
-            </div>
-            <div class="mix-detail-hero-info">
-                <span class="mix-detail-hero-badge">${targetMix.tag}</span>
-                <h1 class="mix-detail-hero-title">${targetMix.title}</h1>
-                <p class="mix-detail-hero-desc">${targetMix.subtitle}</p>
-                <div class="mix-detail-hero-meta">
-                    <span>Spotiwind</span> • <span>${targetMix.songs.length} songs</span> • <span>~${totalMin} min</span>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const isMixActive = activeMixId ? String(targetMix.id) === String(activeMixId) : false;
-    tracklist.innerHTML = targetMix.songs.map((song, idx) => {
-        const isCurrent = isMixActive && currentSongData && (String(currentSongData.id) === String(song.id) || (song.audio && currentSongData.audio === song.audio));
-        const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
-        const isPaused = isCurrent && activeAudio && activeAudio.paused;
-        const min = Math.floor((song.duration || 0) / 60);
-        const sec = String((song.duration || 0) % 60).padStart(2, '0');
-        return `
-        <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" 
-             data-song-id="${song.id}"
-             data-song-audio="${song.audio}"
-             data-song-name="${song.name}"
-             data-song-artist="${song.artist}"
-             data-song-cover="${song.cover}"
-             data-song-duration="${song.duration || 0}"
-             data-mix-id="${targetMix.id}"
-             data-song-idx="${idx}">
-            <span class="mix-track-idx">${idx + 1}</span>
-            <div class="mix-track-cover-wrapper">
-                <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" width="44" height="44" loading="lazy">
-                <div class="mix-track-play-icon" aria-hidden="true">
-                    ${isCurrent && isPlaying ? PAUSE_ICON : PLAY_ICON}
-                </div>
-            </div>
-            <div class="mix-track-info">
-                <h4 class="mix-track-name">${song.name}</h4>
-                <p class="mix-track-artist">${song.artist}</p>
-            </div>
-            <span class="mix-track-duration">${min}:${sec}</span>
-        </div>`;
-    }).join('');
-
-    modal.classList.remove('hidden');
-    modal.removeAttribute('inert');
-    document.body.style.overflow = 'hidden';
-    // Move focus into the modal for accessibility
-    const closeBtn = modal.querySelector('#closeMixDetailBtn');
-    if (closeBtn) closeBtn.focus();
-    const shuffleBtn = modal.querySelector('#mixDetailShuffleBtn');
-    if (shuffleBtn) shuffleBtn.classList.toggle('is-active', isDesktopMixDetailShuffleActive);
-    syncActiveDesktopUI();
+    activeDesktopDetailMix = desktopMadeForYouMixes.find(m => String(m.id) === String(mixId)) || null;
+    openMixDetailModal(mixId, desktopMadeForYouMixes);
 };
-
-const closeDesktopMixDetailModal = () => {
-    const modal = document.getElementById('mixDetailModal');
-    if (!modal) return;
-    // Move focus out BEFORE hiding, to prevent aria-hidden+focus conflict
-    document.activeElement?.blur();
-    modal.classList.add('hidden');
-    modal.setAttribute('inert', '');
-    document.body.style.overflow = '';
-};
+const closeDesktopMixDetailModal = closeMixDetailModal;
 
 document.addEventListener('DOMContentLoaded', () => {
     activeAudio.addEventListener('play', () => syncActiveDesktopUI());
@@ -1057,12 +903,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Click on Mix Card (outside play button) -> Open Desktop Mix Detail Modal View
+        // 2. Click on Mix Card (outside play button) -> Play Mix
         const mixCard = e.target.closest('.mix-card');
         if (mixCard) {
             e.stopPropagation();
             const mixId = mixCard.dataset.mixId;
-            openDesktopMixDetailModal(mixId);
+            const targetMix = desktopMadeForYouMixes.find(m => String(m.id) === String(mixId));
+            if (targetMix && targetMix.songs && targetMix.songs.length > 0) {
+                const firstSong = targetMix.songs[0];
+                currentPlaylist = [...targetMix.songs];
+                activeMixId = targetMix.id;
+                window.playPreview(
+                    mixCard.querySelector('.play-overlay') || null,
+                    firstSong.audio,
+                    firstSong.name,
+                    firstSong.artist,
+                    firstSong.cover,
+                    firstSong.id,
+                    Number(firstSong.duration) || 0,
+                    'made-for-you',
+                    targetMix.songs,
+                    targetMix.id
+                );
+            }
             return;
         }
 
@@ -1148,15 +1011,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.playPreview(overlay, audio, name, artist, cover, id, 0, 'trending');
     });
-/**
- * NEW: Wrapper to continuously retry a fetch function upon failure.
- * This ensures the skeleton loader remains and the app keeps trying to load data.
- * @param {() => Promise<boolean>} fetchFunction - The async function to execute.
- * @param {number} delay - The delay (ms) before retrying.
- */
-const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries = 5) => {
-    return retryCatalogRequest(fetchFunction, maxRetries, delay);
-};
+    /**
+     * NEW: Wrapper to continuously retry a fetch function upon failure.
+     * This ensures the skeleton loader remains and the app keeps trying to load data.
+     * @param {() => Promise<boolean>} fetchFunction - The async function to execute.
+     * @param {number} delay - The delay (ms) before retrying.
+     */
+    const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries = 5) => {
+        return retryCatalogRequest(fetchFunction, maxRetries, delay);
+    };
 
     const logoutBtn = document.getElementById('logoutBtn');
 
@@ -1191,7 +1054,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     // Listener for music controls in the sidebar
     document.querySelector('button[title="Next"]')?.addEventListener('click', playNext);
     document.querySelector('button[title="Previous"]')?.addEventListener('click', playPrevious);
-    
+
     // Listener for Repeat (Sidebar & Bottom)
     document.querySelectorAll('#sidebarRepeat, #bottomRepeat').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -1225,7 +1088,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             document.querySelectorAll('#sidebarRepeat, #bottomRepeat').forEach(b => b.classList.toggle('active', isRepeat));
         });
     });
-    
+
     const togglePlayPause = async () => {
         // Use the same logic as mobile: prioritize resume if src exists
         if (activeAudio.src && activeAudio.src !== "") {
@@ -1319,7 +1182,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         // 1. Update UI instantly (Visual Feedback)
         const progressThumbs = document.querySelectorAll('.progress-thumb');
         const currentTimeEls = document.querySelectorAll('.time-info span:first-child, .curr-time');
-        
+
         progressThumbs.forEach(thumb => thumb.style.width = `${percentage * 100}%`);
         currentTimeEls.forEach(el => el.textContent = formatTime(percentage * activeAudio.duration));
 
@@ -1327,7 +1190,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         activeAudio.currentTime = percentage * activeAudio.duration;
     };
 
-    const startDragging = (e) => { 
+    const startDragging = (e) => {
         isDragging = true;
         activeDraggingTrack = e.currentTarget;
         document.body.classList.add('is-dragging-progress'); // Add class to body to disable transitions
@@ -1361,9 +1224,9 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     const volumeSlider = document.querySelector('.volume-slider');
     const volumeLevel = document.querySelector('.volume-level');
     const volumeSvg = document.querySelector('.volume-control svg');
-    
+
     let lastVolume = 0.7; // Save the last volume for the unmute feature
-    
+
     // Initialize initial volume (70% according to the default style in HTML)
     activeAudio.volume = 0.7;
 
@@ -1388,7 +1251,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const x = clientX - rect.left;
         const percentage = Math.max(0, Math.min(1, x / rect.width));
-        
+
         updateVolumeUI(percentage);
         if (percentage > 0) lastVolume = percentage;
     };
@@ -1470,7 +1333,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         const unsubscribe = watchFriendPresence(friendUid, ({ isOnline }) => {
 
             friendOnlineStatus[friendUid] = isOnline;
-            
+
             // Find all status elements for this user (in case it appears in more than one place)
             const statusElements = document.querySelectorAll(`.friend-item[data-uid="${friendUid}"] .online-status`);
             statusElements.forEach(el => {
@@ -1522,24 +1385,24 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         if (seeAllLink) seeAllLink.classList.remove('hidden');
 
         const unsub = subscribeFriendsActivityByIds(followingIds, (activities) => {
-                isLoadingMoreActivity = false;
-                const finalDisplay = activities.slice(0, displayLimit);
+            isLoadingMoreActivity = false;
+            const finalDisplay = activities.slice(0, displayLimit);
 
-                // Check if we've reached the end of the data (simple check)
-                hasReachedActivityEnd = activities.length < displayLimit;
+            // Check if we've reached the end of the data (simple check)
+            hasReachedActivityEnd = activities.length < displayLimit;
 
-                if (finalDisplay.length === 0) {
-                    container.innerHTML = `<p style="font-size: 0.75rem; color: var(--text-muted); padding: 1rem;">No active friends right now.</p>`;
-                    return;
-                }
+            if (finalDisplay.length === 0) {
+                container.innerHTML = `<p style="font-size: 0.75rem; color: var(--text-muted); padding: 1rem;">No active friends right now.</p>`;
+                return;
+            }
 
-                // Ensure the online status listener is active for each friend to be displayed
-                finalDisplay.forEach(friend => listenToFriendPresence(friend.id));
+            // Ensure the online status listener is active for each friend to be displayed
+            finalDisplay.forEach(friend => listenToFriendPresence(friend.id));
 
-                // 4. Render ke UI
-                container.innerHTML = finalDisplay.map(friend => { 
-                    const onlineClass = friendOnlineStatus[friend.id] ? '' : 'offline';
-                    
+            // 4. Render ke UI
+            container.innerHTML = finalDisplay.map(friend => {
+                const onlineClass = friendOnlineStatus[friend.id] ? '' : 'offline';
+
                 return `
                     <div class="friend-item" data-uid="${friend.id}">
                         <div class="avatar-container">
@@ -1558,7 +1421,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                     </div>
                 `;
             }).join('');
-            }, { limitCount: displayLimit });
+        }, { limitCount: displayLimit });
         friendActivityListeners.push(unsub);
     };
 
@@ -1568,7 +1431,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         friendActivityContainer.addEventListener('scroll', () => {
             // If the user scrolls to the bottom (20px from the bottom)
             const isBottom = friendActivityContainer.scrollHeight - friendActivityContainer.scrollTop <= friendActivityContainer.clientHeight + 20;
-            
+
             if (isBottom && !isLoadingMoreActivity && !hasReachedActivityEnd && currentFriendActivityLimit >= 10) {
                 currentFriendActivityLimit += 50;
                 renderFriendActivity(currentFriendActivityLimit);
@@ -1577,88 +1440,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         });
     }
 
-    /**
-     * Function to open the modal and load activities in bulk
-     */
-    const openFriendsModal = async () => {
-        const modal = document.getElementById('friendsModal');
-        const modalContainer = document.getElementById('modalActivityContainer');
-        if (!modal || !modalContainer) return;
-
-        modal.classList.remove('hidden');
-        modalContainer.innerHTML = '<div class="loader-container"><span class="loader"></span><p>Fetching all activities...</p></div>';
-        
-        const currentUser = auth.currentUser;
-        if (!currentUser) return;
-
-        // 1. Get all following
-        const followingIds = await getFollowingIds(currentUser.uid);
-        allFriendsActivityData = await getFriendsActivityByIds(followingIds, 100);
-
-        // 3. Sort by Latest Time
-        allFriendsActivityData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
-        // 4. Render the first 50
-        modalContainer.innerHTML = '';
-        modalDisplayCount = 0;
-        renderMoreToModal();
-    };
-
-    const renderMoreToModal = () => {
-        const modalContainer = document.getElementById('modalActivityContainer');
-        const loader = document.getElementById('modalLoader');
-        
-        const nextBatch = allFriendsActivityData.slice(modalDisplayCount, modalDisplayCount + MODAL_PAGE_SIZE);
-        
-        if (nextBatch.length === 0) {
-            if (modalDisplayCount === 0) modalContainer.innerHTML = '<p>No activity found.</p>';
-            loader.classList.add('hidden');
-            return;
-        }
-
-        const html = nextBatch.map(friend => `
-            <div class="friend-item" style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05)">
-                <img src="${friend.avatar || 'https://i.pravatar.cc/150'}" class="friend-avatar">
-                <div class="friend-info">
-                    <div class="friend-header">
-                        <span class="friend-name">${friend.name}</span>
-                        <span class="friend-time">${formatRelativeTime(friend.timestamp)}</span>
-                    </div>
-                    <span class="friend-status">Listening to <strong>${friend.song}</strong></span>
-                </div>
-            </div>
-        `).join('');
-
-        modalContainer.insertAdjacentHTML('beforeend', html);
-        modalDisplayCount += nextBatch.length;
-
-        if (modalDisplayCount >= allFriendsActivityData.length) {
-            loader.classList.add('hidden');
-        }
-    };
-
-    // Modal Scroll Listener (Infinite Scroll)
-    document.getElementById('modalActivityContainer')?.addEventListener('scroll', (e) => {
-        const el = e.target;
-        if (el.scrollHeight - el.scrollTop <= el.clientHeight + 50) {
-            if (modalDisplayCount < allFriendsActivityData.length) {
-                renderMoreToModal();
-            }
-        }
-    });
-
-    // Add Event Listener for the "See All" link in Friends Activity
-    const friendSeeAllLink = document.querySelector('.friend-activity-section .see-all-link');
-    if (friendSeeAllLink) {
-        friendSeeAllLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            openFriendsModal();
-        });
-    };
-
-    document.querySelector('.close-modal')?.addEventListener('click', () => {
-        document.getElementById('friendsModal').classList.add('hidden');
-    });
+    initFriendsActivityModal();
 
     // Helper Function for Navigation with Animation
     const navigateTo = (url) => {
@@ -1666,7 +1448,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
 
         // Immediately hide the main container to avoid a messy look during resize
         document.body.classList.add('is-transitioning');
-        
+
         if (overlay) {
             overlay.classList.remove('fade-out');
             setTimeout(() => {
@@ -1720,33 +1502,8 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
     let desktopPreviousPageUrl = 'home-desktop.html';
     let desktopCurrentPageUrl = 'home-desktop.html';
 
-    const loadDesktopStylesheet = (href, currentLinkElement) => {
-        return new Promise((resolve) => {
-            if (currentLinkElement && currentLinkElement.parentNode) {
-                currentLinkElement.parentNode.removeChild(currentLinkElement);
-            }
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = href;
-            link.onload = () => resolve(link);
-            link.onerror = () => {
-                console.error(`Failed to load desktop stylesheet: ${href}`);
-                resolve(link);
-            };
-            document.head.appendChild(link);
-        });
-    };
-
-    const updateDesktopAppUrl = (route, title, state = null, pushState = true) => {
-        try {
-            if (title) document.title = title;
-            if (pushState) {
-                window.history.pushState(state || { route }, title || document.title, route);
-            } else {
-                window.history.replaceState(state || { route }, title || document.title, route);
-            }
-        } catch (e) {}
-    };
+    const loadDesktopStylesheet = (href, currentLinkElement) => loadStylesheet(href, currentLinkElement);
+    const updateDesktopAppUrl = (route, title, state = null, pushState = true) => updateAppUrl(route, title, state, pushState);
 
     const initializeDesktopDashboardData = () => {
         fetchWithContinuousRetry(fetchTrendingMusic);
@@ -1788,7 +1545,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
             if (avatarElement) {
                 const nameForAvatar = user.displayName || user.email.split('@')[0];
                 const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=B91EC9&color=fff&bold=true&size=512`;
-                
+
                 // Konversi Google photoURL dari s96-c menjadi HD s512-c
                 let originalPhotoURL = user.photoURL ? String(user.photoURL).trim() : '';
                 if (originalPhotoURL && (originalPhotoURL.includes('googleusercontent.com') || originalPhotoURL.includes('google.com') || originalPhotoURL.includes('ggpht.com'))) {
@@ -1813,12 +1570,12 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                         originalPhotoURL = `${originalPhotoURL}${sep}size=512`;
                     }
                 }
-                
+
                 let originalRetry = 0;
                 const maxRetries = 2;
 
                 avatarElement.referrerPolicy = "no-referrer";
-                avatarElement.onerror = function() {
+                avatarElement.onerror = function () {
                     if (originalPhotoURL && this.src.includes(originalPhotoURL.split('?')[0]) && originalRetry < maxRetries) {
                         originalRetry++;
                         setTimeout(() => {
@@ -1882,6 +1639,27 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
                 }
             };
         }
+
+        const handleCreatePlaylist = async () => {
+            const user = auth.currentUser;
+            if (!user) {
+                navigateToDesktopAuthPage('login');
+                return;
+            }
+            const name = prompt("Enter playlist name:");
+            if (!name || !name.trim()) return;
+            try {
+                const created = await createUserPlaylist(user.uid, name.trim());
+                if (created) {
+                    showToast(`Playlist "${name.trim()}" created successfully!`);
+                } else {
+                    showToast("Failed to create playlist. Please try again.");
+                }
+            } catch (err) {
+                console.error("Error creating desktop playlist:", err);
+                showToast("Failed to create playlist.");
+            }
+        };
 
         const addPlaylistBtn = document.querySelector('.add-playlist-btn');
         if (addPlaylistBtn) {
@@ -2101,7 +1879,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
         } else {
             try {
                 window.history.replaceState({ route: 'home' }, 'Spotiwind - Feel The Music, Ride The Wind', '/');
-            } catch (e) {}
+            } catch (e) { }
         }
     });
 });
@@ -2111,6 +1889,7 @@ const fetchWithContinuousRetry = async (fetchFunction, delay = 5000, maxRetries 
  */
 let desktopLocalSongs = [];
 let desktopLocalArtists = [];
+let desktopLocalAlbums = [];
 
 const initDesktopSearch = async () => {
     const searchInput = document.getElementById('searchInput');
@@ -2122,9 +1901,20 @@ const initDesktopSearch = async () => {
     loadLocalCatalog().then((cat) => {
         desktopLocalArtists = cat.artists || [];
         desktopLocalSongs = cat.songs || [];
-    }).catch(() => {});
+        desktopLocalAlbums = cat.albums || [];
+    }).catch(() => { });
 
-    let abortCtrl = null;
+    window.handleDesktopAlbumClick = (albumId) => {
+        const album = desktopLocalAlbums.find((a) => a.id === albumId);
+        if (album && Array.isArray(album.trackIds) && album.trackIds.length > 0) {
+            const songsMap = new Map(desktopLocalSongs.map((s) => [s.id, s]));
+            const tracks = album.trackIds.map((id) => songsMap.get(id)).filter(Boolean);
+            if (tracks.length > 0 && typeof window.playPreview === 'function') {
+                window.playPreview(null, tracks[0].audio, tracks[0].name, tracks[0].artist, tracks[0].cover, tracks[0].id, tracks[0].duration || 0, 'search');
+            }
+        }
+        if (searchDropdown) searchDropdown.classList.remove('active');
+    };
 
     const renderResults = (results) => {
         if (!searchDropdown) return;
@@ -2148,6 +1938,23 @@ const initDesktopSearch = async () => {
                     <div class="dropdown-track-info">
                         <div class="dropdown-info-name">${a.name}</div>
                         <div class="dropdown-song-artist">Artist</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Albums
+        albums.slice(0, 2).forEach((alb) => {
+            const safeName = alb.name.replace(/'/g, "\\'");
+            const safeArtist = (alb.artist || 'Album').replace(/'/g, "\\'");
+            html += `
+                <div class="dropdown-item dropdown-item-album" onclick="window.handleDesktopAlbumClick('${alb.id}')">
+                    <div class="dropdown-cover-wrapper" style="border-radius: 4px;">
+                        <img src="${alb.cover || '../../public/Elemen/Logo/Spotiwind.webp'}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div class="dropdown-track-info">
+                        <div class="dropdown-info-name">${safeName}</div>
+                        <div class="dropdown-song-artist">${safeArtist} • Album</div>
                     </div>
                 </div>
             `;
@@ -2184,7 +1991,7 @@ const initDesktopSearch = async () => {
         abortCtrl = new AbortController();
 
         try {
-            const results = await searchCatalogData(q, desktopLocalSongs, desktopLocalArtists, 8);
+            const results = await searchCatalogData(q, desktopLocalSongs, desktopLocalArtists, desktopLocalAlbums, 8);
             renderResults(results);
         } catch (e) {
             if (e.name !== 'AbortError') {

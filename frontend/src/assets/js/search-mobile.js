@@ -1,4 +1,5 @@
 import { auth } from './firebase-config.js';
+import { areSameSongs } from '../../utils/audioUtils.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import {
     getRecentSearches,
@@ -14,8 +15,10 @@ export const initSearchPage = ({
     getCurrentSongData,
     getSongs,
     getArtists,
+    getAlbums,
     navigateToArtistPage,
     setHomeScrollPosition,
+    setPageScrollPosition,
     getLastSearchQuery,
     setLastSearchQuery,
     setSearchPlaylist,
@@ -39,7 +42,12 @@ export const initSearchPage = ({
         await recordSearchSelection('artists', { id, name, photo });
         searchDropdown.classList.remove('active');
         searchInput.blur();
-        setHomeScrollPosition(document.documentElement.scrollTop);
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if (typeof setPageScrollPosition === 'function') {
+            setPageScrollPosition('search-mobile.html', currentScroll);
+        } else if (typeof window.setPageScrollPosition === 'function') {
+            window.setPageScrollPosition('search-mobile.html', currentScroll);
+        }
         navigateToArtistPage({ id, name, photo });
     };
 
@@ -55,6 +63,33 @@ export const initSearchPage = ({
     window.handleAlbumSearchClick = async (id, name, artist, cover) => {
         await recordSearchSelection('albums', { id, name, artist, cover });
         searchDropdown.classList.remove('active');
+        searchInput.blur();
+
+        try {
+            const allSongs = typeof getSongs === 'function' ? getSongs() : [];
+            const allAlbums = typeof getAlbums === 'function' ? getAlbums() : [];
+            const albumObj = allAlbums.find((a) => String(a.id) === String(id)) || { id, name, artist, cover };
+
+            if (albumObj && Array.isArray(albumObj.trackIds) && albumObj.trackIds.length > 0) {
+                const songsMap = new Map(allSongs.map((s) => [s.id, s]));
+                const albumSongs = albumObj.trackIds.map((tid) => songsMap.get(tid)).filter(Boolean);
+
+                if (albumSongs.length > 0) {
+                    if (typeof setSearchPlaylist === 'function') {
+                        setSearchPlaylist(albumSongs);
+                    }
+                    const firstSong = albumSongs[0];
+                    if (firstSong && typeof window.playFromSearch === 'function') {
+                        window.playFromSearch(firstSong.audio, firstSong.name, firstSong.artist, firstSong.cover, firstSong.id);
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(`Memutar album: ${name}`);
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('Could not auto-play album tracks:', err);
+        }
     };
 
     window.handleUserFollowClick = async (targetUid, targetName, targetPhoto, buttonEl) => {
@@ -300,6 +335,12 @@ export const initSearchPage = ({
 
         if (pType === 'artists') {
             searchDropdown.classList.remove('active');
+            const currentScroll = window.pageYOffset || document.documentElement.scrollTop || 0;
+            if (typeof setPageScrollPosition === 'function') {
+                setPageScrollPosition('search-mobile.html', currentScroll);
+            } else if (typeof window.setPageScrollPosition === 'function') {
+                window.setPageScrollPosition('search-mobile.html', currentScroll);
+            }
             navigateToArtistPage({ id: item.id, name: item.name, photo: item.photo || item.cover || '' });
         } else if (pType === 'songs') {
             const currentSong = getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
@@ -389,8 +430,9 @@ export const initSearchPage = ({
         const isCodeSearch = cleanQuery.startsWith('#') || cleanQuery.toUpperCase().startsWith('SPW-');
 
         try {
+            const localAlbumsList = typeof getAlbums === 'function' ? getAlbums() : [];
             const [catalog, foundUser] = await Promise.all([
-                searchCatalogData(cleanQuery.toLowerCase(), getSongs(), getArtists(), 15),
+                searchCatalogData(cleanQuery.toLowerCase(), getSongs(), getArtists(), localAlbumsList, 15),
                 isCodeSearch ? findUserByCode(cleanQuery).catch(() => null) : Promise.resolve(null)
             ]);
 
@@ -463,12 +505,8 @@ export const initSearchPage = ({
 
                     const song = item;
                     const currentSongData = getCurrentSongData();
-                    const normalizeAudio = (audio) => audio?.replace(/^https?:/, '').replace(/\/$/, '');
-                    const isActive = currentSongData && (
-                        String(song.id) === String(currentSongData.id) ||
-                        normalizeAudio(song.audio) === normalizeAudio(currentSongData.audio)
-                    );
-                    const isPaused = isActive && activeAudio.paused;
+                    const isActive = currentSongData && areSameSongs(song, currentSongData);
+                    const isPaused = isActive && activeAudio && activeAudio.paused;
                     return `<div class="dropdown-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id || ''}" data-audio="${song.audio || ''}" onclick="handleSongSearchClick('${song.audio}', '${song.name.replace(/'/g, "\\'")}', '${song.artist.replace(/'/g, "\\'")}', '${song.cover}', '${song.id}', '${song.duration || 0}')"><div class="dropdown-cover-wrapper"><img src="${song.cover}" width="44" height="44" style="width: 100%; height: 100%; object-fit: cover;"></div><div class="dropdown-track-info" style="flex: 1; min-width: 0;"><div class="dropdown-info-name" style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; width: 100%;"><span class="dropdown-song-name" style="overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${song.name}</span><div class="equalizer" style="margin-left: auto;"><span></span><span></span><span></span></div></div><div class="dropdown-song-artist" style="font-size: 0.76rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${song.artist}</div></div></div>`;
                 }).join('');
 

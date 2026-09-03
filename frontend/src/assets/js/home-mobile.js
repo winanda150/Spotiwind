@@ -4,22 +4,37 @@ import {
     signOut
 } from "./firebase-config.js";
 
-import { toggleFavorite, getFavoriteSongs } from '../../services/favoriteService.js';
-import { isFavoriteSong } from '../../services/favoriteService.js';
-import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
-import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
+import { toggleFavorite, isFavoriteSong, getFavoriteSongs } from '../../services/favoriteService.js';
+import { subscribeUserPlaylists } from '../../services/libraryService.js';
+import { subscribeUserProfile } from '../../services/profileService.js';
 import { updateMyActivity as updateActivityRecord } from '../../services/activityService.js';
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUnreadNotifications } from '../../services/notificationService.js';
-import { getTopArtists as getCatalogTopArtists, getTrendingCatalog, getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
+import { getArtistCatalog, loadLocalCatalog, getFeaturedLocalSongs, getLocalArtistCatalog, retryCatalogRequest } from '../../services/catalogService.js';
 import { searchArtistsByName } from '../../services/jamendoService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
-import { cacheSongAudio, removeSongAudioFromCache, getCachedAudioBlobUrl, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
-import { recordRecentlyPlayed, syncRecentlyPlayedFromCloud, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
-import { recordTrackPlay, getPopularTracks, subscribePopularTracks } from '../../services/popularTrackService.js';
-import { recordArtistPlay, getTopArtists as getFirestoreTopArtists, subscribeTopArtists } from '../../services/topArtistService.js';
+import { downloadMp3ToDevice, getCachedAudioBlobUrl } from '../../services/offlineAudioService.js';
+import { recordRecentlyPlayed, subscribeRecentlyPlayed } from '../../services/recentlyPlayedService.js';
+import { recordTrackPlay, subscribePopularTracks } from '../../services/popularTrackService.js';
+import { recordArtistPlay, subscribeTopArtists } from '../../services/topArtistService.js';
 import { getMadeForYouMixes } from '../../services/madeForYouService.js';
+
+import { PLAY_ICON, PAUSE_ICON } from '../../constants/icons.js';
+import { formatTime, debounce } from '../../utils/formatters.js';
+import { areSameSongs, getArtistUniqueId } from '../../utils/audioUtils.js';
+import { showToast, createHeartParticles } from '../../utils/domUtils.js';
+import { openCreatePlaylistModal, initCreatePlaylistModal } from '../../components/modals/createPlaylistModal.js';
+import { openAvatarPreviewModal, initAvatarPreviewModal } from '../../components/modals/avatarPreviewModal.js';
+import { renderUpNextQueue, initQueueModal } from '../../components/modals/queueModal.js';
+import { isSongDownloaded, toggleDownloadSong, initSongOptionsSheet } from '../../components/sheets/songOptionsSheet.js';
+import { openMixDetailModal, closeMixDetailModal, forceCloseMixDetailModal } from '../../components/sheets/mixDetailSheet.js';
+import { initPageRouter, loadSubpage, updateAppUrl, updateBottomNavActive, updateSidebarActiveState, setHomeScrollPosition, getHomeScrollPosition, isPageNavigatingOrRestoring, setPageScrollPosition, getPageScrollPosition } from '../../core/pageLoader.js';
+
+// Prevent browser from overriding custom scroll restoration in SPA
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
 
 // Expose direct MP3 download globally for the 3-dots option menu
 window.downloadMp3ToDevice = downloadMp3ToDevice;
@@ -37,6 +52,7 @@ let searchPlaylist = []; // Buffer to store search results
 let popularPlaylist = []; // Buffer to store Popular Searches song list for Up Next
 let indonesianSongsPlaylist = []; // Buffer for all local songs (for search)
 let indonesianArtistsPlaylist = []; // NEW: Buffer for local artists
+let indonesianAlbumsPlaylist = []; // NEW: Buffer for local albums
 let unshuffledPlaylist = []; // NEW: To store the original order of the playlist
 let currentSongIndex = -1;
 let isShuffle = false;
@@ -46,27 +62,48 @@ let currentSongData = null; // Stores the currently active song data
 let activityUpdateTimeout = null; // For activity update optimization
 let lastRecordedActivitySong = '';
 let artistPageCurrentSongs = []; // [NEW] Buffer to store songs from the current artist page
-let homeScrollPosition = 0; // NEW: To store scroll position of the home page
-let artistDataForPageLoad = null; // [NEW] Untuk menyimpan data artis saat navigasi
+let homeScrollPosition = getHomeScrollPosition(); // Stores scroll position of the home page for returning from subpages
+
+const isGenuineHomeView = () => {
+    const container = document.querySelector('.app-container');
+    if (!container) return false;
+    return Boolean(
+        container.querySelector('.top-artists-section') ||
+        container.querySelector('.made-for-you-section') ||
+        container.querySelector('#dailyTrendingGrid') ||
+        container.querySelector('.popular-section')
+    );
+};
+
+const saveCurrentPageScroll = () => {
+    if (typeof isPageNavigatingOrRestoring === 'function' && isPageNavigatingOrRestoring()) {
+        return;
+    }
+    const scrollPos = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    if (scrollPos < 0) return;
+
+    if (isGenuineHomeView()) {
+        homeScrollPosition = scrollPos;
+        setPageScrollPosition('home-mobile.html', scrollPos);
+    } else if (document.querySelector('.library-tabs')) {
+        setPageScrollPosition('library-mobile.html', scrollPos);
+    } else if (document.querySelector('#searchInput')) {
+        setPageScrollPosition('search-mobile.html', scrollPos);
+    }
+};
+
+const saveCurrentHomeScroll = saveCurrentPageScroll;
+
+window.addEventListener('scroll', () => {
+    saveCurrentPageScroll();
+}, { passive: true });
+
+let artistDataForPageLoad = null; // Buffer to pass artist data into artist-mobile module
+let lastSearchQuery = ''; // Variable to preserve search input query
 let friendActivityListeners = []; // Store listeners so they can be cleared
-let lastSearchQuery = ''; // [NEW] Variable to store the last search query
-let notificationPageStyleLink = null; // [NEW] To store the dynamically added notification page CSS link (using notifications-mobile.css)
-let artistPageStyleLink = null; // [NEW] To store the dynamically added artist page CSS link
-let libraryPageStyleLink = null; // [NEW] To store the dynamically added library page CSS link
-let accountPageStyleLink = null; // [NEW] To store the dynamically added account page CSS link
-let windflowPageStyleLink = null; // To store the dynamically added windflow page CSS link
-let radioPageStyleLink = null; // Backward-compatibility fallback
-let searchPageStyleLink = null;
-let authPageStyleLink = null; // [NEW] To store the dynamically added auth page CSS link
-let isTransitioningUpNext = false; // [FIX] Flag to prevent View Transition race conditions
-let initialHomeContent = null; // [FIX] Cache untuk menyimpan konten asli halaman Home
-let activePageCleanup = null;
-let pageLoadSequence = 0;
 let currentUserIsPro = false;
 let currentUserProfile = null;
 
-let previousPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman sebelumnya saat navigasi ke halaman artis
-let currentPageUrl = 'home-mobile.html'; // [NEW] Untuk melacak halaman aktif saat ini
 let unreadNotificationsListener = null; // [NEW] To store the unsubscribe function for unread notifications
 // NEW: Tracking RTDB listeners to avoid duplicates (Sync with Desktop)
 const activePresenceListeners = new Map();
@@ -174,89 +211,10 @@ const loadLikedSongsCount = async (uid) => {
     updateSidebarMusicCounts();
 };
 
+
+
 // Cache friend online status (same as desktop)
 const friendOnlineStatus = {};
-
-const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
-const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
-
-/**
- * Helper to format seconds to MM:SS
- */
-const formatTime = (seconds) => {
-    if (isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`; 
-};
-
-/**
- * Helper to accurately normalize audio URLs for comparison
- */
-const normalizeAudio = (url) => {
-    if (!url || typeof url !== 'string') return '';
-    try {
-        let clean = decodeURIComponent(url.trim().toLowerCase());
-        clean = clean.replace(/^https?:\/\/[^/]+/, '');
-        clean = clean.split('?')[0].split('#')[0];
-        clean = clean.replace(/^(\.\.\/)+/, '').replace(/^\/?frontend\//, '').replace(/^\/?public\//, '').replace(/^\/+/, '');
-        return clean;
-    } catch {
-        return url.toLowerCase().trim();
-    }
-};
-
-const normalizeText = (text) => {
-    if (!text || typeof text !== 'string') return '';
-    return text.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-};
-
-const isSameAudio = (url1, url2) => {
-    if (!url1 || !url2) return false;
-    const n1 = normalizeAudio(url1);
-    const n2 = normalizeAudio(url2);
-    if (!n1 || !n2) return false;
-    if (n1 === n2) return true;
-    const file1 = n1.split('/').pop();
-    const file2 = n2.split('/').pop();
-    if (file1 && file2 && file1 === file2) return true;
-    return n1.endsWith(n2) || n2.endsWith(n1);
-};
-
-const areSameSongs = (song, otherSong) => {
-    if (!song || !otherSong) return false;
-    
-    // 1. Direct ID match or prefix-stripped match
-    const s1Id = String(song.id || song.songId || song.docId || '').trim().toLowerCase();
-    const s2Id = String(otherSong.id || otherSong.songId || otherSong.docId || '').trim().toLowerCase();
-    if (s1Id && s2Id) {
-        if (s1Id === s2Id) return true;
-        const cleanId1 = s1Id.replace(/^songs?-/, '');
-        const cleanId2 = s2Id.replace(/^songs?-/, '');
-        if (cleanId1 && cleanId2 && cleanId1 === cleanId2) return true;
-    }
-
-    // 2. Audio URL match (normalized relative path or filename)
-    const s1Audio = song.audio || song.audioUrl || song.songAudio;
-    const s2Audio = otherSong.audio || otherSong.audioUrl || otherSong.songAudio;
-    if (s1Audio && s2Audio && isSameAudio(s1Audio, s2Audio)) {
-        return true;
-    }
-
-    // 3. Name & Artist match
-    const s1Name = normalizeText(song.name || song.title);
-    const s2Name = normalizeText(otherSong.name || otherSong.title);
-    const s1Artist = normalizeText(song.artist || song.artist_name);
-    const s2Artist = normalizeText(otherSong.artist || otherSong.artist_name);
-
-    if (s1Name && s2Name && s1Name === s2Name) {
-        if (!s1Artist || !s2Artist || s1Artist === s2Artist || s1Artist.includes(s2Artist) || s2Artist.includes(s1Artist)) {
-            return true;
-        }
-    }
-
-    return false;
-};
 
 const isSameSongForContext = (currentSong, targetSong, context = null, contextMixId = null, previousMixId = null) => {
     if (!currentSong || !targetSong) return false;
@@ -466,85 +424,7 @@ window.playPrevious = () => {
  * Updates the "Up Next" list in the Full Screen Player
  */
 const renderUpNext = () => {
-    const listContainer = document.getElementById('upNextList');
-    if (!listContainer) return;
-
-    if (!currentPlaylist || currentPlaylist.length === 0 || currentSongIndex === -1) {
-        listContainer.innerHTML = '<p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">No upcoming songs</p>';
-        return;
-    }
-
-    // Problem Solved: Use a Set to track unique songs to avoid visual duplication
-    // if the playlist is very short.
-    const nextSongs = [];
-    const maxItems = Math.min(currentPlaylist.length, 5); // Limit to a maximum of 5 upcoming songs
-    const seenIds = new Set();
-
-    for (let i = 0; i < currentPlaylist.length && nextSongs.length < maxItems; i++) {
-        const idx = (currentSongIndex + i) % currentPlaylist.length;
-        const song = currentPlaylist[idx];
-        if (!seenIds.has(song.id)) {
-            nextSongs.push({ ...song, originalIndex: idx });
-            seenIds.add(song.id);
-        }
-    }
-
-    const html = nextSongs.map((song, idx) => {
-        // isActive is only for the first index (the song that is actually playing now)
-        const isActive = idx === 0; 
-        // Escape single and double quotes to avoid breaking HTML attributes
-        const safeTitle = song.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        const safeArtist = song.artist.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-
-        return `
-        <div class="up-next-item ${isActive ? 'active' : ''}" 
-            style="animation-delay: ${idx * 0.05}s; view-transition-name: up-next-item-${song.id};" 
-            onclick="playPreview(null, '${song.audio}', '${safeTitle}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration}, '${currentPlaybackContext || ''}', null, '${activeMixId || ''}')">
-            <img src="${song.cover}" class="up-next-cover" alt="${song.name}">
-            <div class="up-next-info">
-                <div class="up-next-name">${song.name}</div>
-                <div class="up-next-artist">${song.artist}</div>
-            </div>
-            <div class="up-next-right">
-                <span class="up-next-duration">${formatTime(song.duration)}</span>
-                <div class="equalizer">
-                    <span></span><span></span><span></span>
-                </div>
-                <div class="up-next-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <circle cx="12" cy="12" r="1.5" />
-                        <circle cx="12" cy="5" r="1.5" />
-                        <circle cx="12" cy="19" r="1.5" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-    `;}).join('');
-
-    // Use View Transitions API if available (Chrome/Safari 17.4+)
-    // Guard against: document hidden (tab in background), page visibility changes,
-    // or rapid successive calls that can cause InvalidStateError.
-    if (document.startViewTransition && !isTransitioningUpNext && !document.hidden) {
-        isTransitioningUpNext = true;
-        try {
-            const transition = document.startViewTransition(() => {
-                listContainer.innerHTML = html;
-            });
-
-            // The .finished promise resolves when the transition is complete.
-            // Use .finally() to ensure the flag is always reset even on error.
-            transition.finished.finally(() => {
-                isTransitioningUpNext = false;
-            });
-        } catch (e) {
-            // InvalidStateError can occur if the document becomes hidden mid-transition
-            // or if another transition starts unexpectedly. Fall back gracefully.
-            isTransitioningUpNext = false;
-            listContainer.innerHTML = html;
-        }
-    } else {
-        listContainer.innerHTML = html; // Fallback: no API, tab hidden, or transition in progress
-    }
+    renderUpNextQueue('upNextList');
 };
 
 const triggerSongByIndex = (index) => {
@@ -621,54 +501,7 @@ const checkLikedStatus = async (songId) => {
     }
 };
 
-/**
- * Function to create heart particle effects (simplified for mobile)
- */
-const createHeartParticles = (el) => {
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
 
-    for (let i = 0; i < 5; i++) {
-        const heart = document.createElement('div');
-        heart.className = 'heart-particle';
-        heart.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="#22c55e"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
-
-        heart.style.position = 'fixed';
-        heart.style.left = `${centerX}px`;
-        heart.style.top = `${centerY}px`;
-        heart.style.zIndex = '20000';
-        heart.style.pointerEvents = 'none';
-        
-        heart.style.setProperty('--x-offset', (Math.random() - 0.5) * 80);
-        heart.style.setProperty('--y-offset', (Math.random() - 0.5) * 40);
-        heart.style.setProperty('--rotate', `${(Math.random() - 0.5) * 45}deg`);
-        
-        heart.style.animation = 'heart-float 0.8s ease-out forwards';
-        document.body.appendChild(heart);
-        setTimeout(() => heart.remove(), 800);
-    }
-};
-
-// Notification System (Konsisten dengan script.js)
-const showToast = (message) => {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `<span>${message}</span>`;
-    container.appendChild(toast);
-    
-    // Automatically remove after the animation finishes (3 seconds)
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-};
 
 /**
  * Function to set the current user's online/offline status in the Realtime Database
@@ -793,266 +626,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(element);
     });
 
-    let playlistModalTriggerEl = null;
+    initCreatePlaylistModal();
+    initSongOptionsSheet();
+    initQueueModal();
 
-    const openCreatePlaylistModal = (triggerElement = null) => {
-        const user = auth.currentUser;
-        if (!user) {
-            showToast("Please log in to create and manage playlists.");
-            return;
-        }
-        playlistModalTriggerEl = triggerElement || document.activeElement;
+    initAvatarPreviewModal({
+        modalId: 'sidebarAvatarPreviewModal',
+        previewImgId: 'sidebarAvatarPreviewImg',
+        backBtnId: 'sidebarAvatarPreviewBackBtn',
+        editBtnId: 'sidebarAvatarPreviewEditBtn',
+        shareBtnId: 'sidebarAvatarPreviewShareBtn'
+    });
 
-        // Explicitly blur any element inside sidebar before closing to prevent aria-hidden focus conflict
-        const sidebar = document.querySelector('.mobile-sidebar');
-        if (sidebar && sidebar.contains(document.activeElement)) {
-            document.activeElement.blur();
-        }
-        closeSidebar();
-
-        const modal = document.getElementById('createPlaylistModal');
-        const input = document.getElementById('playlistNameInput');
-        const form = document.getElementById('createPlaylistForm');
-        const submitBtn = document.getElementById('submitPlaylistBtn');
-        if (!modal) return;
-
-        if (form) form.reset();
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<span>Create Playlist</span>';
-        }
-        modal.removeAttribute('inert');
-        modal.classList.remove('hidden');
-        modal.setAttribute('aria-hidden', 'false');
-        setTimeout(() => input?.focus(), 120);
-    };
-
-    const closeCreatePlaylistModal = () => {
-        const modal = document.getElementById('createPlaylistModal');
-        if (!modal) return;
-
-        // Blur element inside modal before setting aria-hidden to avoid browser warning
-        if (modal.contains(document.activeElement)) {
-            document.activeElement.blur();
-        }
-        modal.classList.add('hidden');
-        modal.setAttribute('aria-hidden', 'true');
-        modal.setAttribute('inert', '');
-
-        if (playlistModalTriggerEl && typeof playlistModalTriggerEl.focus === 'function' && document.body.contains(playlistModalTriggerEl)) {
-            playlistModalTriggerEl.focus();
-        }
-    };
-
-    window.openCreatePlaylistModal = openCreatePlaylistModal;
-    window.closeCreatePlaylistModal = closeCreatePlaylistModal;
-
-    const setupPlaylistModalListeners = () => {
-        const modal = document.getElementById('createPlaylistModal');
-        const form = document.getElementById('createPlaylistForm');
-        const cancelBtn = modal?.querySelector('.playlist-btn-cancel');
-        const closeBtn = modal?.querySelector('.playlist-modal-close-btn');
-
-        cancelBtn?.addEventListener('click', closeCreatePlaylistModal);
-        closeBtn?.addEventListener('click', closeCreatePlaylistModal);
-
-        modal?.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeCreatePlaylistModal();
-            }
+    const avatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
+    avatarWrapper?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openAvatarPreviewModal({
+            modalId: 'sidebarAvatarPreviewModal',
+            previewImgId: 'sidebarAvatarPreviewImg',
+            avatarSourceEl: document.getElementById('sidebarUserAvatar'),
+            triggerElement: avatarWrapper
         });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-                closeCreatePlaylistModal();
-            }
-        });
-
-        form?.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const user = auth.currentUser;
-            if (!user) {
-                showToast("Please log in to create playlists.");
-                closeCreatePlaylistModal();
-                return;
-            }
-
-            const input = document.getElementById('playlistNameInput');
-            const submitBtn = document.getElementById('submitPlaylistBtn');
-            const playlistName = input?.value?.trim();
-            if (!playlistName) return;
-
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span>Creating...</span>';
-            }
-
-            try {
-                const created = await createUserPlaylist(user.uid, playlistName);
-                if (created) {
-                    showToast(`Playlist "${playlistName}" created!`);
-                    closeCreatePlaylistModal();
-                } else {
-                    showToast("Failed to create playlist. Please try again.");
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = '<span>Create Playlist</span>';
-                    }
-                }
-            } catch (error) {
-                console.error("Error creating playlist:", error);
-                showToast("Failed to create playlist.");
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span>Create Playlist</span>';
-                }
-            }
-        });
-    };
-
-    setupPlaylistModalListeners();
-
-    let previousSidebarAvatarTriggerEl = null;
-
-    const getHighResPhotoUrl = (url, size = 1024) => {
-        if (!url) return '';
-        let result = String(url).trim();
-
-        if (result.includes('googleusercontent.com') || result.includes('google.com') || result.includes('ggpht.com')) {
-            if (/=s\d+([a-zA-Z0-9_-]*)/.test(result)) {
-                result = result.replace(/=s\d+([a-zA-Z0-9_-]*)/, `=s${size}-c`);
-            } else if (/([?&])sz=\d+/.test(result)) {
-                result = result.replace(/([?&])sz=\d+/, `$1sz=${size}`);
-            } else {
-                const hasQuery = result.includes('?');
-                if (hasQuery) {
-                    const parts = result.split('?');
-                    result = `${parts[0]}=s${size}-c?${parts[1]}`;
-                } else {
-                    result = `${result}=s${size}-c`;
-                }
-            }
-            return result;
-        }
-
-        if (result.includes('ui-avatars.com')) {
-            if (/size=\d+/.test(result)) {
-                result = result.replace(/size=\d+/, `size=${size}`);
-            } else {
-                const sep = result.includes('?') ? '&' : '?';
-                result = `${result}${sep}size=${size}`;
-            }
-            return result;
-        }
-
-        return result;
-    };
-
-    const openSidebarAvatarPreview = (triggerElement = null) => {
-        const modal = document.getElementById('sidebarAvatarPreviewModal');
-        const previewImg = document.getElementById('sidebarAvatarPreviewImg');
-        const avatarEl = document.getElementById('sidebarUserAvatar');
-        if (!modal || !avatarEl || !previewImg) return;
-
-        previousSidebarAvatarTriggerEl = triggerElement || document.activeElement;
-
-        previewImg.referrerPolicy = "no-referrer";
-        let imgSrc = getHighResPhotoUrl(avatarEl.src, 1024);
-        previewImg.src = imgSrc;
-
-        modal.classList.remove('hidden');
-        modal.removeAttribute('inert');
-        void modal.offsetWidth; // Force reflow for smooth animation
-        modal.classList.add('is-active');
-        modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-    };
-
-    const closeSidebarAvatarPreview = () => {
-        const modal = document.getElementById('sidebarAvatarPreviewModal');
-        if (!modal || modal.classList.contains('hidden')) return;
-
-        if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
-            document.activeElement.blur();
-        }
-
-        if (previousSidebarAvatarTriggerEl && typeof previousSidebarAvatarTriggerEl.focus === 'function' && document.body.contains(previousSidebarAvatarTriggerEl)) {
-            try {
-                previousSidebarAvatarTriggerEl.focus();
-            } catch {}
-        }
-        previousSidebarAvatarTriggerEl = null;
-
-        modal.classList.remove('is-active');
-        modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-
-        setTimeout(() => {
-            if (!modal.classList.contains('is-active')) {
-                modal.classList.add('hidden');
-                modal.setAttribute('inert', '');
-            }
-        }, 280);
-    };
-
-    const setupSidebarAvatarPreviewListeners = () => {
-        const avatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
-        const backBtn = document.getElementById('sidebarAvatarPreviewBackBtn');
-        const editBtn = document.getElementById('sidebarAvatarPreviewEditBtn');
-        const shareBtn = document.getElementById('sidebarAvatarPreviewShareBtn');
-        const modal = document.getElementById('sidebarAvatarPreviewModal');
-
-        avatarWrapper?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openSidebarAvatarPreview(avatarWrapper);
-        });
-
-        backBtn?.addEventListener('click', () => {
-            closeSidebarAvatarPreview();
-        });
-
-        editBtn?.addEventListener('click', () => {
-            showToast('Ubah foto profil akan segera hadir');
-        });
-
-        shareBtn?.addEventListener('click', async () => {
-            const previewImg = document.getElementById('sidebarAvatarPreviewImg');
-            const photoUrl = previewImg?.src || window.location.href;
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: 'Foto Profil Spotiwind',
-                        text: 'Lihat foto profil saya di Spotiwind',
-                        url: photoUrl
-                    });
-                } catch {}
-            } else if (navigator.clipboard) {
-                try {
-                    await navigator.clipboard.writeText(photoUrl);
-                    showToast('Tautan foto profil disalin ke clipboard');
-                } catch {
-                    showToast('Bagikan foto profil');
-                }
-            } else {
-                showToast('Bagikan foto profil');
-            }
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-                closeSidebarAvatarPreview();
-            }
-        });
-    };
-
-    setupSidebarAvatarPreviewListeners();
-
-    // [FIX] Simpan konten awal dari .app-container saat halaman pertama kali dimuat.
-    const appContainer = document.querySelector('.app-container');
-    if (appContainer) {
-        initialHomeContent = appContainer.innerHTML;
-    }
+    });
 
     const closeSidebar = () => {
         const sidebar = document.querySelector('.mobile-sidebar');
@@ -1087,111 +683,15 @@ document.addEventListener('DOMContentLoaded', () => {
         desktopBreakpointQuery.addListener(handleDesktopBreakpointChange);
     }
 
-    const updateSidebarActiveState = (targetPage) => {
-        document.querySelectorAll('.sidebar-nav-item').forEach((item) => {
-            item.classList.toggle('active', item.dataset.sidebarTarget === targetPage);
-        });
-    };
+
 
     let activeDetailMix = null;
-
-    const openMixDetailModal = (mixId) => {
-        const modal = document.getElementById('mixDetailModal');
-        const header = document.getElementById('mixDetailHeader');
-        const tracklist = document.getElementById('mixDetailTracklist');
-        if (!modal || !header || !tracklist) return;
-
-        const targetMix = madeForYouMixes.find(m => m.id === mixId);
-        if (!targetMix) return;
-
-        activeDetailMix = targetMix;
-
-        const totalSec = targetMix.songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
-        const totalMin = Math.round(totalSec / 60);
-
-        // Build cover area: 2x2 collage if ≥2 unique covers, else single image
-        const imgs = targetMix.coverImages || (targetMix.cover ? [targetMix.cover] : []);
-        let coverContent;
-        if (imgs.length >= 2) {
-            const cells = [imgs[0], imgs[1], imgs[2] || imgs[0], imgs[3] || imgs[1]];
-            coverContent = `
-                <div class="mix-collage">
-                    ${cells.map(src => `<div class="mix-collage-cell"><img src="${src}" alt="" width="90" height="67" loading="lazy"></div>`).join('')}
-                </div>`;
-        } else {
-            coverContent = `<img src="${imgs[0] || targetMix.cover || '../../public/Elemen/Logo/Spotiwind.webp'}" alt="${targetMix.title}" width="180" height="135" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">`;
-        }
-
-        header.innerHTML = `
-            <div class="mix-detail-header-content">
-                <div class="mix-detail-hero-cover-wrapper" style="background: ${targetMix.gradient};">
-                    ${coverContent}
-                    <div class="mix-overlay-gradient"></div>
-                    <div class="mix-color-strip" style="background: ${targetMix.accentColor};"></div>
-                </div>
-                <span class="mix-detail-hero-badge">${targetMix.tag}</span>
-                <h1 class="mix-detail-hero-title">${targetMix.title}</h1>
-                <p class="mix-detail-hero-desc">${targetMix.subtitle}</p>
-                <div class="mix-detail-hero-meta">
-                    <span>Spotiwind</span> • <span>${targetMix.songs.length} songs</span> • <span>~${totalMin} min</span>
-                </div>
-            </div>
-        `;
-
-        const isMixActive = activeMixId ? String(targetMix.id) === String(activeMixId) : false;
-        tracklist.innerHTML = targetMix.songs.map((song, idx) => {
-            const isCurrent = isMixActive && currentSongData && areSameSongs(currentSongData, song);
-            const isPlaying = isCurrent && activeAudio && !activeAudio.paused;
-            const isPaused = isCurrent && activeAudio && activeAudio.paused;
-            const min = Math.floor((song.duration || 0) / 60);
-            const sec = String((song.duration || 0) % 60).padStart(2, '0');
-            return `
-            <div class="mix-track-row ${isCurrent ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" 
-                 data-song-id="${song.id}"
-                 data-song-audio="${song.audio}"
-                 data-song-name="${song.name}"
-                 data-song-artist="${song.artist}"
-                 data-song-cover="${song.cover}"
-                 data-song-duration="${song.duration || 0}"
-                 data-mix-id="${targetMix.id}"
-                 data-song-idx="${idx}">
-                <span class="mix-track-idx">${idx + 1}</span>
-                <div class="mix-track-cover-wrapper">
-                    <img src="${song.cover}" alt="${song.name}" class="mix-track-cover" width="44" height="44" loading="lazy">
-                    <div class="mix-track-play-icon" aria-hidden="true">
-                        ${isCurrent && isPlaying ? PAUSE_ICON : PLAY_ICON}
-                    </div>
-                </div>
-                <div class="mix-track-info">
-                    <h4 class="mix-track-name">${song.name}</h4>
-                    <p class="mix-track-artist">${song.artist}</p>
-                </div>
-                <span class="mix-track-duration">${min}:${sec}</span>
-            </div>`;
-        }).join('');
-
-        modal.classList.remove('hidden');
-        modal.removeAttribute('inert');
-        document.body.classList.add('mix-detail-open');
-        document.body.style.overflow = 'hidden';
-        // Move focus into the modal for accessibility
-        const closeBtn = modal.querySelector('#closeMixDetailBtn');
-        if (closeBtn) closeBtn.focus();
-        const shuffleBtn = modal.querySelector('#mixDetailShuffleBtn');
-        if (shuffleBtn) shuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
-        syncActiveSongUI();
+    const openLocalMixDetail = (mixId) => {
+        activeDetailMix = madeForYouMixes.find(m => String(m.id) === String(mixId)) || null;
+        openMixDetailModal(mixId, madeForYouMixes);
     };
-
-    const closeMixDetailModal = () => {
-        const modal = document.getElementById('mixDetailModal');
-        if (!modal) return;
-        // Move focus out BEFORE hiding, to prevent aria-hidden+focus conflict
-        document.activeElement?.blur();
-        modal.classList.add('hidden');
-        modal.setAttribute('inert', '');
-        document.body.classList.remove('mix-detail-open');
-        document.body.style.overflow = '';
-    };
+    window.openMixDetailModal = openLocalMixDetail;
+    window.closeMixDetailModal = closeMixDetailModal;
 
     // NEW: Centralized Event Delegation for all song cards
     // This prevents multiple listeners from being attached and causing race conditions.
@@ -1236,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mixCard) {
             e.stopPropagation();
             const mixId = mixCard.dataset.mixId;
-            openMixDetailModal(mixId);
+            openLocalMixDetail(mixId);
             return;
         }
 
@@ -1248,40 +748,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 4. Click on Mix Detail Play All / Pause All Button
         const mixDetailPlayAllBtn = e.target.closest('#mixDetailPlayAllBtn');
-        if (mixDetailPlayAllBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
+        if (mixDetailPlayAllBtn) {
             e.stopPropagation();
-            const isMixActive = activeMixId ? String(activeDetailMix.id) === String(activeMixId) : false;
-            if (isMixActive) {
-                if (!activeAudio.paused) {
-                    activeAudio.pause();
-                } else {
-                    activeAudio.play();
-                }
-                syncActiveSongUI();
-                return;
+            if (!activeDetailMix && madeForYouMixes.length > 0) {
+                activeDetailMix = madeForYouMixes.find(m => String(m.id) === String(activeMixId)) || madeForYouMixes[0];
             }
-            const playlistToPlay = isMixDetailShuffleActive
-                ? [...activeDetailMix.songs].sort(() => 0.5 - Math.random())
-                : [...activeDetailMix.songs];
-            const firstSong = playlistToPlay[0];
-            window.playPreview(
-                null,
-                firstSong.audio,
-                firstSong.name,
-                firstSong.artist,
-                firstSong.cover,
-                firstSong.id,
-                Number(firstSong.duration) || 0,
-                'made-for-you',
-                playlistToPlay,
-                activeDetailMix.id
-            );
+            if (activeDetailMix && activeDetailMix.songs.length > 0) {
+                const isMixActive = activeMixId ? String(activeDetailMix.id) === String(activeMixId) : false;
+                if (isMixActive) {
+                    if (!activeAudio.paused) {
+                        activeAudio.pause();
+                    } else {
+                        activeAudio.play();
+                    }
+                    syncActiveSongUI();
+                    return;
+                }
+                const playlistToPlay = isMixDetailShuffleActive
+                    ? [...activeDetailMix.songs].sort(() => 0.5 - Math.random())
+                    : [...activeDetailMix.songs];
+                const firstSong = playlistToPlay[0];
+                window.playPreview(
+                    null,
+                    firstSong.audio,
+                    firstSong.name,
+                    firstSong.artist,
+                    firstSong.cover,
+                    firstSong.id,
+                    Number(firstSong.duration) || 0,
+                    'made-for-you',
+                    playlistToPlay,
+                    activeDetailMix.id
+                );
+            }
             return;
         }
 
         // 5. Click on Mix Detail Shuffle Button -> Toggle active status, do not play yet
         const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
-        if (mixDetailShuffleBtn && activeDetailMix && activeDetailMix.songs.length > 0) {
+        if (mixDetailShuffleBtn) {
             e.stopPropagation();
             isMixDetailShuffleActive = !isMixDetailShuffleActive;
             mixDetailShuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
@@ -1290,23 +795,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 6. Click on Mix Tracklist Row in Modal
         const mixTrackRow = e.target.closest('.mix-track-row');
-        if (mixTrackRow && activeDetailMix) {
+        if (mixTrackRow) {
             e.stopPropagation();
-            const songId = mixTrackRow.dataset.songId;
-            const song = activeDetailMix.songs.find(s => String(s.id) === String(songId));
-            if (song) {
-                window.playPreview(
-                    null,
-                    song.audio,
-                    song.name,
-                    song.artist,
-                    song.cover,
-                    song.id,
-                    Number(song.duration) || 0,
-                    'made-for-you',
-                    activeDetailMix.songs,
-                    activeDetailMix.id
-                );
+            const rowMixId = mixTrackRow.dataset.mixId || activeMixId;
+            const targetMix = (activeDetailMix && String(activeDetailMix.id) === String(rowMixId))
+                ? activeDetailMix
+                : (madeForYouMixes.find(m => String(m.id) === String(rowMixId)) || activeDetailMix);
+            if (targetMix) {
+                activeDetailMix = targetMix;
+                const songId = mixTrackRow.dataset.songId;
+                const song = targetMix.songs.find(s => String(s.id) === String(songId));
+                if (song) {
+                    window.playPreview(
+                        null,
+                        song.audio,
+                        song.name,
+                        song.artist,
+                        song.cover,
+                        song.id,
+                        Number(song.duration) || 0,
+                        'made-for-you',
+                        targetMix.songs,
+                        targetMix.id
+                    );
+                }
             }
             return;
         }
@@ -1329,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Store current scroll position before navigating to artist page
             // We assume that if an artist card is clicked, we are currently on the home page.
-            homeScrollPosition = document.documentElement.scrollTop;
+            saveCurrentHomeScroll();
 
             const { artistId, artistName, artistPhoto } = artistCard.dataset;
             navigateToArtistPage({ id: artistId, name: artistName, photo: artistPhoto });
@@ -1338,6 +850,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // [REFACTOR] Centralized event delegation for dynamic elements
         const target = e.target;
+
+        if (target.closest('#notificationBtn')) {
+            navigateToNotificationPage(true);
+            return;
+        }
 
         // 1. Home sidebar controls and navigation
         if (target.closest('.menu-btn')) {
@@ -1376,7 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active') && !initialTab) {
                 return;
             }
-            closeMixDetailModal();
+            forceCloseMixDetailModal();
             if (sidebarItem.classList.contains('sidebar-nav-item')) {
                 updateSidebarActiveState(targetPage);
             }
@@ -1391,6 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            saveCurrentHomeScroll();
             await loadPageContent(targetPage, { pushState: true, initialTab });
             return;
         }
@@ -1455,14 +973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!target.closest('.footer-link-group')) document.querySelectorAll('.footer-link-group.expanded').forEach(g => g.classList.remove('expanded'));
     });
 
-    const debounce = (func, delay) => {
-        let timeout;
-        return function(...args) {
-            const context = this;
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(context, args), delay);
-        };
-    };
+
 
     /**
      * Main function to toggle Like/Unlike
@@ -1514,129 +1025,8 @@ window.playFromSearch = (audioUrl, title, artist, cover, id) => {
     window.playPreview(null, audioUrl, title, artist, cover, id, duration, isSameActiveSong ? null : 'search');
 };
 
-window.isSongDownloaded = (songId) => {
-    if (!songId) return false;
-    try {
-        const saved = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
-        return Array.isArray(saved) && saved.some(s => String(s.id) === String(songId));
-    } catch {
-        return false;
-    }
-};
-
-window.toggleDownloadSong = async (song) => {
-    const user = auth.currentUser;
-    if (!user) {
-        showToast("Silakan login terlebih dahulu untuk mengunduh lagu.");
-        if (typeof window.navigateToAuthPage === 'function') {
-            window.navigateToAuthPage('login');
-        }
-        return false;
-    }
-
-    if (!song || !song.id) {
-        showToast("Lagu tidak valid untuk diunduh.");
-        return false;
-    }
-
-    try {
-        const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
-        let list = JSON.parse(raw);
-        if (!Array.isArray(list)) list = [];
-
-        const index = list.findIndex(s => String(s.id) === String(song.id));
-        const isAlreadyDownloaded = index > -1;
-
-        // Jika lagu sudah ada di unduhan dan user ingin menghapusnya, selalu izinkan
-        if (isAlreadyDownloaded) {
-            list.splice(index, 1);
-            localStorage.setItem('downloaded_songs', JSON.stringify(list));
-            await removeSongAudioFromCache(song);
-            updateSidebarMusicCounts();
-            showToast(`Menghapus "${song.name || song.title || 'Lagu'}" dari unduhan.`);
-            window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
-            return false;
-        }
-
-        // Jika ingin mengunduh lagu baru, periksa status langganan PRO
-        let isPro = currentUserIsPro;
-        if (!isPro && user.uid) {
-            try {
-                const profile = await getProfileByUid(user.uid);
-                if (profile?.isPremium === true) {
-                    isPro = true;
-                    currentUserIsPro = true;
-                    currentUserProfile = profile;
-                }
-            } catch (err) {
-                console.warn("Check user premium status on download:", err);
-            }
-        }
-
-        if (!isPro) {
-            showToast("Fitur Download Offline eksklusif untuk pelanggan Spotiwind PRO.");
-            if (typeof loadPageContent === 'function') {
-                loadPageContent('account-mobile.html');
-            }
-            return false;
-        }
-
-        // Pengguna PRO: Tampilkan item di tab unduhan langsung dengan status 'downloading'
-        const newDownloadItem = {
-            id: String(song.id),
-            name: song.name || song.title || 'Unknown Track',
-            artist: song.artist || 'Unknown Artist',
-            cover: song.cover || '',
-            audio: song.audio || '',
-            duration: song.duration || 0,
-            downloadStatus: 'downloading',
-            downloadProgress: 10,
-            isCachedOffline: false,
-            downloadedAt: Date.now()
-        };
-
-        list.unshift(newDownloadItem);
-        localStorage.setItem('downloaded_songs', JSON.stringify(list));
-        updateSidebarMusicCounts();
-        window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
-
-        showToast(`Mengunduh "${song.name || song.title || 'Lagu'}" untuk pemutaran offline...`);
-
-        // Mulai proses caching stream dengan progress tracking
-        const success = await cacheSongAudio(song, (progress) => {
-            newDownloadItem.downloadProgress = progress;
-            if (progress >= 100) {
-                newDownloadItem.downloadStatus = 'completed';
-                newDownloadItem.isCachedOffline = true;
-            }
-            localStorage.setItem('downloaded_songs', JSON.stringify(list));
-            window.dispatchEvent(new CustomEvent('download-progress', {
-                detail: { songId: String(song.id), progress, status: newDownloadItem.downloadStatus }
-            }));
-        });
-
-        if (success) {
-            newDownloadItem.downloadStatus = 'completed';
-            newDownloadItem.downloadProgress = 100;
-            newDownloadItem.isCachedOffline = true;
-            localStorage.setItem('downloaded_songs', JSON.stringify(list));
-            updateSidebarMusicCounts();
-            showToast(`Berhasil mengunduh "${song.name || song.title || 'Lagu'}" untuk didengarkan offline.`);
-            window.dispatchEvent(new CustomEvent('download-progress', {
-                detail: { songId: String(song.id), progress: 100, status: 'completed' }
-            }));
-            window.dispatchEvent(new CustomEvent('downloads-updated', { detail: { list } }));
-            return true;
-        } else {
-            showToast("Gagal mengunduh audio lagu.");
-            return false;
-        }
-    } catch (e) {
-        console.error("Error toggling download:", e);
-        showToast("Gagal memperbarui unduhan.");
-        return false;
-    }
-};
+window.isSongDownloaded = isSongDownloaded;
+window.toggleDownloadSong = toggleDownloadSong;
 
     /**
      * Function to play/pause audio
@@ -1815,9 +1205,14 @@ window.toggleDownloadSong = async (song) => {
             currentSongIndex = 0;
         }
         syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+        window.__spotiwindCurrentPlaylist = currentPlaylist;
+        window.__spotiwindCurrentIndex = currentSongIndex;
+        window.__spotiwindCurrentSong = currentSongData;
+        window.__spotiwindContext = currentPlaybackContext;
+        window.__spotiwindActiveMixId = activeMixId;
 
         // Render the list of next songs instantly (don't wait for the song to load)
-        renderUpNext();
+        renderUpNextQueue('upNextList');
 
         // Sync active song class across all elements
         syncActiveSongUI();
@@ -1885,6 +1280,7 @@ window.toggleDownloadSong = async (song) => {
 
             await activeAudio.play();
             syncActiveSongUI();
+            renderUpNextQueue('upNextList');
             updateMyActivity(title);
 
             if (btn) btn.classList.remove('btn-loading');
@@ -2282,6 +1678,7 @@ window.toggleDownloadSong = async (song) => {
             const catalog = await loadLocalCatalog();
             indonesianArtistsPlaylist = catalog.artists || [];
             indonesianSongsPlaylist = catalog.songs || [];
+            indonesianAlbumsPlaylist = catalog.albums || [];
             return true;
         } catch (error) {
             console.error('Failed to load local song catalog:', error);
@@ -2367,26 +1764,43 @@ window.toggleDownloadSong = async (song) => {
         item.addEventListener('click', async (e) => {
             e.preventDefault();
             const targetPage = item.dataset.target;
-            const currentActive = document.querySelector('.mobile-bottom-nav .nav-item.active');
+            if (!targetPage) return;
 
-            // [FIX] Revert logic: If the clicked item is already active, do nothing (keep modal open if viewing mix detail).
-            // This prevents navigation when on a sub-page (like an artist page).
-            if (currentActive === item) return;
+            // Check if we are already viewing the primary content of that tab
+            const isAlreadyOnHome = (targetPage === 'home-mobile.html' || targetPage === '/' || targetPage === 'mobile.html') && isGenuineHomeView();
+            const isAlreadyOnSearch = targetPage.includes('search') && document.querySelector('.app-container #searchInput');
+            const isAlreadyOnLibrary = targetPage.includes('library') && document.querySelector('.app-container .library-tabs');
+            const isAlreadyOnWindflow = (targetPage.includes('windflow') || targetPage.includes('radio')) && document.querySelector('.app-container .radio-container, .app-container .windflow-container');
+            const isAlreadyOnAccount = targetPage.includes('account') && document.querySelector('.app-container .account-profile-section, .app-container #accountAvatar');
 
-            // Tutup modal mix detail jika berpindah ke tab/halaman lain
-            closeMixDetailModal();
+            if (isAlreadyOnHome || isAlreadyOnSearch || isAlreadyOnLibrary || isAlreadyOnWindflow || isAlreadyOnAccount) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (isAlreadyOnHome) {
+                    homeScrollPosition = 0;
+                    setPageScrollPosition('home-mobile.html', 0);
+                } else if (isAlreadyOnLibrary) {
+                    setPageScrollPosition('library-mobile.html', 0);
+                } else if (isAlreadyOnSearch) {
+                    setPageScrollPosition('search-mobile.html', 0);
+                }
+                return;
+            }
+
+            // Tutup modal mix detail secara instan saat berpindah halaman
+            forceCloseMixDetailModal();
 
             // Only navigate if a different item is clicked
-            if (currentActive) currentActive.classList.remove('active');
+            document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(nav => nav.classList.remove('active'));
             item.classList.add('active');
 
             // Store current scroll position if we are navigating away from the home page
-            // We check for '.hero-card' as an indicator that we are on the home page content
-            if (document.querySelector('.app-container .hero-card')) {
-                homeScrollPosition = document.documentElement.scrollTop;
-            }
+            saveCurrentHomeScroll();
             updateSidebarActiveState(targetPage);
-            await loadPageContent(targetPage, { pushState: true });
+            if (typeof window.loadPageContent === 'function') {
+                await window.loadPageContent(targetPage, { pushState: true });
+            } else {
+                await loadSubpage(targetPage, { pushState: true });
+            }
         });
     });
 
@@ -2588,109 +2002,9 @@ window.toggleDownloadSong = async (song) => {
         if (authBtnText) authBtnText.textContent = 'Log Out';
     };
 
-    const loadStylesheet = (href, currentLink) => {
-        if (currentLink) {
-            return Promise.resolve(currentLink);
-        }
 
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = href;
 
-        const loaded = new Promise((resolve, reject) => {
-            link.addEventListener('load', () => resolve(link), { once: true });
-            link.addEventListener('error', () => reject(new Error(`Could not load stylesheet ${href}`)), { once: true });
-        });
 
-        document.head.appendChild(link);
-        return loaded;
-    };
-
-    const getAppBasePath = () => '';
-
-    const updateAppUrl = (path, title, state = {}, shouldPushState = true) => {
-        if (title) document.title = title;
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        const fullCleanPath = cleanPath;
-        const currentState = { ...state, path: fullCleanPath };
-        
-        try {
-            if (shouldPushState) {
-                if (window.location.pathname !== fullCleanPath) {
-                    window.history.pushState(currentState, title || document.title, fullCleanPath);
-                }
-            } else {
-                window.history.replaceState(currentState, title || document.title, fullCleanPath);
-            }
-        } catch (e) {
-            console.warn("Could not update history state:", e);
-        }
-    };
-
-    const updateBottomNavActive = (targetPage) => {
-        if (!targetPage) return;
-        const normalizedTarget = String(targetPage).replace(/^.*\//, '');
-        if (normalizedTarget.includes('artist') || normalizedTarget.includes('notifications') || normalizedTarget.includes('auth')) {
-            return;
-        }
-        document.querySelectorAll('.mobile-bottom-nav .nav-item').forEach(item => {
-            const itemTarget = (item.dataset.target || '').replace(/^.*\//, '');
-            let isActive = false;
-            if (normalizedTarget.includes('search')) {
-                isActive = itemTarget.includes('search');
-            } else if (normalizedTarget.includes('library')) {
-                isActive = itemTarget.includes('library');
-            } else if (normalizedTarget.includes('windflow') || normalizedTarget.includes('radio')) {
-                isActive = itemTarget.includes('windflow') || itemTarget.includes('radio');
-            } else if (normalizedTarget.includes('account')) {
-                isActive = itemTarget.includes('account');
-            } else if (normalizedTarget.includes('home') || normalizedTarget === 'mobile.html' || normalizedTarget === '/' || normalizedTarget === '') {
-                isActive = itemTarget.includes('home');
-            } else {
-                isActive = itemTarget === normalizedTarget;
-            }
-            item.classList.toggle('active', isActive);
-        });
-    };
-
-    /**
-     * [AUTO-HASH] Base62 22-Character Artist ID Generator
-     * Menghasilkan ID 22 karakter Base62 secara matematis dan permanen
-     * untuk artis apa pun (baik lokal sekarang maupun ribuan artis baru di masa depan)
-     * tanpa perlu mendaftarkan nama artis secara manual di JavaScript.
-     */
-    const getArtistUniqueId = (artist) => {
-        if (!artist) return '';
-        // Jika data artis sudah memiliki ID 22 karakter Base62, gunakan langsung
-        const rawId = String(artist.id || '').trim();
-        if (/^[0-9a-zA-Z]{22}$/.test(rawId)) {
-            return rawId;
-        }
-
-        // Buat seed unik berdasarkan nama atau ID artis
-        const key = String(artist.name || artist.id || '').trim().toLowerCase();
-        if (!key) return '';
-
-        const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-        
-        // FNV-1a 32-bit Hash
-        let hash = 2166136261;
-        for (let i = 0; i < key.length; i++) {
-            hash ^= key.charCodeAt(i);
-            hash = Math.imul(hash, 16777619);
-        }
-
-        // Deterministic Pseudo-Random Generator (LCG) dengan unsigned 32-bit
-        let state = hash >>> 0;
-        let result = '';
-        for (let i = 0; i < 22; i++) {
-            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-            const code = key.charCodeAt(i % key.length) || 0;
-            const index = Math.abs((state + code + i) % chars.length);
-            result += chars.charAt(index % chars.length);
-        }
-        return result;
-    };
 
     const resolveAndNavigateToArtist = async (artistIdOrSlug, shouldPushState = true) => {
         if (!artistIdOrSlug) return;
@@ -2843,455 +2157,43 @@ window.toggleDownloadSong = async (song) => {
     };
 
     const loadPageContent = async (page, options = {}) => {
-        // Selalu tutup mix-detail-modal saat terjadi pemuatan / perpindahan halaman
-        closeMixDetailModal();
-        const contentContainer = document.querySelector('.app-container');
-        if (!contentContainer) return;
-        const navigationId = ++pageLoadSequence;
-        updateSidebarActiveState(page);
-        updateBottomNavActive(page);
-
-        const {
-            pushState = true,
-            route = null,
-            title = null,
-            state = null
-        } = (typeof options === 'object' && options !== null) ? options : {};
-
-        // Helper to determine route & title
-        let targetRoute = route;
-        let targetTitle = title;
-        if (!targetRoute) {
-            if (page === 'home-mobile.html' || page === 'mobile.html') {
-                targetRoute = '/';
-                targetTitle = 'Spotiwind - Feel The Music, Ride The Wind';
-            } else if (page.includes('search-mobile.html')) {
-                targetRoute = '/search';
-                targetTitle = 'Search | Spotiwind';
-            } else if (page.includes('library-mobile.html')) {
-                targetRoute = '/library';
-                targetTitle = 'Library | Spotiwind';
-            } else if (page.includes('notifications-mobile.html')) {
-                targetRoute = '/notifications';
-                targetTitle = 'Notifications | Spotiwind';
-            } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
-                targetRoute = '/windflow';
-                targetTitle = 'WindFlow | Spotiwind';
-            } else if (page.includes('account-mobile.html')) {
-                targetRoute = '/account';
-                targetTitle = 'Account | Spotiwind';
-            } else if (page.includes('auth-mobile.html')) {
-                const initialTab = options.initialTab || 'login';
-                targetRoute = initialTab === 'register' ? '/register' : '/login';
-                targetTitle = initialTab === 'register' ? 'Register | Spotiwind' : 'Login | Spotiwind';
-            } else if (page.includes('artist-mobile.html') && artistDataForPageLoad) {
-                const artistUniqueId = getArtistUniqueId(artistDataForPageLoad);
-                targetRoute = `/artist/${artistUniqueId}`;
-                targetTitle = `${artistDataForPageLoad.name} | Spotiwind`;
-            }
-        }
-
-        if (targetRoute) {
-            updateAppUrl(targetRoute, targetTitle, state || { page, route: targetRoute }, pushState);
-        }
-
-        // [FIX] Logika baru untuk navigasi kembali ke Home
-        if (page === 'home-mobile.html' || page === 'mobile.html') {
-            document.body.classList.remove('is-auth-view');
-            contentContainer.style.opacity = '0';
-            await new Promise(res => setTimeout(res, 200));
-
-            if (typeof activePageCleanup === 'function') {
-                activePageCleanup();
-                activePageCleanup = null;
-            }
-            if (unreadNotificationsListener) {
-                unreadNotificationsListener();
-                unreadNotificationsListener = null;
-            }
-            if (searchPageStyleLink && searchPageStyleLink.parentNode) {
-                searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
-                searchPageStyleLink = null;
-            }
-            if (notificationPageStyleLink && notificationPageStyleLink.parentNode) {
-                notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
-                notificationPageStyleLink = null;
-            }
-            if (artistPageStyleLink && artistPageStyleLink.parentNode) {
-                artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
-                artistPageStyleLink = null;
-            }
-            if (libraryPageStyleLink && libraryPageStyleLink.parentNode) {
-                libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
-                libraryPageStyleLink = null;
-            }
-            if (accountPageStyleLink && accountPageStyleLink.parentNode) {
-                accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
-                accountPageStyleLink = null;
-            }
-            if (radioPageStyleLink && radioPageStyleLink.parentNode) {
-                radioPageStyleLink.parentNode.removeChild(radioPageStyleLink);
-                radioPageStyleLink = null;
-            }
-            if (authPageStyleLink && authPageStyleLink.parentNode) {
-                authPageStyleLink.parentNode.removeChild(authPageStyleLink);
-                authPageStyleLink = null;
-            }
-
-            if (!initialHomeContent) {
-                try {
-                    const response = await fetch(`${window.location.origin}/frontend/src/pages/home-mobile.html`);
-                    if (response.ok) {
-                        const text = await response.text();
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(text, 'text/html');
-                        const fetchedContainer = doc.querySelector('.app-container');
-                        if (fetchedContainer) {
-                            initialHomeContent = fetchedContainer.innerHTML;
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Could not fetch home template:", e);
-                }
-            }
-
-            if (initialHomeContent) {
-                contentContainer.innerHTML = initialHomeContent;
-                document.documentElement.scrollTop = homeScrollPosition;
-
+        forceCloseMixDetailModal();
+        const context = {
+            searchParams: {
+                debounce,
+                activeAudio,
+                getCurrentSongData: () => currentSongData,
+                getSongs: () => currentPlaylist,
+                getArtists: () => indonesianArtistsPlaylist,
+                getAlbums: () => indonesianAlbumsPlaylist,
+                navigateToArtistPage,
+                setHomeScrollPosition: (value) => {
+                    homeScrollPosition = value;
+                    setHomeScrollPosition(value);
+                },
+                getLastSearchQuery: () => lastSearchQuery,
+                setLastSearchQuery: (value) => { lastSearchQuery = value; },
+                setSearchPlaylist: (value) => { searchPlaylist = value; },
+                setPopularPlaylist: (value) => { popularPlaylist = value; }
+            },
+            artistData: artistDataForPageLoad,
+            onHomeMounted: () => {
                 initializeHomeContent();
                 initializeData();
-
                 const user = auth.currentUser;
                 if (user) {
                     initializeUserUI(user);
                     setupUnreadNotificationsListener(user.uid);
+                } else {
+                    initializeGuestUI();
                 }
-
                 const notificationBtn = document.getElementById('notificationBtn');
                 if (notificationBtn) {
                     notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
                 }
-                
-                contentContainer.style.opacity = '1';
-                currentPageUrl = 'home-mobile.html';
             }
-            return;
-        }
-
-        if (!initialHomeContent && contentContainer && (previousPageUrl === 'home-mobile.html' || !previousPageUrl)) {
-            initialHomeContent = contentContainer.innerHTML;
-        }
-
-        // [FIX] Capture the current active page's URL before navigating away.
-        const currentActiveNav = document.querySelector('.mobile-bottom-nav .nav-item.active');
-        if (currentPageUrl && currentPageUrl !== page && !page.includes('auth-mobile.html')) {
-            previousPageUrl = currentPageUrl;
-        } else if (currentActiveNav && currentActiveNav.dataset.target) {
-            previousPageUrl = currentActiveNav.dataset.target;
-        }
-        currentPageUrl = page;
-        closeSidebar();
-
-        try {
-            // [FIX] Start the fade-out transition immediately to hide old content and prevent flicker.
-            contentContainer.style.opacity = '0';
-            await new Promise(res => setTimeout(res, 200)); // Wait for fade-out animation to complete.
-
-            // Muat konten halaman parsial dari path yang diberikan secara aman dengan offline fallback
-            const pageFileName = page.includes('/') ? page.split('/').pop() : page;
-            const pageFetchUrl = `${window.location.origin}/frontend/src/pages/${pageFileName}`;
-            let text = '';
-
-            try {
-                const response = await fetch(pageFetchUrl);
-                if (response.ok) {
-                    text = await response.text();
-                } else {
-                    throw new Error(`Could not load ${page}`);
-                }
-            } catch (fetchErr) {
-                if ('caches' in window) {
-                    const cachedRes = await caches.match(pageFetchUrl) || await caches.match(`/frontend/src/pages/${pageFileName}`);
-                    if (cachedRes) {
-                        text = await cachedRes.text();
-                    }
-                }
-                if (!text) throw fetchErr;
-            }
-            
-            // Gunakan DOMParser untuk mengekstrak konten yang kita butuhkan
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, 'text/html');
-            // [FIX] Ambil konten dari body, bukan dari .app-container yang tidak ada di file parsial.
-            // Ini membuat fungsi lebih fleksibel untuk memuat halaman parsial.
-            const newContent = doc.body.innerHTML;
-
-            if (typeof newContent === 'string') {
-                if (navigationId !== pageLoadSequence) return;
-
-                // Reset scroll to top AFTER the content is hidden and BEFORE new content is shown.
-                // This prevents the jarring scroll jump on the old page.
-                document.documentElement.scrollTop = 0;
-                if (typeof activePageCleanup === 'function') {
-                    activePageCleanup();
-                    activePageCleanup = null;
-                }
-                if (unreadNotificationsListener) {
-                    unreadNotificationsListener();
-                    unreadNotificationsListener = null;
-                }
-
-                // [NEW] Dynamically load active page CSS using absolute URL BEFORE inserting HTML
-                const cssBase = `${window.location.origin}/frontend/src/assets/css/`;
-                if (page.includes('search-mobile.html')) {
-                    searchPageStyleLink = await loadStylesheet(
-                        `${cssBase}search-mobile.css`,
-                        searchPageStyleLink
-                    );
-                } else if (page.includes('notifications-mobile.html')) {
-                    notificationPageStyleLink = await loadStylesheet(
-                        `${cssBase}notifications-mobile.css`,
-                        notificationPageStyleLink
-                    );
-                } else if (page.includes('artist-mobile.html')) {
-                    artistPageStyleLink = await loadStylesheet(
-                        `${cssBase}artist-mobile.css`,
-                        artistPageStyleLink
-                    );
-                } else if (page.includes('library-mobile.html')) {
-                    libraryPageStyleLink = await loadStylesheet(
-                        `${cssBase}library-mobile.css`,
-                        libraryPageStyleLink
-                    );
-                } else if (page.includes('account-mobile.html')) {
-                    accountPageStyleLink = await loadStylesheet(
-                        `${cssBase}account-mobile.css`,
-                        accountPageStyleLink
-                    );
-                } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
-                    windflowPageStyleLink = await loadStylesheet(
-                        `${cssBase}windflow-mobile.css`,
-                        windflowPageStyleLink
-                    );
-                } else if (page.includes('auth-mobile.html')) {
-                    authPageStyleLink = await loadStylesheet(
-                        `${cssBase}auth-mobile.css`,
-                        authPageStyleLink
-                    );
-                }
-
-                // [FIX] Clean up all inactive subpage stylesheets to avoid style leaking
-                if (!page.includes('search-mobile.html') && searchPageStyleLink && searchPageStyleLink.parentNode) {
-                    searchPageStyleLink.parentNode.removeChild(searchPageStyleLink);
-                    searchPageStyleLink = null;
-                }
-                if (!page.includes('notifications-mobile.html') && notificationPageStyleLink && notificationPageStyleLink.parentNode) {
-                    notificationPageStyleLink.parentNode.removeChild(notificationPageStyleLink);
-                    notificationPageStyleLink = null;
-                }
-                if (!page.includes('artist-mobile.html') && artistPageStyleLink && artistPageStyleLink.parentNode) {
-                    artistPageStyleLink.parentNode.removeChild(artistPageStyleLink);
-                    artistPageStyleLink = null;
-                }
-                if (!page.includes('library-mobile.html') && libraryPageStyleLink && libraryPageStyleLink.parentNode) {
-                    libraryPageStyleLink.parentNode.removeChild(libraryPageStyleLink);
-                    libraryPageStyleLink = null;
-                }
-                if (!page.includes('account-mobile.html') && accountPageStyleLink && accountPageStyleLink.parentNode) {
-                    accountPageStyleLink.parentNode.removeChild(accountPageStyleLink);
-                    accountPageStyleLink = null;
-                }
-                if (!page.includes('windflow-mobile.html') && !page.includes('radio-mobile.html') && windflowPageStyleLink && windflowPageStyleLink.parentNode) {
-                    windflowPageStyleLink.parentNode.removeChild(windflowPageStyleLink);
-                    windflowPageStyleLink = null;
-                }
-                if (!page.includes('auth-mobile.html') && authPageStyleLink && authPageStyleLink.parentNode) {
-                    authPageStyleLink.parentNode.removeChild(authPageStyleLink);
-                    authPageStyleLink = null;
-                }
-
-                contentContainer.innerHTML = newContent;
-
-                // [NEW] Seamlessly toggle bottom navigation & player bar visibility on auth page
-                if (page.includes('auth-mobile.html')) {
-                    document.body.classList.add('is-auth-view');
-                } else {
-                    document.body.classList.remove('is-auth-view');
-                }
-                // Now, update user-specific UI elements.
-                const user = auth.currentUser;
-                if (user) {
-                    initializeUserUI(user);
-                }
-
-                // [FIX] Re-attach the notification button listener on every page load.
-                // This ensures the button works on dynamically loaded pages like search.
-                const notificationBtn = document.getElementById('notificationBtn');
-                if (notificationBtn) { // [REFACTOR]
-                    notificationBtn.addEventListener('click', navigateToNotificationPage);
-                }
-
-                // [FIX] Correct if-else-if chain
-                if (page.includes('search-mobile.html')) {
-                    // Khusus untuk halaman search, kita tidak perlu memuat data trending/top artist,
-                    // cukup inisialisasi fungsi search-nya saja.
-                    // Fungsi fetchIndonesianSongs tetap dipanggil agar data lagu lokal tersedia untuk pencarian.
-                    const searchModule = await import('./search-mobile.js');
-                    searchModule.initSearchPage({
-                        debounce,
-                        activeAudio,
-                        getCurrentSongData: () => currentSongData,
-                        getSongs: () => indonesianSongsPlaylist,
-                        getArtists: () => indonesianArtistsPlaylist,
-                        navigateToArtistPage,
-                        setHomeScrollPosition: (value) => { homeScrollPosition = value; },
-                        getLastSearchQuery: () => lastSearchQuery,
-                        setLastSearchQuery: (value) => { lastSearchQuery = value; },
-                        setSearchPlaylist: (value) => { searchPlaylist = value; },
-                        setPopularPlaylist: (value) => { popularPlaylist = value; }
-                    });
-                    loadLocalCatalogData(); // Diperlukan untuk data lagu lokal di fungsi pencarian
-                } else if (page.includes('artist-mobile.html')) {
-                    const artistModule = await import('./artist-mobile.js').catch(err => { console.error("Failed to load artist module:", err); return {}; });
-                    const { initArtistPage } = artistModule;
-                    activePageCleanup = artistModule.cleanupArtistPage;
-
-                    if (typeof initArtistPage === 'function' && artistDataForPageLoad) {
-                        initArtistPage(artistDataForPageLoad, previousPageUrl);
-                        artistDataForPageLoad = null; // Clean up after initialization
-                    } else {
-                        console.error("initArtistPage function not found or artist data missing.");
-                        contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to initialize artist page.</p>`;
-                    }
-                } else if (page.includes('notifications-mobile.html')) {
-                    // --- LOGIKA YANG DIPINDAHKAN DARI loadNotificationPage ---
-                    const notificationsModule = await import('./notifications-mobile.js').catch(err => { console.error("Failed to load notifications module:", err); return {}; });
-                    const { cleanupNotifications, initNotificationsPage } = notificationsModule;
-                    activePageCleanup = cleanupNotifications;
-
-                    // Add back button functionality
-                    contentContainer.querySelector('#backToHomeBtn')?.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        
-                        // Call the cleanup function before navigating back
-                        if (typeof cleanupNotifications === 'function') {
-                            cleanupNotifications();
-                        }
-                        // [NEW] Also try to clean up artist page listeners if they exist
-                        const artistModule = await import('./artist-mobile.js').catch(() => ({}));
-                        const { cleanupArtistPage } = artistModule;
-                        if (typeof cleanupArtistPage === 'function') {
-                            cleanupArtistPage();
-                        }
-
-                        // Deactivate all current active nav items
-                        document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
-
-                        // Find and activate the nav item corresponding to the previous page
-                        const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${previousPageUrl}"]`);
-                        if (targetNavItem) {
-                            targetNavItem.classList.add('active');
-                        } else {
-                            // Fallback to home if previous page is not in nav bar
-                            document.querySelector('.mobile-bottom-nav .nav-item[data-target="home-mobile.html"]')?.classList.add('active');
-                        }
-
-                        await loadPageContent(previousPageUrl);
-                    });
-
-                    // Call the initialization function from the imported module
-                    if (typeof initNotificationsPage === 'function') {
-                        initNotificationsPage();
-                    } else {
-                        console.error("initNotificationsPage function not found in module.");
-                        contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to initialize notifications.</p>`;
-                    }
-                } else if (page.includes('library-mobile.html')) {
-                    // [NEW] Dynamically import and initialize the library page module
-                    const libraryModule = await import('./library-mobile.js').catch(err => { console.error("Failed to load library module:", err); return {}; });
-                    const { initLibraryPage } = libraryModule;
-
-                    if (typeof initLibraryPage === 'function') {
-                        const targetTab = options.initialTab || window.__initialLibraryTab || 'overview';
-                        window.__initialLibraryTab = null;
-                        await initLibraryPage(targetTab);
-                        activePageCleanup = libraryModule.cleanupLibraryPage;
-                    } else {
-                        console.error("initLibraryPage function not found in module.");
-                    }
-                } else if (page.includes('account-mobile.html')) {
-                    const accountModule = await import('./account-mobile.js').catch(err => { console.error("Failed to load account module:", err); return {}; });
-                    const { initAccountPage } = accountModule;
-
-                    if (typeof initAccountPage === 'function') {
-                        await initAccountPage();
-                        activePageCleanup = accountModule.cleanupAccountPage;
-                    } else {
-                        console.error("initAccountPage function not found in module.");
-                    }
-                } else if (page.includes('windflow-mobile.html') || page.includes('radio-mobile.html')) {
-                    const windflowModule = await import('./windflow-mobile.js').catch(err => { console.error("Failed to load windflow module:", err); return {}; });
-                    const initFunc = windflowModule.initWindFlowPage || windflowModule.initRadioPage;
-
-                    if (typeof initFunc === 'function') {
-                        initFunc();
-                        activePageCleanup = windflowModule.cleanupWindFlowPage;
-                    } else {
-                        console.error("initWindFlowPage function not found in module.");
-                    }
-                } else if (page.includes('auth-mobile.html')) {
-                    const authModule = await import('./auth-mobile.js').catch(err => { console.error("Failed to load auth module:", err); return {}; });
-                    const { initAuthMobilePage, cleanupAuthMobilePage } = authModule;
-                    activePageCleanup = cleanupAuthMobilePage;
-
-                    if (typeof initAuthMobilePage === 'function') {
-                        initAuthMobilePage({
-                            initialTab: options.initialTab || 'login',
-                            onBack: async () => {
-                                const target = previousPageUrl || 'home-mobile.html';
-                                updateSidebarActiveState(target);
-                                updateBottomNavActive(target);
-                                await loadPageContent(target);
-                            },
-                            onSuccess: async (user) => {
-                                initializeUserUI(user);
-                                showToast(`Welcome back, ${user.displayName || user.email?.split('@')[0] || 'User'}!`, 'success');
-                                const target = previousPageUrl || 'home-mobile.html';
-                                updateSidebarActiveState(target);
-                                updateBottomNavActive(target);
-                                await loadPageContent(target);
-                            }
-                        });
-                    } else {
-                        console.error("initAuthMobilePage function not found in module.");
-                    }
-                } else {
-                    // For any other page (like account, etc. in the future)
-                    // or pages that don't have special logic, load the default data.
-                    initializeSkeletons();
-                    initializeData();
-                }
-
-                if (navigationId !== pageLoadSequence) return;
-                
-                // [FIX] Fade the new content in.
-                contentContainer.style.opacity = '1';
-
-                // Sync active playback indicators on newly loaded page
-                setTimeout(() => {
-                    if (typeof syncActiveSongUI === 'function') {
-                        syncActiveSongUI();
-                    }
-                }, 80);
-            }
-        } catch (error) {
-            console.error('Failed to load page content:', error);
-            contentContainer.innerHTML = `<p style="text-align:center; padding: 2rem;">Failed to load content.</p>`;
-            // Ensure the container is visible to show the error message.
-            contentContainer.style.opacity = '1';
-            artistDataForPageLoad = null; // Clean up on error too
-        }
+        };
+        await loadSubpage(page, options, context);
     };
 
     /**
@@ -3318,19 +2220,21 @@ window.toggleDownloadSong = async (song) => {
 
     const navigateToArtistPage = (artist, shouldPushState = true) => {
         if (!artist) return;
-        homeScrollPosition = document.documentElement.scrollTop;
+        saveCurrentHomeScroll();
         artistDataForPageLoad = artist;
 
         const artistUniqueId = getArtistUniqueId(artist);
         const cleanPath = `/artist/${artistUniqueId}`;
         const title = `${artist.name} | Spotiwind`;
 
-        loadPageContent('artist-mobile.html', {
-            pushState: shouldPushState,
-            route: cleanPath,
-            title: title,
-            state: { route: 'artist', artist }
-        });
+        if (typeof window.loadPageContent === 'function') {
+            window.loadPageContent('artist-mobile.html', {
+                pushState: shouldPushState,
+                route: cleanPath,
+                title: title,
+                state: { route: 'artist', artist }
+            });
+        }
     };
 
     /**
@@ -3338,34 +2242,39 @@ window.toggleDownloadSong = async (song) => {
      */
     const navigateToNotificationPage = (shouldPushState = true) => {
         // Store current scroll position before navigating
-        homeScrollPosition = document.documentElement.scrollTop;
+        saveCurrentHomeScroll();
         // Call the main page loader
-        loadPageContent('notifications-mobile.html', {
-            pushState: shouldPushState,
-            route: '/notifications',
-            title: 'Notifications | Spotiwind',
-            state: { route: 'notifications' }
-        });
+        if (typeof window.loadPageContent === 'function') {
+            window.loadPageContent('notifications-mobile.html', {
+                pushState: shouldPushState,
+                route: '/notifications',
+                title: 'Notifications | Spotiwind',
+                state: { route: 'notifications' }
+            });
+        }
     };
 
     /**
      * [NEW] Loads the auth page content dynamically within SPA shell.
      */
     const navigateToAuthPage = (initialTab = 'login', shouldPushState = true) => {
-        homeScrollPosition = document.documentElement.scrollTop;
+        saveCurrentHomeScroll();
         const isRegister = initialTab === 'register';
-        loadPageContent('auth-mobile.html', {
-            pushState: shouldPushState,
-            route: isRegister ? '/register' : '/login',
-            title: isRegister ? 'Register | Spotiwind' : 'Login | Spotiwind',
-            initialTab,
-            state: { route: isRegister ? 'register' : 'login' }
-        });
+        if (typeof window.loadPageContent === 'function') {
+            window.loadPageContent('auth-mobile.html', {
+                pushState: shouldPushState,
+                route: isRegister ? '/register' : '/login',
+                title: isRegister ? 'Register | Spotiwind' : 'Login | Spotiwind',
+                initialTab,
+                state: { route: isRegister ? 'register' : 'login' }
+            });
+        }
     };
 
     window.navigateToAuthPage = navigateToAuthPage;
     window.loadPageContent = loadPageContent;
     window.closeMixDetailModal = closeMixDetailModal;
+    window.forceCloseMixDetailModal = forceCloseMixDetailModal;
 
     // [REFACTOR] Fungsi navigasi sekarang hanya untuk perpindahan antar file utama (desktop/mobile)
     const navigateTo = (url) => { // Fungsi ini tetap berguna untuk redirect ke home-desktop.html
@@ -3531,7 +2440,7 @@ window.spotiwind = {
                 currentSongIndex = 0;
                 syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
             }
-            renderUpNext();
+            renderUpNextQueue('upNextList');
         }
         setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
     });
@@ -3545,6 +2454,22 @@ window.spotiwind = {
         setTimeout(() => btn.classList.remove('btn-pop'), 400);
         btn.classList.toggle('active', isRepeat);
         document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
+    });
+
+    // Secondary full player buttons (Lyrics, Queue, Connect to Device)
+    document.querySelector('.full-secondary-controls button[title="Lyrics"]')?.addEventListener('click', () => {
+        showToast('Fitur lirik lagu akan segera hadir');
+    });
+
+    document.querySelector('.full-secondary-controls button[title="Queue"]')?.addEventListener('click', () => {
+        const upNextSec = document.querySelector('.full-up-next-section');
+        if (upNextSec) {
+            upNextSec.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+
+    document.querySelector('.full-secondary-controls button[title="Connect to a Device"]')?.addEventListener('click', () => {
+        showToast('Hubungkan ke perangkat audio akan segera hadir');
     });
 
     // Progress bar seeking for Full Player
@@ -3631,6 +2556,57 @@ window.spotiwind = {
         }
     });
 
+        // [ROUTER] Initialize SPA Router Context
+        const routerContext = {
+            searchParams: {
+                debounce,
+                activeAudio,
+                getCurrentSongData: () => currentSongData,
+                getSongs: () => indonesianSongsPlaylist,
+                getArtists: () => indonesianArtistsPlaylist,
+                getAlbums: () => indonesianAlbumsPlaylist,
+                navigateToArtistPage: (artist) => {
+                    artistDataForPageLoad = artist;
+                    if (typeof window.loadPageContent === 'function') {
+                        window.loadPageContent('artist-mobile.html', { pushState: true });
+                    }
+                },
+                setHomeScrollPosition: (pos) => {
+                    homeScrollPosition = pos;
+                    setHomeScrollPosition(pos);
+                },
+                setPageScrollPosition: (page, pos) => {
+                    setPageScrollPosition(page, pos);
+                },
+                getPageScrollPosition: (page) => getPageScrollPosition(page),
+                getLastSearchQuery: () => lastSearchQuery,
+                setLastSearchQuery: (query) => { lastSearchQuery = query; },
+                setSearchPlaylist: (playlist) => { searchPlaylist = playlist; },
+                setPopularPlaylist: (playlist) => { popularPlaylist = playlist; }
+            },
+            get artistData() {
+                return artistDataForPageLoad;
+            },
+            onHomeMounted: () => {
+                // Callback when home is restored (e.g. from sub-page back to home)
+                initializeHomeContent();
+            }
+        };
+
+        // Legacy support for modules relying on window.spotiwind.mobile
+        window.spotiwind = window.spotiwind || {};
+        window.spotiwind.mobile = {
+            fetchWithContinuousRetry,
+            fetchLocalArtistSongs,
+            fetchArtistSongs,
+            loadPageContent: (page, opts) => window.loadPageContent && window.loadPageContent(page, opts),
+            initializeSkeletons: () => {
+                if (typeof showSkeletonLoader === 'function') showSkeletonLoader('#artistSongsGrid', 'artist-song-list', 6);
+            }
+        };
+
+        initPageRouter(routerContext);
+
         // [ROUTER] Popstate listener for browser Back / Forward buttons
         window.addEventListener('popstate', async (event) => {
             const currentPath = window.location.pathname;
@@ -3652,10 +2628,9 @@ window.spotiwind = {
             }
         }
 
-        // [FIX] Move listener attachment to the end of DOMContentLoaded
-        // to ensure all functions like 'loadNotificationPage' are initialized.
-        const notificationBtn = document.getElementById('notificationBtn');
-        if (notificationBtn) {
-            notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
-        }
+        // Initialize Modular Modal and Sheet Listeners
+        initCreatePlaylistModal();
+        initAvatarPreviewModal();
+        initQueueModal();
+        initSongOptionsSheet();
 });

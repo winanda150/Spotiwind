@@ -58,36 +58,75 @@ export const normalizeArtistPhotoUrl = (url) => {
 /**
  * Load local artists map from manifest if not cached
  */
-const getKnownLocalArtist = async (artistName = '') => {
-    if (!artistName) return null;
-    const cleanName = artistName.toLowerCase().trim();
+const loadKnownLocalArtistsMap = async () => {
+    if (knownLocalArtistsMap && knownLocalArtistsMap.size > 0) {
+        return knownLocalArtistsMap;
+    }
 
-    if (!knownLocalArtistsMap) {
+    const candidateUrls = [
+        '../../public/data/artists.json',
+        'public/data/artists.json',
+        '/public/data/artists.json',
+        '/frontend/public/data/artists.json',
+        `${window.location.origin}/frontend/public/data/artists.json`
+    ];
+
+    for (const url of candidateUrls) {
         try {
-            const res = await fetch('../../public/indonesian-songs-manifest.json');
+            const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                knownLocalArtistsMap = new Map();
-                (data.artists || []).forEach(a => {
-                    if (a.name) {
-                        knownLocalArtistsMap.set(a.name.toLowerCase().trim(), {
-                            id: a.id || getArtistEntityId(a.name),
-                            name: a.name,
-                            photo: normalizeArtistPhotoUrl(a.photo)
-                        });
-                    }
-                });
+                const artistsList = Array.isArray(data) ? data : (Array.isArray(data.artists) ? data.artists : []);
+                if (artistsList.length > 0) {
+                    const newMap = new Map();
+                    artistsList.forEach(a => {
+                        if (a.name) {
+                            const artistObj = {
+                                id: a.id || getArtistEntityId(a.name),
+                                name: a.name,
+                                photo: normalizeArtistPhotoUrl(a.photo)
+                            };
+                            const cleanName = String(a.name).toLowerCase().trim();
+                            const cleanId = String(artistObj.id).toLowerCase().trim();
+                            const genId = getArtistEntityId(a.name);
+                            newMap.set(cleanName, artistObj);
+                            newMap.set(cleanId, artistObj);
+                            newMap.set(genId, artistObj);
+                        }
+                    });
+                    knownLocalArtistsMap = newMap;
+                    return knownLocalArtistsMap;
+                }
             }
         } catch {
-            knownLocalArtistsMap = new Map();
+            // try next candidate URL
         }
     }
 
-    if (knownLocalArtistsMap && knownLocalArtistsMap.has(cleanName)) {
-        return knownLocalArtistsMap.get(cleanName);
-    }
+    knownLocalArtistsMap = new Map();
+    return knownLocalArtistsMap;
+};
 
+const getKnownLocalArtist = async (artistNameOrId = '') => {
+    if (!artistNameOrId) return null;
+    const clean = String(artistNameOrId).toLowerCase().trim();
+    const map = await loadKnownLocalArtistsMap();
+    if (!map || map.size === 0) return null;
+
+    if (map.has(clean)) {
+        return map.get(clean);
+    }
+    const genId = getArtistEntityId(artistNameOrId);
+    if (map.has(genId)) {
+        return map.get(genId);
+    }
     return null;
+};
+
+const isArtistRegistered = async (artistObj) => {
+    if (!artistObj) return false;
+    const matched = await getKnownLocalArtist(artistObj.name || artistObj.id);
+    return !!matched;
 };
 
 /**
@@ -105,7 +144,7 @@ export const splitArtistNames = (rawArtist = '') => {
 
 /**
  * Record a song play for the artist in Firestore top_artists collection.
- * For collaborative songs (e.g. "For Revenge & Stereo Wall"), records each artist individually.
+ * Records play counts for all individual artists so they accumulate rank in database.
  * @param {Object} song - The song object being played
  */
 export const recordArtistPlay = async (song) => {
@@ -120,9 +159,12 @@ export const recordArtistPlay = async (song) => {
 
     for (const individualArtist of artistParts) {
         const matchedLocal = await getKnownLocalArtist(individualArtist);
+        
+        // Tetap catat & hitung pemutaran di database walaupun belum ditulis manual di data/artists.json
         const artistId = matchedLocal?.id || getArtistEntityId(individualArtist);
         const artistName = matchedLocal?.name || individualArtist;
-        const artistPhoto = matchedLocal?.photo || normalizeArtistPhotoUrl(song.artist_image || song.photo || song.cover || '');
+        const fallbackPhoto = song.artist_image || song.photo || song.cover || '';
+        const artistPhoto = matchedLocal?.photo || normalizeArtistPhotoUrl(fallbackPhoto);
 
         const now = Date.now();
         if (recentlyRecordedArtists.has(artistId)) {
@@ -183,6 +225,28 @@ export const sortTopArtists = (list = []) => {
 };
 
 /**
+ * Automatically syncs the official artist metadata (photo & name from artists.json)
+ * to Firestore in the background if Firestore still holds a temporary cover or outdated name.
+ */
+const syncArtistMetadataToFirestore = async (firestoreArtist, localMatched) => {
+    if (!firestoreArtist || !localMatched) return;
+    const needsPhotoUpdate = localMatched.photo && firestoreArtist.photo !== localMatched.photo;
+    const needsNameUpdate = localMatched.name && firestoreArtist.name !== localMatched.name;
+
+    if (needsPhotoUpdate || needsNameUpdate) {
+        try {
+            const artistRef = doc(getTopArtistsRef(), firestoreArtist.id);
+            await setDoc(artistRef, {
+                name: localMatched.name || firestoreArtist.name,
+                photo: localMatched.photo || firestoreArtist.photo
+            }, { merge: true });
+        } catch {
+            // Background sync is silent to avoid blocking UI
+        }
+    }
+};
+
+/**
  * Fetch top artists once from Firestore.
  * Returns empty array if no data exists in Firestore yet.
  * @param {number} limitCount - Maximum artists to fetch (default: 10)
@@ -193,7 +257,7 @@ export const getTopArtists = async (limitCount = DEFAULT_LIMIT) => {
         const q = firestoreQuery(
             getTopArtistsRef(),
             orderBy('playCount', 'desc'),
-            limit(limitCount)
+            limit(100)
         );
         const querySnapshot = await getDocs(q);
 
@@ -201,7 +265,7 @@ export const getTopArtists = async (limitCount = DEFAULT_LIMIT) => {
             return [];
         }
 
-        const artists = querySnapshot.docs.map((docSnap) => {
+        const rawArtists = querySnapshot.docs.map((docSnap) => {
             const data = docSnap.data() || {};
             return {
                 id: docSnap.id,
@@ -211,7 +275,23 @@ export const getTopArtists = async (limitCount = DEFAULT_LIMIT) => {
             };
         });
 
-        return sortTopArtists(artists).slice(0, limitCount);
+        // Hanya tampilkan artis yang sudah didaftarkan di data/artists.json
+        // Gunakan metadata resmi (foto & display name) dari artists.json jika sudah tersedia
+        const registeredArtists = [];
+        for (const artist of rawArtists) {
+            const matched = await getKnownLocalArtist(artist.name || artist.id);
+            if (matched) {
+                syncArtistMetadataToFirestore(artist, matched);
+                registeredArtists.push({
+                    ...artist,
+                    id: matched.id || artist.id,
+                    name: matched.name || artist.name,
+                    photo: matched.photo || artist.photo
+                });
+            }
+        }
+
+        return sortTopArtists(registeredArtists).slice(0, limitCount);
     } catch (error) {
         console.error('Failed to get top artists from Firestore:', error);
         return [];
@@ -230,16 +310,16 @@ export const subscribeTopArtists = (callback, limitCount = DEFAULT_LIMIT) => {
         const q = firestoreQuery(
             getTopArtistsRef(),
             orderBy('playCount', 'desc'),
-            limit(limitCount)
+            limit(100)
         );
 
-        return onSnapshot(q, (snapshot) => {
+        return onSnapshot(q, async (snapshot) => {
             if (snapshot.empty) {
                 callback([]);
                 return;
             }
 
-            const artists = snapshot.docs.map((docSnap) => {
+            const rawArtists = snapshot.docs.map((docSnap) => {
                 const data = docSnap.data() || {};
                 return {
                     id: docSnap.id,
@@ -249,7 +329,23 @@ export const subscribeTopArtists = (callback, limitCount = DEFAULT_LIMIT) => {
                 };
             });
 
-            const sorted = sortTopArtists(artists);
+            // Hanya tampilkan artis yang sudah didaftarkan di data/artists.json
+            // Gunakan metadata resmi (foto & display name) dari artists.json jika sudah tersedia
+            const registeredArtists = [];
+            for (const artist of rawArtists) {
+                const matched = await getKnownLocalArtist(artist.name || artist.id);
+                if (matched) {
+                    syncArtistMetadataToFirestore(artist, matched);
+                    registeredArtists.push({
+                        ...artist,
+                        id: matched.id || artist.id,
+                        name: matched.name || artist.name,
+                        photo: matched.photo || artist.photo
+                    });
+                }
+            }
+
+            const sorted = sortTopArtists(registeredArtists);
             callback(sorted.slice(0, limitCount));
         }, (error) => {
             console.error('Failed to subscribe to top artists in Firestore:', error);

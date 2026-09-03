@@ -1,4 +1,5 @@
 import { getFeaturedLocalSongs, loadLocalCatalog, getTrendingCatalog } from '../../services/catalogService.js';
+import { showToast } from '../../utils/domUtils.js';
 
 /**
  * Spotiwind — WindFlow Radio Module
@@ -64,26 +65,6 @@ const CURRENTS_CONFIG = {
         vibeCategory: 'night',
         desc: 'Midnight R&B & Dream Pop'
     }
-};
-
-/**
- * Toast Notification Helper
- */
-const showWindFlowToast = (message) => {
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.style.cssText = 'background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(185, 30, 201, 0.35); box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(8px); color: #ffffff;';
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => toast.remove(), 2500);
 };
 
 /**
@@ -344,7 +325,7 @@ const rideTrackInFlow = (track, userInitiated = false) => {
     }
 
     if (userInitiated) {
-        showWindFlowToast(`Riding ${track.name} in the flow 🍃`);
+        showToast(`Riding ${track.name} in the flow 🍃`);
     }
 };
 
@@ -388,7 +369,7 @@ export const initWindFlowPage = async () => {
         const handler = (e) => {
             e.preventDefault();
             if (!activeSeedTrack) {
-                showWindFlowToast("Pilih aliran lagu terlebih dahulu");
+                showToast("Pilih aliran lagu terlebih dahulu");
                 return;
             }
 
@@ -401,7 +382,7 @@ export const initWindFlowPage = async () => {
 
             upcomingFlowQueue = generateFlowQueue(activeSeedTrack, activeCurrentKey, isGustModeActive, steeredTrackBias);
             updateFlowUI();
-            showWindFlowToast(`Aliran diselaraskan ke arah musik ${activeSeedTrack.name} ✨`);
+            showToast(`Aliran diselaraskan ke arah musik ${activeSeedTrack.name} ✨`);
         };
         btnSteerToward.addEventListener('click', handler);
         cleanupListeners.push(() => btnSteerToward.removeEventListener('click', handler));
@@ -414,7 +395,7 @@ export const initWindFlowPage = async () => {
             e.preventDefault();
             if (upcomingFlowQueue.length > 0) {
                 const nextTrack = upcomingFlowQueue[0];
-                showWindFlowToast("Membelokkan aliran ke lagu berikutnya 💨");
+                showToast("Membelokkan aliran ke lagu berikutnya 💨");
                 rideTrackInFlow(nextTrack, false);
             } else {
                 upcomingFlowQueue = generateFlowQueue(null, activeCurrentKey, isGustModeActive);
@@ -435,9 +416,9 @@ export const initWindFlowPage = async () => {
             isGustModeActive = !isGustModeActive;
 
             if (isGustModeActive) {
-                showWindFlowToast("Gust Mode Aktif! Lonjakan energi & tempo tinggi ⚡");
+                showToast("Gust Mode Aktif! Lonjakan energi & tempo tinggi ⚡");
             } else {
-                showWindFlowToast("Gust Mode Dinonaktifkan, kembali ke hembusan normal 🍃");
+                showToast("Gust Mode Dinonaktifkan, kembali ke hembusan normal 🍃");
             }
 
             upcomingFlowQueue = generateFlowQueue(activeSeedTrack, activeCurrentKey, isGustModeActive, steeredTrackBias);
@@ -458,7 +439,7 @@ export const initWindFlowPage = async () => {
             e.preventDefault();
             upcomingFlowQueue = generateFlowQueue(activeSeedTrack, activeCurrentKey, isGustModeActive, steeredTrackBias);
             renderUpcomingQueueList();
-            showWindFlowToast("Hembusan antrean berhasil diacak ulang 🌀");
+            showToast("Hembusan antrean berhasil diacak ulang 🌀");
         };
         refreshBtn.addEventListener('click', handler);
         cleanupListeners.push(() => refreshBtn.removeEventListener('click', handler));

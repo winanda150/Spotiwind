@@ -106,51 +106,156 @@ export const getArtistCatalog = async (artistId, artistName) => {
 };
 
 export const loadLocalCatalog = async (manifestUrl = null) => {
-    const targetUrl = manifestUrl || getPublicAssetUrl('indonesian-songs-manifest.json');
-    const response = await fetch(targetUrl);
-    if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
-    const data = await response.json();
-    const uniqueSongs = [];
-    const seenSongKeys = new Set();
-
-    for (const song of data.songs || []) {
-        const identityCandidates = [
-            String(song.id || '').trim().toLowerCase(),
-            String(song.audio || '').trim().toLowerCase(),
-            `${String(song.name || '').trim().toLowerCase()}|${String(song.artist || '').trim().toLowerCase()}`
-        ].filter(Boolean);
-
-        const songKey = identityCandidates.find(Boolean) || '';
-        if (!songKey || seenSongKeys.has(songKey)) continue;
-
-        seenSongKeys.add(songKey);
-        uniqueSongs.push(song);
+    // If a custom manifestUrl is explicitly provided, load legacy manifest
+    if (manifestUrl) {
+        const response = await fetch(manifestUrl);
+        if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
+        const data = await response.json();
+        return {
+            artists: (data.artists || []).map((artist) => ({
+                ...artist,
+                photo: getPublicAssetUrl(artist.photo)
+            })),
+            songs: (data.songs || []).map((song, index) => ({
+                id: song.id || `local-${index}`,
+                name: song.name,
+                artist: song.artist,
+                artistId: song.artistId,
+                albumId: song.albumId,
+                cover: getPublicAssetUrl(song.cover),
+                audio: getPublicAssetUrl(song.audio),
+                duration: song.duration || 0,
+                plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
+            })),
+            albums: (data.albums || []).map((album) => ({
+                ...album,
+                cover: getPublicAssetUrl(album.cover)
+            }))
+        };
     }
 
-    return {
-        artists: (data.artists || []).map((artist) => ({
-            ...artist,
-            photo: getPublicAssetUrl(artist.photo)
-        })),
-        songs: uniqueSongs.map((song, index) => ({
-            id: song.id || `local-${index}`,
-            name: song.name,
-            artist: song.artist,
-            cover: getPublicAssetUrl(song.cover),
-            audio: getPublicAssetUrl(song.audio),
-            duration: song.duration || 0,
-            plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
-        }))
-    };
+    try {
+        const artistsUrl = getPublicAssetUrl('data/artists.json');
+        const songsUrl = getPublicAssetUrl('data/songs.json');
+        const albumsUrl = getPublicAssetUrl('data/albums.json');
+
+        const [artistsRes, songsRes, albumsRes] = await Promise.all([
+            fetch(artistsUrl),
+            fetch(songsUrl),
+            fetch(albumsUrl).catch(() => ({ ok: false }))
+        ]);
+
+        if (!artistsRes.ok || !songsRes.ok) {
+            throw new Error(`Failed to load data files (artists: ${artistsRes.status}, songs: ${songsRes.status})`);
+        }
+
+        const rawArtists = await artistsRes.json();
+        const rawSongs = await songsRes.json();
+        const rawAlbums = albumsRes.ok ? await albumsRes.json() : [];
+
+        const uniqueSongs = [];
+        const seenSongKeys = new Set();
+
+        for (const song of rawSongs || []) {
+            const identityCandidates = [
+                String(song.id || '').trim().toLowerCase(),
+                String(song.audio || '').trim().toLowerCase(),
+                `${String(song.name || '').trim().toLowerCase()}|${String(song.artist || '').trim().toLowerCase()}`
+            ].filter(Boolean);
+
+            const songKey = identityCandidates.find(Boolean) || '';
+            if (!songKey || seenSongKeys.has(songKey)) continue;
+
+            seenSongKeys.add(songKey);
+            uniqueSongs.push(song);
+        }
+
+        return {
+            artists: (rawArtists || []).map((artist) => ({
+                ...artist,
+                photo: getPublicAssetUrl(artist.photo)
+            })),
+            songs: uniqueSongs.map((song, index) => ({
+                id: song.id || `local-${index}`,
+                name: song.name,
+                artist: song.artist,
+                artistId: song.artistId,
+                albumId: song.albumId,
+                cover: getPublicAssetUrl(song.cover),
+                audio: getPublicAssetUrl(song.audio),
+                duration: song.duration || 0,
+                plays: formatPlayCount(Math.floor(Math.random() * 99000000) + 1000000)
+            })),
+            albums: (rawAlbums || []).map((album) => ({
+                ...album,
+                cover: getPublicAssetUrl(album.cover)
+            }))
+        };
+    } catch (err) {
+        console.error('[catalogService] Error loading local catalog:', err);
+        return {
+            artists: [],
+            songs: [],
+            albums: []
+        };
+    }
+};
+
+/**
+ * Load local albums list
+ */
+export const loadLocalAlbums = async () => {
+    try {
+        const albumsUrl = getPublicAssetUrl('data/albums.json');
+        const res = await fetch(albumsUrl);
+        if (!res.ok) return [];
+        const albums = await res.json();
+        return albums.map((alb) => ({
+            ...alb,
+            cover: getPublicAssetUrl(alb.cover)
+        }));
+    } catch {
+        return [];
+    }
+};
+
+/**
+ * Get ordered tracklist for an album
+ * @param {Object} album Album entity containing trackIds
+ * @param {Array} allSongs List of all available song objects
+ * @returns {Array} Ordered songs with track numbers
+ */
+export const getAlbumTracks = (album, allSongs = []) => {
+    if (!album || !Array.isArray(album.trackIds)) return [];
+    const songsMap = new Map(allSongs.map((s) => [s.id, s]));
+
+    return album.trackIds
+        .map((songId, index) => {
+            const song = songsMap.get(songId);
+            if (!song) return null;
+            return {
+                ...song,
+                trackNumber: index + 1,
+                albumId: album.id,
+                albumName: album.name
+            };
+        })
+        .filter(Boolean);
 };
 
 export const getLocalArtistCatalog = (songs, artist) => {
     const pathParts = artist.photo?.split('/') || [];
     const elemenIdx = pathParts.indexOf('Elemen');
     const folderName = elemenIdx !== -1 && pathParts[elemenIdx + 1] ? decodeURIComponent(pathParts[elemenIdx + 1]) : artist.name;
+    const artistNameLower = (artist.name || '').toLowerCase().trim();
+
     return songs.filter((song) => {
         try {
-            return decodeURIComponent(song.audio).includes(`/Elemen/${folderName}/`);
+            const inFolder = decodeURIComponent(song.audio).includes(`Elemen/${folderName}/`);
+            const songArtistLower = (song.artist || '').toLowerCase();
+            const isCollaborator = artistNameLower && songArtistLower.includes(artistNameLower);
+            
+            return inFolder || isCollaborator;
         } catch {
             return false;
         }

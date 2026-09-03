@@ -74,6 +74,7 @@ export {
     updateProfile, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup,
     sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence,
     // Firestore
+    initializeFirestore, getFirestore,
     collection, writeBatch, query, onSnapshot, orderBy, getDocs, where, doc, documentId, setDoc,
     limit, serverTimestamp, getDoc, deleteDoc, addDoc, updateDoc, arrayUnion, arrayRemove, increment,
     // Realtime Database

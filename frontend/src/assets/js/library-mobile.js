@@ -23,6 +23,9 @@ export function switchToLibraryTab(tabKey, options = {}) {
 
     const targetTab = Array.from(tabs).find(t => t.dataset.libraryTab === tabKey) || tabs[0];
     activeLibraryTab = targetTab.dataset.libraryTab || 'overview';
+    try {
+        sessionStorage.setItem('library_active_tab', activeLibraryTab);
+    } catch {}
 
     tabs.forEach((item) => {
         const isActive = item === targetTab;
