@@ -2224,8 +2224,8 @@ body.is-dragging-volume .volume-level {
 }
 
 .mix-detail-action-icon-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    background: transparent;
+    border: none;
     color: var(--text-muted, #9ca3af);
     width: 44px;
     height: 44px;
@@ -2234,28 +2234,31 @@ body.is-dragging-volume .volume-level {
     justify-content: center;
     cursor: pointer;
     border-radius: 50%;
-    transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.2s;
+    padding: 0;
+    transition: color 0.2s ease, transform 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .mix-detail-action-icon-btn:hover {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: transparent;
 }
 
 .mix-detail-action-icon-btn:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
 }
 
 .mix-detail-action-icon-btn.is-active {
-    color: #ffffff;
-    background: rgba(185, 30, 201, 0.3);
-    border-color: var(--accent-color, #B91EC9);
-    box-shadow: 0 0 16px rgba(185, 30, 201, 0.5);
+    color: var(--accent-color, #B91EC9);
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(185, 30, 201, 0.7));
 }
 
 .mix-detail-action-icon-btn.is-active svg {
-    color: #ffffff;
+    color: var(--accent-color, #B91EC9);
 }
 
 .mix-track-row {

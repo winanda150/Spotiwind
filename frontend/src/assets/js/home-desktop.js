@@ -801,9 +801,8 @@ const renderDesktopRecentlyPlayed = () => {
             .filter(s => s && (s.id || s.audio) && s.audio)
             .slice(0, 3); // Batas maksimal 3 lagu terbaru sesuai permintaan
 
-        desktopRecentlyPlayedListCache = validSongs;
-
         if (validSongs.length === 0) {
+            desktopRecentlyPlayedListCache = [];
             container.innerHTML = `
                 <div class="recent-empty-state">
                     <div class="recent-empty-icon" aria-hidden="true">
@@ -820,14 +819,18 @@ const renderDesktopRecentlyPlayed = () => {
         }
 
         const isSameList = desktopRecentlyPlayedListCache.length === validSongs.length &&
-            validSongs.every((s, i) => String(s.id) === String(desktopRecentlyPlayedListCache[i]?.id));
-
-        desktopRecentlyPlayedListCache = validSongs;
+            validSongs.every((s, i) => {
+                const cached = desktopRecentlyPlayedListCache[i];
+                if (!cached) return false;
+                return String(s.id || s.audio) === String(cached.id || cached.audio);
+            });
 
         if (isSameList && container.querySelector('.recent-track-row')) {
             syncActiveDesktopUI();
             return;
         }
+
+        desktopRecentlyPlayedListCache = [...validSongs];
 
         const isAudioPlaying = activeAudio && !activeAudio.paused && !activeAudio.ended;
 

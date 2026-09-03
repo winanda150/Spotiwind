@@ -46,7 +46,6 @@ let currentPlaylist = [];
 let trendingPlaylist = []; // Buffer to store the list of popular songs
 let madeForYouMixes = []; // Buffer to store the 10 Made for You mixes
 let activeMixId = null; // Track the Mix currently playing so only that card stays active
-let isMixDetailShuffleActive = false; // Track whether shuffle is toggled on in the Mix Detail modal
 let currentPlaybackContext = null; // Track current playback context (e.g. made-for-you, trending, etc.)
 let searchPlaylist = []; // Buffer to store search results
 let popularPlaylist = []; // Buffer to store Popular Searches song list for Up Next
@@ -294,6 +293,11 @@ const syncActiveSongUI = () => {
         artistShuffleBtn.classList.toggle('is-active', isShuffle);
     }
 
+    const mixDetailShuffleBtn = document.getElementById('mixDetailShuffleBtn');
+    if (mixDetailShuffleBtn) {
+        mixDetailShuffleBtn.classList.toggle('is-active', isShuffle);
+    }
+
     if (isPlaying || isPaused) {
         const activeElements = getSongElements(currentSongData);
         activeElements.forEach(el => {
@@ -373,14 +377,76 @@ window.getCurrentSongData = () => currentSongData;
 window.__currentSongData = currentSongData;
 window.getArtistPageCurrentSongs = () => artistPageCurrentSongs;
 window.setArtistPageCurrentSongs = (songs) => { artistPageCurrentSongs = songs; window.__artistPageCurrentSongs = songs; };
-window.getPlaybackShuffle = () => isShuffle;
-window.setPlaybackShuffle = (val) => {
-    isShuffle = Boolean(val);
+
+/**
+ * Toggles global playback shuffle mode and synchronizes all shuffle buttons in the app.
+ * If playback is active, instantly re-shuffles the upcoming queue (or restores original track order).
+ * @param {boolean|null} forceState - Optional explicit state (true/false) to set
+ * @returns {boolean} The new shuffle state
+ */
+const togglePlaybackShuffle = (forceState = null) => {
+    isShuffle = forceState !== null ? Boolean(forceState) : !isShuffle;
     window.__spotiwindIsShuffle = isShuffle;
+
+    // Sync all shuffle buttons currently in the DOM
     document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
     document.getElementById('artistShuffleBtn')?.classList.toggle('is-active', isShuffle);
+    document.getElementById('mixDetailShuffleBtn')?.classList.toggle('is-active', isShuffle);
+
+    if (isShuffle) {
+        isRepeat = false;
+        document.getElementById('fullRepeatBtn')?.classList.remove('active');
+
+        const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
+            ? unshuffledPlaylist
+            : (currentPlaylist && currentPlaylist.length > 1 ? currentPlaylist : (window.__artistPageCurrentSongs || []));
+
+        if (sourcePool.length > 1 && currentSongData) {
+            const currentSong = sourcePool.find(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id)) || currentSongData;
+            let others = sourcePool.filter(s => !areSameSongs(s, currentSongData) && String(s.id) !== String(currentSongData.id));
+
+            for (let i = others.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [others[i], others[j]] = [others[j], others[i]];
+            }
+
+            currentPlaylist = [currentSong, ...others];
+            currentSongIndex = 0;
+            syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+            window.__spotiwindCurrentPlaylist = currentPlaylist;
+            window.__spotiwindCurrentIndex = currentSongIndex;
+            window.__spotiwindCurrentSong = currentSongData;
+            window.currentPlaylist = currentPlaylist;
+            window.currentSongIndex = currentSongIndex;
+        }
+        renderUpNextQueue('upNextList');
+        showToast('Shuffle diaktifkan');
+    } else {
+        const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
+            ? unshuffledPlaylist
+            : (window.__artistPageCurrentSongs || []);
+
+        if (sourcePool.length > 1 && currentSongData) {
+            currentPlaylist = [...sourcePool];
+            currentSongIndex = currentPlaylist.findIndex(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id));
+            if (currentSongIndex === -1) currentSongIndex = 0;
+            syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+            window.__spotiwindCurrentPlaylist = currentPlaylist;
+            window.__spotiwindCurrentIndex = currentSongIndex;
+            window.__spotiwindCurrentSong = currentSongData;
+            window.currentPlaylist = currentPlaylist;
+            window.currentSongIndex = currentSongIndex;
+        }
+        renderUpNextQueue('upNextList');
+        showToast('Shuffle dinonaktifkan');
+    }
+
     setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
+    return isShuffle;
 };
+window.togglePlaybackShuffle = togglePlaybackShuffle;
+window.getPlaybackShuffle = () => isShuffle;
+window.setPlaybackShuffle = (val) => togglePlaybackShuffle(val);
 window.__spotiwindIsShuffle = isShuffle;
 
 /**
@@ -805,9 +871,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     syncActiveSongUI();
                     return;
                 }
-                const playlistToPlay = isMixDetailShuffleActive
-                    ? [...activeDetailMix.songs].sort(() => 0.5 - Math.random())
-                    : [...activeDetailMix.songs];
+                let playlistToPlay = [...activeDetailMix.songs];
+                if (isShuffle) {
+                    // Fisher-Yates shuffle algorithm
+                    for (let i = playlistToPlay.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [playlistToPlay[i], playlistToPlay[j]] = [playlistToPlay[j], playlistToPlay[i]];
+                    }
+                }
                 const firstSong = playlistToPlay[0];
                 window.playPreview(
                     null,
@@ -825,12 +896,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 5. Click on Mix Detail Shuffle Button -> Toggle active status, do not play yet
+        // 5. Click on Mix Detail Shuffle Button -> Toggle active status and re-shuffle live queue if playing
         const mixDetailShuffleBtn = e.target.closest('#mixDetailShuffleBtn');
         if (mixDetailShuffleBtn) {
             e.stopPropagation();
-            isMixDetailShuffleActive = !isMixDetailShuffleActive;
-            mixDetailShuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
+            togglePlaybackShuffle();
             return;
         }
 
@@ -2468,9 +2538,8 @@ window.toggleDownloadSong = toggleDownloadSong;
                 .filter(s => s && (s.id || s.audio) && s.audio)
                 .slice(0, 3); // Hanya 3 lagu terbaru sesuai permintaan
 
-            homeRecentlyPlayedListCache = validSongs;
-
             if (validSongs.length === 0) {
+                homeRecentlyPlayedListCache = [];
                 container.innerHTML = `
                     <div class="recent-empty-state">
                         <div class="recent-empty-icon" aria-hidden="true">
@@ -2487,14 +2556,18 @@ window.toggleDownloadSong = toggleDownloadSong;
             }
 
             const isSameList = homeRecentlyPlayedListCache.length === validSongs.length &&
-                validSongs.every((s, i) => String(s.id) === String(homeRecentlyPlayedListCache[i]?.id));
-
-            homeRecentlyPlayedListCache = validSongs;
+                validSongs.every((s, i) => {
+                    const cached = homeRecentlyPlayedListCache[i];
+                    if (!cached) return false;
+                    return String(s.id || s.audio) === String(cached.id || cached.audio);
+                });
 
             if (isSameList && container.querySelector('.recent-track-row')) {
                 syncActiveSongUI();
                 return;
             }
+
+            homeRecentlyPlayedListCache = [...validSongs];
 
             const isAudioPlaying = activeAudio && !activeAudio.paused && !activeAudio.ended;
 
@@ -2634,67 +2707,10 @@ window.spotiwind = {
     document.getElementById('fullLoveBtn')?.addEventListener('click', toggleLike);
 
     document.getElementById('fullShuffleBtn')?.addEventListener('click', (e) => {
-        isShuffle = !isShuffle;
         const btn = e.currentTarget;
         btn.classList.add('btn-pop');
         setTimeout(() => btn.classList.remove('btn-pop'), 400);
-        btn.classList.toggle('active', isShuffle);
-
-        if (isShuffle) {
-            isRepeat = false;
-            document.getElementById('fullRepeatBtn')?.classList.remove('active');
-
-            const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
-                ? unshuffledPlaylist
-                : (currentPlaylist && currentPlaylist.length > 1 ? currentPlaylist : (window.__artistPageCurrentSongs || []));
-
-            if (sourcePool.length > 1 && currentSongData) {
-                const currentSong = sourcePool.find(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id)) || currentSongData;
-                let others = sourcePool.filter(s => !areSameSongs(s, currentSongData) && String(s.id) !== String(currentSongData.id));
-                
-                for (let i = others.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [others[i], others[j]] = [others[j], others[i]];
-                }
-                
-                currentPlaylist = [currentSong, ...others];
-                currentSongIndex = 0;
-                syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
-                window.__spotiwindCurrentPlaylist = currentPlaylist;
-                window.__spotiwindCurrentIndex = currentSongIndex;
-                window.__spotiwindCurrentSong = currentSongData;
-                window.currentPlaylist = currentPlaylist;
-                window.currentSongIndex = currentSongIndex;
-            }
-            renderUpNextQueue('upNextList');
-            showToast('Shuffle diaktifkan');
-        } else {
-            const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
-                ? unshuffledPlaylist
-                : (window.__artistPageCurrentSongs || []);
-
-            if (sourcePool.length > 1 && currentSongData) {
-                currentPlaylist = [...sourcePool];
-                currentSongIndex = currentPlaylist.findIndex(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id));
-                if (currentSongIndex === -1) currentSongIndex = 0;
-                syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
-                window.__spotiwindCurrentPlaylist = currentPlaylist;
-                window.__spotiwindCurrentIndex = currentSongIndex;
-                window.__spotiwindCurrentSong = currentSongData;
-                window.currentPlaylist = currentPlaylist;
-                window.currentSongIndex = currentSongIndex;
-            }
-            renderUpNextQueue('upNextList');
-            showToast('Shuffle dinonaktifkan');
-        }
-        // Sinkronkan juga tombol shuffle di halaman artis jika sedang terbuka
-        const artistShuffleBtn = document.getElementById('artistShuffleBtn');
-        if (artistShuffleBtn) {
-            artistShuffleBtn.classList.toggle('is-active', isShuffle);
-        }
-
-        window.__spotiwindIsShuffle = isShuffle;
-        setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
+        togglePlaybackShuffle();
     });
 
     document.getElementById('fullRepeatBtn')?.addEventListener('click', (e) => {

@@ -7,7 +7,6 @@ import { areSameSongs } from '../../utils/audioUtils.js';
 import { PLAY_ICON, PAUSE_ICON } from '../../constants/icons.js';
 
 let activeDetailMix = null;
-let isMixDetailShuffleActive = false;
 let isMixDetailTransitioning = false;
 
 export const openMixDetailModal = async (mixId, madeForYouMixes = []) => {
@@ -113,7 +112,12 @@ export const openMixDetailModal = async (mixId, madeForYouMixes = []) => {
     const closeBtn = modal.querySelector('#closeMixDetailBtn');
     if (closeBtn) closeBtn.focus();
     const shuffleBtn = modal.querySelector('#mixDetailShuffleBtn');
-    if (shuffleBtn) shuffleBtn.classList.toggle('is-active', isMixDetailShuffleActive);
+    if (shuffleBtn) {
+        const isShuffle = typeof window.getPlaybackShuffle === 'function'
+            ? window.getPlaybackShuffle()
+            : Boolean(window.__spotiwindIsShuffle);
+        shuffleBtn.classList.toggle('is-active', isShuffle);
+    }
 
     if (typeof window.syncActiveSongUI === 'function') {
         window.syncActiveSongUI();

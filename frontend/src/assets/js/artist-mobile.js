@@ -32,7 +32,9 @@ const isGlobalShuffleActive = () => {
 };
 
 const setGlobalShuffleState = (val) => {
-    if (typeof window.setPlaybackShuffle === 'function') {
+    if (typeof window.togglePlaybackShuffle === 'function') {
+        window.togglePlaybackShuffle(val);
+    } else if (typeof window.setPlaybackShuffle === 'function') {
         window.setPlaybackShuffle(val);
     } else {
         window.__spotiwindIsShuffle = Boolean(val);
@@ -583,10 +585,14 @@ export const initArtistPage = (artist, previousPage) => {
         shuffleBtn.classList.toggle('is-active', isGlobalShuffleActive());
         shuffleBtn.onclick = (e) => {
             e.preventDefault();
-            const nextState = !isGlobalShuffleActive();
-            setGlobalShuffleState(nextState);
-            shuffleBtn.classList.toggle('is-active', nextState);
-            showToast(nextState ? `Shuffle diaktifkan untuk lagu ${artist.name}` : 'Shuffle dinonaktifkan');
+            if (typeof window.togglePlaybackShuffle === 'function') {
+                window.togglePlaybackShuffle();
+            } else {
+                const nextState = !isGlobalShuffleActive();
+                setGlobalShuffleState(nextState);
+                shuffleBtn.classList.toggle('is-active', nextState);
+                showToast(nextState ? `Shuffle diaktifkan untuk lagu ${artist.name}` : 'Shuffle dinonaktifkan');
+            }
         };
     }
 
