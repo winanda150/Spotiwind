@@ -5,6 +5,7 @@
 
 import { defaultAvatar } from '../../utils/formatters.js';
 import { showToast } from '../../utils/domUtils.js';
+import { getArtistUniqueId } from '../../utils/audioUtils.js';
 
 // These functions are expected to be available in the global scope from home-mobile.js
 const {
@@ -298,6 +299,58 @@ const setupArtistSheetDragToDismiss = () => {
     sheet.addEventListener('pointerdown', sheetPointerDownHandler);
 };
 
+/**
+ * Helper to generate canonical artist share URL
+ */
+export const getArtistShareUrl = (artist) => {
+    const origin = (window.location.origin && window.location.origin !== 'null')
+        ? window.location.origin
+        : window.location.href.split('/frontend')[0];
+    const uniqueId = getArtistUniqueId(artist);
+    const artistName = artist?.name || '';
+    const queryParams = new URLSearchParams();
+    if (artistName) {
+        queryParams.set('name', artistName);
+    }
+    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    return `${origin}/artist/${uniqueId || encodeURIComponent(artistName)}${queryString}`;
+};
+
+/**
+ * Helper to sanitize and resolve official artist photo.
+ * Filters out song covers (e.g. Image Songs folder) and finds official artist photo.
+ */
+const resolveArtistPhoto = (artist) => {
+    let photo = artist?.photo || artist?.image || '';
+    // If it points to Image Songs, it is an album/track cover, NOT an artist photo!
+    if (photo && (photo.includes('Image%20Songs') || photo.includes('Image Songs'))) {
+        photo = '';
+    }
+
+    if (!photo && artist?.name) {
+        const localArtists = (typeof window.spotiwind?.mobile?.getArtists === 'function')
+            ? window.spotiwind.mobile.getArtists()
+            : (Array.isArray(window.__indonesianArtistsPlaylist) ? window.__indonesianArtistsPlaylist : []);
+        const targetName = artist.name.toLowerCase().trim();
+        const found = localArtists.find(a => (a.name || '').toLowerCase().trim() === targetName);
+        if (found && found.photo && !found.photo.includes('Image%20Songs') && !found.photo.includes('Image Songs')) {
+            photo = found.photo;
+        }
+    }
+
+    if (photo && !photo.startsWith('http://') && !photo.startsWith('https://') && !photo.startsWith('data:')) {
+        const cleanPath = String(photo)
+            .replace(/^(\.\.\/)+public\//, '')
+            .replace(/^(\.\.\/)+/, '')
+            .replace(/^\/?frontend\/public\//, '')
+            .replace(/^\/?public\//, '')
+            .replace(/^\/+/, '');
+        photo = `../../public/${cleanPath}`;
+    }
+
+    return photo;
+};
+
 const openArtistOptions = async (artist) => {
     const modal = document.getElementById('artistOptionsModal');
     if (!modal) return;
@@ -305,7 +358,8 @@ const openArtistOptions = async (artist) => {
 
     const photo = modal.querySelector('#artistOptionsPhoto');
     const name = modal.querySelector('#artistOptionsName');
-    if (photo) photo.src = artist.photo || artist.image || artist.cover || defaultAvatar(artist.name);
+    const cleanPhoto = resolveArtistPhoto(artist);
+    if (photo) photo.src = cleanPhoto || defaultAvatar(artist.name || 'Artist');
     if (name) name.textContent = artist.name || 'Artist';
 
     if (auth.currentUser) {
@@ -340,22 +394,23 @@ const closeArtistOptions = () => {
  */
 const shareArtistProfile = async (artist) => {
     const artistName = artist?.name || 'Artist';
+    const shareUrl = getArtistShareUrl(artist);
     const shareData = {
         title: `Spotiwind - ${artistName}`,
-        text: `Listen to ${artistName} on Spotiwind!`,
-        url: window.location.href
+        text: `Dengarkan lagu-lagu ${artistName} di Spotiwind!`,
+        url: shareUrl
     };
     try {
         if (navigator.share) {
             await navigator.share(shareData);
         } else {
-            await navigator.clipboard.writeText(window.location.href);
+            await navigator.clipboard.writeText(shareUrl);
             showToast(`Tautan profil ${artistName} disalin ke clipboard`);
         }
     } catch (err) {
         if (err.name !== 'AbortError') {
             try {
-                await navigator.clipboard.writeText(window.location.href);
+                await navigator.clipboard.writeText(shareUrl);
                 showToast(`Tautan profil ${artistName} disalin ke clipboard`);
             } catch {
                 showToast('Gagal membagikan profil');
@@ -540,17 +595,7 @@ export const initArtistPage = (artist, previousPage) => {
     // 2. Hero Section
     const heroImage = document.getElementById('artistHeroImage');
     if (heroImage) {
-        let rawPhoto = artist.photo || artist.image || artist.cover || '';
-        if (rawPhoto && !rawPhoto.startsWith('http://') && !rawPhoto.startsWith('https://') && !rawPhoto.startsWith('data:')) {
-            const cleanPath = String(rawPhoto)
-                .replace(/^(\.\.\/)+public\//, '')
-                .replace(/^(\.\.\/)+/, '')
-                .replace(/^\/?frontend\/public\//, '')
-                .replace(/^\/?public\//, '')
-                .replace(/^\/+/, '');
-            rawPhoto = `../../public/${cleanPath}`;
-        }
-
+        const rawPhoto = resolveArtistPhoto(artist);
         heroImage.referrerPolicy = "no-referrer";
         heroImage.alt = artist.name || 'Artist';
 
@@ -687,8 +732,9 @@ export const initArtistPage = (artist, previousPage) => {
     if (optCopyLink) {
         optCopyLink.onclick = async () => {
             closeArtistOptions();
+            const shareUrl = getArtistShareUrl(artist);
             try {
-                await navigator.clipboard.writeText(window.location.href);
+                await navigator.clipboard.writeText(shareUrl);
                 showToast(`Tautan profil ${artist.name} disalin ke clipboard`);
             } catch {
                 showToast('Gagal menyalin tautan');

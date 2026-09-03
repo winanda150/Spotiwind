@@ -1584,6 +1584,10 @@ window.toggleDownloadSong = toggleDownloadSong;
         const songsGrid = document.getElementById('artistSongsGrid');
         if (!songsGrid) return false; // Indicate failure if grid not found
 
+        if (!indonesianSongsPlaylist || indonesianSongsPlaylist.length === 0) {
+            await loadLocalCatalogData();
+        }
+
         const photoPathParts = artist.photo ? artist.photo.split('/') : [];
         const elemenIdx = photoPathParts.indexOf('Elemen');
         const artistFolderName = elemenIdx !== -1 && photoPathParts[elemenIdx + 1] ? decodeURIComponent(photoPathParts[elemenIdx + 1]) : artist.name;
@@ -1858,20 +1862,29 @@ window.toggleDownloadSong = toggleDownloadSong;
         }
     };
 
+    let localCatalogPromise = null;
     /**
-     * Load catalog data in background for search and artist pages
+     * Load catalog data in background for search and artist pages.
+     * Caches the promise (singleton) so callers can await it reliably.
      */
-    const loadLocalCatalogData = async () => {
-        try {
-            const catalog = await loadLocalCatalog();
-            indonesianArtistsPlaylist = catalog.artists || [];
-            indonesianSongsPlaylist = catalog.songs || [];
-            indonesianAlbumsPlaylist = catalog.albums || [];
-            return true;
-        } catch (error) {
-            console.error('Failed to load local song catalog:', error);
-            return false;
+    const loadLocalCatalogData = () => {
+        if (!localCatalogPromise) {
+            localCatalogPromise = (async () => {
+                try {
+                    const catalog = await loadLocalCatalog();
+                    indonesianArtistsPlaylist = catalog.artists || [];
+                    indonesianSongsPlaylist = catalog.songs || [];
+                    indonesianAlbumsPlaylist = catalog.albums || [];
+                    window.__indonesianArtistsPlaylist = indonesianArtistsPlaylist;
+                    return catalog;
+                } catch (error) {
+                    console.error('Failed to load local song catalog:', error);
+                    localCatalogPromise = null;
+                    return null;
+                }
+            })();
         }
+        return localCatalogPromise;
     };
 
     let popularTracksUnsubscribe = null;
@@ -2195,35 +2208,71 @@ window.toggleDownloadSong = toggleDownloadSong;
 
 
 
-    const resolveAndNavigateToArtist = async (artistIdOrSlug, shouldPushState = true) => {
+    const resolveAndNavigateToArtist = async (artistIdOrSlug, shouldPushState = true, queryName = '') => {
         if (!artistIdOrSlug) return;
         const queryId = decodeURIComponent(artistIdOrSlug).trim();
         const lowerQuery = queryId.toLowerCase();
+        const cleanQueryName = decodeURIComponent(queryName || '').trim();
+        const lowerQueryName = cleanQueryName.toLowerCase();
 
-        // 1. Cari di daftar artis lokal yang sedang aktif (cocokkan Hash 22-char, ID asli, atau Nama)
+        // 0. Pastikan data katalog lokal dimuat sebelum proses pencarian dilakukan
+        await loadLocalCatalogData();
+
+        // 1. Cari di daftar artis lokal yang sedang aktif (cocokkan Hash 22-char, ID asli, Nama, atau QueryName)
         let matchedArtist = indonesianArtistsPlaylist.find(a => {
             const uniqueId = getArtistUniqueId(a);
-            const aId = String(a.id || '').toLowerCase();
-            const aName = (a.name || '').toLowerCase();
+            const aId = String(a.id || '').toLowerCase().trim();
+            const aName = String(a.name || '').toLowerCase().trim();
             const aSlug = aName.replace(/\s+/g, '-');
-            return uniqueId === queryId || aId === lowerQuery || aSlug === lowerQuery || aName === lowerQuery;
+
+            const matchesId = (uniqueId && uniqueId === queryId) ||
+                              (aId && aId === lowerQuery) ||
+                              (aSlug && aSlug === lowerQuery) ||
+                              (aName && aName === lowerQuery);
+
+            const matchesName = cleanQueryName && (
+                aName === lowerQueryName ||
+                aSlug === lowerQueryName.replace(/\s+/g, '-') ||
+                aId === lowerQueryName.replace(/\s+/g, '-') ||
+                (lowerQueryName.length >= 3 && (aName.includes(lowerQueryName) || lowerQueryName.includes(aName)))
+            );
+
+            return matchesId || matchesName;
         });
 
-        // 2. Jika belum ketemu (misal data lokal masih loading), cari di katalog featured songs
-        if (!matchedArtist) {
-            const localFeatured = getFeaturedLocalSongs();
-            const songMatch = localFeatured.find(s => {
-                const tempArtist = { id: s.artist.toLowerCase().replace(/\s+/g, '-'), name: s.artist };
-                const uniqueId = getArtistUniqueId(tempArtist);
-                const sArtistLower = (s.artist || '').toLowerCase();
+        // 2. Jika belum ketemu, cari di katalog lagu lokal (misal artis lagu kolaborasi atau nama folder)
+        if (!matchedArtist && indonesianSongsPlaylist.length > 0) {
+            const songMatch = indonesianSongsPlaylist.find(s => {
+                const sArtist = String(s.artist || '').trim();
+                const sArtistLower = sArtist.toLowerCase();
                 const sArtistSlug = sArtistLower.replace(/\s+/g, '-');
-                return uniqueId === queryId || sArtistSlug === lowerQuery || sArtistLower === lowerQuery;
+                const tempArtist = { id: sArtistSlug, name: sArtist };
+                const uniqueId = getArtistUniqueId(tempArtist);
+
+                return (uniqueId && uniqueId === queryId) ||
+                       sArtistSlug === lowerQuery ||
+                       sArtistLower === lowerQuery ||
+                       (cleanQueryName && (sArtistLower === lowerQueryName || sArtistLower.includes(lowerQueryName)));
             });
+
             if (songMatch) {
+                // Cari apakah ada artis terdaftar di artists.json yang cocok dengan kolaborasi ini
+                const candidateLocal = indonesianArtistsPlaylist.find(a => {
+                    const aName = (a.name || '').toLowerCase().trim();
+                    return aName && (songMatch.artist.toLowerCase().includes(aName) || aName.includes(songMatch.artist.toLowerCase()));
+                });
+
+                // Path foto resmi artis (bukan cover lagu!)
+                let officialPhoto = candidateLocal?.photo || '';
+                if (!officialPhoto) {
+                    const folderName = songMatch.artist.split('&')[0].trim();
+                    officialPhoto = getPublicAssetUrl(`Elemen/${folderName}/Artis/${folderName}.webp`);
+                }
+
                 matchedArtist = {
-                    id: songMatch.artist.toLowerCase().replace(/\s+/g, '-'),
-                    name: songMatch.artist,
-                    photo: songMatch.cover
+                    id: candidateLocal?.id || songMatch.artist.toLowerCase().replace(/\s+/g, '-'),
+                    name: candidateLocal?.name || songMatch.artist,
+                    photo: officialPhoto
                 };
             }
         }
@@ -2231,22 +2280,22 @@ window.toggleDownloadSong = toggleDownloadSong;
         // 3. Jika artis dari Jamendo API
         if (!matchedArtist) {
             try {
-                if (!isNaN(parseInt(queryId))) {
-                    const tracks = await getArtistCatalog(queryId, '');
-                    if (tracks && tracks.length > 0) {
-                        matchedArtist = {
-                            id: queryId,
-                            name: tracks[0].artist || 'Artist',
-                            photo: tracks[0].cover || ''
-                        };
-                    }
-                } else {
-                    const results = await searchArtistsByName(queryId, 1);
+                if (!isNaN(parseInt(queryId)) && queryId.length <= 10) {
+                    const results = await searchArtistsByName(cleanQueryName || queryId, 1);
                     if (results && results.length > 0) {
                         matchedArtist = {
                             id: results[0].id,
                             name: results[0].name,
-                            photo: results[0].image
+                            photo: results[0].image || ''
+                        };
+                    }
+                } else if (cleanQueryName) {
+                    const results = await searchArtistsByName(cleanQueryName, 1);
+                    if (results && results.length > 0) {
+                        matchedArtist = {
+                            id: results[0].id,
+                            name: results[0].name,
+                            photo: results[0].image || ''
                         };
                     }
                 }
@@ -2257,11 +2306,11 @@ window.toggleDownloadSong = toggleDownloadSong;
 
         // 4. Fallback object jika URL tidak ditemukan di katalog
         if (!matchedArtist) {
-            const formattedName = queryId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const formattedName = cleanQueryName || queryId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             matchedArtist = {
                 id: queryId,
                 name: formattedName,
-                photo: ''
+                photo: '' // Jangan gunakan cover lagu! defaultAvatar akan otomatis dipakai
             };
         }
 
@@ -2276,10 +2325,14 @@ window.toggleDownloadSong = toggleDownloadSong;
 
         if (cleanPath.startsWith('/artist/')) {
             const artistIdOrSlug = cleanPath.replace('/artist/', '').split(/[?#]/)[0];
+            const urlQuery = (rawPath && rawPath.includes('?')) ? rawPath.split('?')[1] : (window.location.search || '').replace(/^\?/, '');
+            const params = new URLSearchParams(urlQuery);
+            const queryName = params.get('name') || '';
+
             if (state && state.artist) {
                 navigateToArtistPage(state.artist, shouldPushState);
             } else {
-                await resolveAndNavigateToArtist(artistIdOrSlug, shouldPushState);
+                await resolveAndNavigateToArtist(artistIdOrSlug, shouldPushState, queryName);
             }
         } else if (cleanPath === '/search' || cleanPath.startsWith('/search')) {
             updateSidebarActiveState('search-mobile.html');
@@ -2836,10 +2889,7 @@ window.spotiwind = {
                 getArtists: () => indonesianArtistsPlaylist,
                 getAlbums: () => indonesianAlbumsPlaylist,
                 navigateToArtistPage: (artist) => {
-                    artistDataForPageLoad = artist;
-                    if (typeof window.loadPageContent === 'function') {
-                        window.loadPageContent('artist-mobile.html', { pushState: true });
-                    }
+                    navigateToArtistPage(artist, true);
                 },
                 setHomeScrollPosition: (pos) => {
                     homeScrollPosition = pos;
@@ -2871,6 +2921,8 @@ window.spotiwind = {
             fetchWithContinuousRetry,
             fetchLocalArtistSongs,
             fetchArtistSongs,
+            getArtists: () => indonesianArtistsPlaylist,
+            getSongs: () => indonesianSongsPlaylist,
             loadPageContent: (page, opts) => window.loadPageContent && window.loadPageContent(page, opts),
             initializeSkeletons: () => {
                 if (typeof showSkeletonLoader === 'function') showSkeletonLoader('#artistSongsGrid', 'artist-song-list', 6);

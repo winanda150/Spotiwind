@@ -5,6 +5,7 @@
  */
 
 import { loadStylesheet } from '../utils/domUtils.js';
+import { getArtistUniqueId } from '../utils/audioUtils.js';
 
 let activePageCleanup = null;
 let pageLoadSequence = 0;
@@ -219,6 +220,11 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
             const initialTab = options.initialTab || 'login';
             targetRoute = initialTab === 'register' ? '/register' : '/login';
             targetTitle = initialTab === 'register' ? 'Register | Spotiwind' : 'Login | Spotiwind';
+        } else if (page.includes('artist-mobile.html')) {
+            const artist = context.artistData;
+            const artistUniqueId = artist ? getArtistUniqueId(artist) : '';
+            targetRoute = artistUniqueId ? `/artist/${artistUniqueId}` : '/artist';
+            targetTitle = artist?.name ? `${artist.name} | Spotiwind` : 'Artist | Spotiwind';
         }
     }
 
