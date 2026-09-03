@@ -300,20 +300,14 @@ const setupArtistSheetDragToDismiss = () => {
 };
 
 /**
- * Helper to generate canonical artist share URL
+ * Helper to generate canonical artist share URL (clean Spotify-like format: /artist/<22CharHash>)
  */
 export const getArtistShareUrl = (artist) => {
     const origin = (window.location.origin && window.location.origin !== 'null')
         ? window.location.origin
         : window.location.href.split('/frontend')[0];
     const uniqueId = getArtistUniqueId(artist);
-    const artistName = artist?.name || '';
-    const queryParams = new URLSearchParams();
-    if (artistName) {
-        queryParams.set('name', artistName);
-    }
-    const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-    return `${origin}/artist/${uniqueId || encodeURIComponent(artistName)}${queryString}`;
+    return `${origin}/artist/${uniqueId || encodeURIComponent(artist?.name || '')}`;
 };
 
 /**
