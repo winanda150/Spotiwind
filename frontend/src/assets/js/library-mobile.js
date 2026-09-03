@@ -804,10 +804,12 @@ function setupDownloadOptionsDrag(modalEl, onCloseCallback) {
     if (!modalEl) return () => {};
 
     const sheet = modalEl.querySelector('.download-options-sheet');
+    const backdrop = modalEl.querySelector('.download-options-backdrop');
     if (!sheet) return () => {};
 
+    let startX = 0;
     let startY = 0;
-    let currentY = 0;
+    let currentDeltaY = 0;
     let isDragging = false;
     let startTime = 0;
     let isListeningWindow = false;
@@ -816,6 +818,11 @@ function setupDownloadOptionsDrag(modalEl, onCloseCallback) {
         isDragging = false;
         sheet.classList.remove('is-dragging');
         sheet.style.transform = '';
+        sheet.style.transition = '';
+        if (backdrop) {
+            backdrop.style.opacity = '';
+            backdrop.style.transition = '';
+        }
         removeWindowListeners();
     };
 
@@ -833,41 +840,97 @@ function setupDownloadOptionsDrag(modalEl, onCloseCallback) {
             return;
         }
 
-        currentY = e.clientY;
+        const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
 
-        // ONLY allow dragging DOWNWARDS (deltaY > 0). Dragging upwards is strictly clamped / ignored.
-        if (deltaY > 0) {
-            if (!isDragging) {
+        if (!isDragging) {
+            // Abaikan gesture jika dominan horizontal (touch-slop)
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
+                return;
+            }
+
+            const handle = sheet.querySelector('.download-options-handle');
+            const header = sheet.querySelector('.download-options-header');
+            const isHandleOrHeader = Boolean(
+                (handle && handle.contains(e.target)) ||
+                (header && header.contains(e.target))
+            );
+            const dragStartThreshold = isHandleOrHeader ? 12 : 24;
+
+            if (deltaY > dragStartThreshold) {
                 isDragging = true;
                 sheet.classList.add('is-dragging');
+                sheet.style.transition = 'none';
+                if (backdrop) backdrop.style.transition = 'none';
+            } else if (deltaY < -10) {
+                const rubberBand = Math.max(-12, deltaY * 0.12);
+                sheet.style.transform = `translateY(${rubberBand}px)`;
+                return;
+            } else {
+                return;
             }
-            sheet.style.transform = `translateY(${deltaY}px)`;
+        }
+
+        if (isDragging) {
             if (e.cancelable) e.preventDefault();
-        } else {
-            if (isDragging) {
-                sheet.style.transform = 'translateY(0)';
+            const sheetHeight = sheet.offsetHeight || 300;
+            if (deltaY > 0) {
+                currentDeltaY = deltaY;
+                sheet.style.transform = `translateY(${deltaY}px)`;
+                if (backdrop) {
+                    const opacity = Math.max(0, 1 - (deltaY / (sheetHeight * 0.95)));
+                    backdrop.style.opacity = String(opacity);
+                }
+            } else {
+                currentDeltaY = 0;
+                const rubberBand = Math.max(-12, deltaY * 0.12);
+                sheet.style.transform = `translateY(${rubberBand}px)`;
+                if (backdrop) backdrop.style.opacity = '1';
             }
         }
     };
 
-    const onPointerUp = (e) => {
+    const onPointerUp = () => {
         removeWindowListeners();
 
-        const deltaY = (e ? e.clientY : currentY) - startY;
-        const deltaTime = Math.max(1, Date.now() - startTime);
-        const velocityY = deltaY / deltaTime;
+        if (!isDragging) {
+            resetDragStyles();
+            return;
+        }
+
+        const sheetHeight = sheet.offsetHeight || 300;
+        const elapsed = Math.max(1, Date.now() - startTime);
+        const velocityY = currentDeltaY / elapsed;
+
+        sheet.classList.remove('is-dragging');
+
+        // Ambang penutupan: minimal 115px (atau 35% tinggi sheet), atau usapan cepat sengaja (velocity > 0.65 DAN jarak >= 45px)
+        const dismissDistance = Math.max(115, sheetHeight * 0.35);
+        const isIntentionalSwipe = (velocityY > 0.65 && currentDeltaY >= 45);
+        const shouldDismiss = (currentDeltaY >= dismissDistance || isIntentionalSwipe);
+
+        if (shouldDismiss) {
+            sheet.style.transition = 'transform 0.24s cubic-bezier(0.32, 1, 0.23, 1)';
+            if (backdrop) backdrop.style.transition = 'opacity 0.24s ease';
+            sheet.style.transform = 'translateY(100%)';
+            if (backdrop) backdrop.style.opacity = '0';
+            setTimeout(() => {
+                resetDragStyles();
+                if (typeof onCloseCallback === 'function') {
+                    onCloseCallback();
+                }
+            }, 240);
+        } else {
+            sheet.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+            if (backdrop) backdrop.style.transition = 'opacity 0.28s ease';
+            sheet.style.transform = 'translateY(0)';
+            if (backdrop) backdrop.style.opacity = '1';
+            setTimeout(() => {
+                resetDragStyles();
+            }, 280);
+        }
 
         isDragging = false;
-        sheet.classList.remove('is-dragging');
-        sheet.style.transform = '';
-
-        // Kasus: Tarik ke BAWAH (Swipe down threshold: > 50px or velocity > 0.28)
-        if (deltaY > 50 || velocityY > 0.28) {
-            if (typeof onCloseCallback === 'function') {
-                onCloseCallback();
-            }
-        }
     };
 
     const onPointerCancel = () => {
@@ -875,12 +938,13 @@ function setupDownloadOptionsDrag(modalEl, onCloseCallback) {
     };
 
     const onPointerDown = (e) => {
-        if (e.button !== undefined && e.button !== 0) return;
-        // Ignore clicks on buttons/interactive elements inside the sheet
-        if (e.target.closest('button, a')) return;
+        if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+        // Abaikan tombol dan elemen interaktif di dalam modal
+        if (e.target.closest('button, a, input, [role="button"]')) return;
 
+        startX = e.clientX;
         startY = e.clientY;
-        currentY = e.clientY;
+        currentDeltaY = 0;
         startTime = Date.now();
 
         if (!isListeningWindow) {

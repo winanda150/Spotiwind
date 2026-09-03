@@ -77,8 +77,8 @@ export const recordTrackPlay = async (song) => {
         const trackRef = doc(getPopularTracksRef(), trackId);
         const trackData = {
             id: song.id ? String(song.id) : trackId,
-            name: String(song.name || song.title || 'Untitled Track').trim(),
-            artist: String(song.artist || song.artist_name || 'Unknown Artist').trim(),
+            name: String(song.name || song.title || 'Untitled Track').replace(/\\'/g, "'").trim(),
+            artist: String(song.artist || song.artist_name || 'Unknown Artist').replace(/\\'/g, "'").trim(),
             cover: normalizePopularTrackAssetUrl(song.cover || song.image || '../../public/Elemen/Logo/Spotiwind.webp'),
             audio: normalizePopularTrackAssetUrl(song.audio || ''),
             duration: Number(song.duration) || 0,
@@ -149,6 +149,8 @@ export const getPopularTracks = async (limitCount = DEFAULT_LIMIT) => {
             return {
                 id: docSnap.id,
                 ...data,
+                name: String(data.name || '').replace(/\\'/g, "'").trim(),
+                artist: String(data.artist || '').replace(/\\'/g, "'").trim(),
                 audio: normalizePopularTrackAssetUrl(data.audio),
                 cover: normalizePopularTrackAssetUrl(data.cover),
                 playCount: Number(data.playCount) || 0
@@ -182,6 +184,8 @@ export const subscribePopularTracks = (callback, limitCount = DEFAULT_LIMIT) => 
                 return {
                     id: docSnap.id,
                     ...data,
+                    name: String(data.name || '').replace(/\\'/g, "'").trim(),
+                    artist: String(data.artist || '').replace(/\\'/g, "'").trim(),
                     audio: normalizePopularTrackAssetUrl(data.audio),
                     cover: normalizePopularTrackAssetUrl(data.cover),
                     playCount: Number(data.playCount) || 0

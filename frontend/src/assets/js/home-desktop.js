@@ -529,8 +529,8 @@ const showSkeletonLoader = (gridSelector, type, count = 6) => {
 const createSongCardHTML = (song) => {
     const isActive = areSameSongs(song, currentSongData);
     const isPaused = activeAudio.paused;
-    const safeName = song.name.replace(/'/g, "\\'");
-    const safeArtist = song.artist.replace(/'/g, "\\'");
+    const safeName = (song.name || '').replace(/"/g, '&quot;');
+    const safeArtist = (song.artist || '').replace(/"/g, '&quot;');
 
     return `
     <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && isPaused ? 'is-paused' : ''}" data-id="${song.id}" data-audio="${song.audio}">
@@ -2084,8 +2084,8 @@ const initDesktopSearch = async () => {
 
         // Albums
         albums.slice(0, 2).forEach((alb) => {
-            const safeName = alb.name.replace(/'/g, "\\'");
-            const safeArtist = (alb.artist || 'Album').replace(/'/g, "\\'");
+            const safeName = (alb.name || '').replace(/"/g, '&quot;');
+            const safeArtist = (alb.artist || 'Album').replace(/"/g, '&quot;');
             html += `
                 <div class="dropdown-item dropdown-item-album" onclick="window.handleDesktopAlbumClick('${alb.id}')">
                     <div class="dropdown-cover-wrapper" style="border-radius: 4px;">

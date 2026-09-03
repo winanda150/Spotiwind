@@ -31,7 +31,12 @@ export const getRecentlyPlayed = () => {
     try {
         const raw = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('recentlyPlayed') || '[]';
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(item => ({
+            ...item,
+            name: String(item.name || item.title || 'Untitled').replace(/\\'/g, "'").trim(),
+            artist: String(item.artist || 'Unknown Artist').replace(/\\'/g, "'").trim()
+        }));
     } catch {
         return [];
     }
@@ -54,8 +59,8 @@ export const recordRecentlyPlayed = (song) => {
 
         const newEntry = {
             id: songId,
-            name: song.name || song.title || 'Untitled',
-            artist: song.artist || 'Unknown Artist',
+            name: String(song.name || song.title || 'Untitled').replace(/\\'/g, "'").trim(),
+            artist: String(song.artist || 'Unknown Artist').replace(/\\'/g, "'").trim(),
             cover: song.cover || '../../public/Elemen/Logo/Spotiwind.webp',
             audio: song.audio || '',
             duration: Number(song.duration) || 0,
@@ -154,8 +159,8 @@ const parseCloudDocs = (docs) => {
 
         return {
             id: docSnap.id,
-            name: data.name || 'Untitled',
-            artist: data.artist || 'Unknown Artist',
+            name: String(data.name || 'Untitled').replace(/\\'/g, "'").trim(),
+            artist: String(data.artist || 'Unknown Artist').replace(/\\'/g, "'").trim(),
             cover: data.cover || '../../public/Elemen/Logo/Spotiwind.webp',
             audio: data.audio || '',
             duration: Number(data.duration) || 0,

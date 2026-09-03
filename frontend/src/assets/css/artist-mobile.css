@@ -560,9 +560,14 @@
     transform: translateY(0);
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 1;
-    touch-action: pan-y;
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+}
+
+.artist-options-sheet.is-dragging {
+    transition: none !important;
+    will-change: transform;
 }
 
 .artist-options-modal.hidden .artist-options-sheet {

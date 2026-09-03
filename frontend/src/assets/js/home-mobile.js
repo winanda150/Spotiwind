@@ -1657,8 +1657,8 @@ window.toggleDownloadSong = toggleDownloadSong;
      */
     const createSongCardHTML = (song, context) => {
         const isActive = areSameSongs(song, currentSongData);
-        const safeName = song.name.replace(/'/g, "\\'");
-        const safeArtist = song.artist.replace(/'/g, "\\'");
+        const safeName = (song.name || '').replace(/"/g, '&quot;');
+        const safeArtist = (song.artist || '').replace(/"/g, '&quot;');
 
         return `
         <div class="song-card ${isActive ? 'is-active-song' : ''} ${isActive && activeAudio.paused ? 'is-paused' : ''}" 

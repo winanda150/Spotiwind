@@ -113,11 +113,16 @@ const handleFollowClick = async (artist) => {
  * Modal options sheet helpers
  */
 let sheetPointerDownHandler = null;
+let cleanupActiveWindowListeners = null;
 
 const resetArtistSheetStyles = () => {
+    if (typeof cleanupActiveWindowListeners === 'function') {
+        cleanupActiveWindowListeners();
+    }
     const sheet = document.getElementById('artistOptionsSheet') || document.querySelector('.artist-options-sheet');
     const backdrop = document.getElementById('artistOptionsBackdrop');
     if (sheet) {
+        sheet.classList.remove('is-dragging');
         sheet.style.transform = '';
         sheet.style.transition = '';
     }
@@ -136,108 +141,155 @@ const setupArtistSheetDragToDismiss = () => {
         sheet.removeEventListener('pointerdown', sheetPointerDownHandler);
         sheetPointerDownHandler = null;
     }
+    if (typeof cleanupActiveWindowListeners === 'function') {
+        cleanupActiveWindowListeners();
+    }
+
+    let isListeningWindow = false;
+    let onPointerMove = null;
+    let onPointerUp = null;
+
+    const removeWindowListeners = () => {
+        if (!isListeningWindow) return;
+        isListeningWindow = false;
+        cleanupActiveWindowListeners = null;
+        if (onPointerMove) window.removeEventListener('pointermove', onPointerMove);
+        if (onPointerUp) {
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+        }
+    };
 
     sheetPointerDownHandler = (e) => {
-        // Hanya tangani tombol utama (left click atau sentuhan jari)
+        // Hanya tangani tombol utama (left click atau sentuhan jari tunggal)
         if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
 
-        // Abaikan tombol interaktif di dalam modal
-        if (e.target.closest('#artistOptFollow, #artistOptShare, #artistOptCopyLink, #artistOptionsCloseBtn')) return;
+        // Abaikan tombol interaktif di dalam modal agar klik/tap tidak terganggu
+        if (e.target.closest('button, a, input, [role="button"]')) return;
 
+        const startX = e.clientX;
         const startY = e.clientY;
         const startTime = Date.now();
         let currentDeltaY = 0;
         let isDragging = false;
-        let isUpwardPullAborted = false;
-        const sheetHeight = sheet.offsetHeight || 300;
 
-        const onPointerMove = (moveEvent) => {
+        const handleWrapper = document.getElementById('artistOptionsHandleWrapper');
+        const header = document.getElementById('artistOptionsHeader');
+        // Pembeda area: apakah sentuhan dimulai dari handle bar atau header (area utama untuk drag)
+        const isTouchOnHandleOrHeader = Boolean(
+            (handleWrapper && handleWrapper.contains(e.target)) ||
+            (header && header.contains(e.target))
+        );
+
+        // Ambang aktivasi drag:
+        // Handle bar/header: 12px (responsif tapi aman dari jitter)
+        // Badan/list: 24px (membutuhkan tarikan sengaja agar tidak sensitif saat pengguna mengincar tombol)
+        const dragStartThreshold = isTouchOnHandleOrHeader ? 12 : 24;
+
+        onPointerMove = (moveEvent) => {
             if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
                 onPointerUp();
                 return;
             }
 
+            const deltaX = moveEvent.clientX - startX;
             const deltaY = moveEvent.clientY - startY;
 
-            // Jika pengguna memaksakan tarik ke ATAS (deltaY < -6):
-            // Batalkan gesture drag sepenuhnya agar modal tidak melompat atau mengikuti kursor saat kembali ke bawah
             if (!isDragging) {
-                if (deltaY < -6) {
-                    isUpwardPullAborted = true;
-                    sheet.style.transform = 'translateY(0)';
+                // Jika gerakan didominasi horizontal, abaikan agar usapan diagonal tidak memicu drag
+                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 8) {
                     return;
                 }
 
-                if (isUpwardPullAborted) {
-                    sheet.style.transform = 'translateY(0)';
-                    return;
-                }
-
-                // Hanya aktifkan drag jika pengguna menarik ke BAWAH (deltaY > 6)
-                if (deltaY > 6) {
+                // Hanya aktifkan status dragging jika tarikan ke bawah melampaui ambang batas sengaja
+                if (deltaY > dragStartThreshold) {
                     isDragging = true;
+                    sheet.classList.add('is-dragging');
                     sheet.style.transition = 'none';
                     if (backdrop) backdrop.style.transition = 'none';
+                } else if (deltaY < -10) {
+                    // Sedikit tahanan elastis jika jari bergerak sedikit ke atas
+                    const rubberBand = Math.max(-12, deltaY * 0.12);
+                    sheet.style.transform = `translateY(${rubberBand}px)`;
+                    return;
+                } else {
+                    return;
                 }
             }
 
-            if (isDragging && !isUpwardPullAborted) {
+            if (isDragging) {
                 if (moveEvent.cancelable) moveEvent.preventDefault();
+
+                const sheetHeight = sheet.offsetHeight || 320;
 
                 if (deltaY > 0) {
                     currentDeltaY = deltaY;
                     sheet.style.transform = `translateY(${deltaY}px)`;
                     if (backdrop) {
-                        const opacity = Math.max(0, 1 - (deltaY / (sheetHeight * 0.9)));
+                        const opacity = Math.max(0, 1 - (deltaY / (sheetHeight * 0.95)));
                         backdrop.style.opacity = String(opacity);
                     }
                 } else {
-                    // Terkunci rapat di posisi normal (0)
+                    // Batasi jika ditarik kembali melewati posisi normal
                     currentDeltaY = 0;
-                    sheet.style.transform = 'translateY(0)';
-                    if (backdrop) {
-                        backdrop.style.opacity = '1';
-                    }
+                    const rubberBand = Math.max(-12, deltaY * 0.12);
+                    sheet.style.transform = `translateY(${rubberBand}px)`;
+                    if (backdrop) backdrop.style.opacity = '1';
                 }
             }
         };
 
-        const onPointerUp = () => {
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerup', onPointerUp);
-            window.removeEventListener('pointercancel', onPointerUp);
+        onPointerUp = () => {
+            removeWindowListeners();
 
-            if (isUpwardPullAborted) {
-                isUpwardPullAborted = false;
+            if (!isDragging) {
+                // Kembalikan posisi jika ada sisa rubber-band kecil tanpa status dragging
                 resetArtistSheetStyles();
                 return;
             }
 
-            if (isDragging) {
-                const elapsed = Math.max(1, Date.now() - startTime);
-                const velocity = currentDeltaY / elapsed;
+            const sheetHeight = sheet.offsetHeight || 320;
+            const elapsed = Math.max(1, Date.now() - startTime);
+            const velocity = currentDeltaY / elapsed; // px/ms
 
-                sheet.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
-                if (backdrop) backdrop.style.transition = 'opacity 0.22s ease';
+            // Kondisi penutupan (dismiss thresholds):
+            // 1. Jarak tarikan cukup jauh: minimal 115px atau 35% tinggi modal
+            // 2. Gerakan usap cepat (flick down): velocity > 0.65 px/ms DAN jarak tarikan sudah minimal 45px
+            const dismissDistance = Math.max(115, sheetHeight * 0.35);
+            const isIntentionalSwipe = (velocity > 0.65 && currentDeltaY >= 45);
+            const shouldDismiss = (currentDeltaY >= dismissDistance || isIntentionalSwipe);
 
-                if (currentDeltaY > 75 || velocity > 0.35) {
-                    sheet.style.transform = 'translateY(100%)';
-                    if (backdrop) backdrop.style.opacity = '0';
-                    setTimeout(() => {
-                        closeArtistOptions();
-                        resetArtistSheetStyles();
-                    }, 220);
-                } else {
-                    sheet.style.transform = 'translateY(0)';
-                    if (backdrop) backdrop.style.opacity = '1';
-                    setTimeout(() => {
-                        resetArtistSheetStyles();
-                    }, 220);
-                }
-                isDragging = false;
+            sheet.classList.remove('is-dragging');
+
+            if (shouldDismiss) {
+                sheet.style.transition = 'transform 0.24s cubic-bezier(0.32, 1, 0.23, 1)';
+                if (backdrop) backdrop.style.transition = 'opacity 0.24s ease';
+
+                sheet.style.transform = 'translateY(100%)';
+                if (backdrop) backdrop.style.opacity = '0';
+
+                setTimeout(() => {
+                    closeArtistOptions();
+                    resetArtistSheetStyles();
+                }, 240);
+            } else {
+                // Snap-back membal lembut ke posisi 0
+                sheet.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+                if (backdrop) backdrop.style.transition = 'opacity 0.28s ease';
+
+                sheet.style.transform = 'translateY(0)';
+                if (backdrop) backdrop.style.opacity = '1';
+
+                setTimeout(() => {
+                    resetArtistSheetStyles();
+                }, 280);
             }
+
+            isDragging = false;
         };
 
+        isListeningWindow = true;
+        cleanupActiveWindowListeners = removeWindowListeners;
         window.addEventListener('pointermove', onPointerMove, { passive: false });
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
