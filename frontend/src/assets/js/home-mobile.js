@@ -281,6 +281,19 @@ const syncActiveSongUI = () => {
             </svg>`;
     }
 
+    const artistPlayAllBtn = document.getElementById('artistPlayAllBtn');
+    if (artistPlayAllBtn) {
+        artistPlayAllBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>`;
+    }
+
+    const artistShuffleBtn = document.getElementById('artistShuffleBtn');
+    if (artistShuffleBtn) {
+        artistShuffleBtn.classList.toggle('is-active', isShuffle);
+    }
+
     if (isPlaying || isPaused) {
         const activeElements = getSongElements(currentSongData);
         activeElements.forEach(el => {
@@ -334,6 +347,23 @@ const syncActiveSongUI = () => {
                 }
             }
         });
+
+        // [NEW] Sync active state for Artist Page main play/pause button
+        if (artistPlayAllBtn && currentSongData) {
+            const pageArtistTitle = document.getElementById('artistPageName')?.textContent?.trim() ||
+                                    document.querySelector('.artist-hero-name')?.textContent?.trim();
+            const currentArtist = currentSongData.artist?.trim();
+            const isCurrentArtist = pageArtistTitle && currentArtist && (
+                pageArtistTitle.toLowerCase() === currentArtist.toLowerCase() ||
+                currentArtist.toLowerCase().includes(pageArtistTitle.toLowerCase()) ||
+                pageArtistTitle.toLowerCase().includes(currentArtist.toLowerCase())
+            );
+            if (isCurrentArtist) {
+                artistPlayAllBtn.innerHTML = isPlaying 
+                    ? `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+                    : `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+            }
+        }
     }
 };
 window.syncActiveSongUI = syncActiveSongUI;
@@ -341,6 +371,17 @@ window.__activeAudio = activeAudio;
 window.areSameSongs = areSameSongs;
 window.getCurrentSongData = () => currentSongData;
 window.__currentSongData = currentSongData;
+window.getArtistPageCurrentSongs = () => artistPageCurrentSongs;
+window.setArtistPageCurrentSongs = (songs) => { artistPageCurrentSongs = songs; window.__artistPageCurrentSongs = songs; };
+window.getPlaybackShuffle = () => isShuffle;
+window.setPlaybackShuffle = (val) => {
+    isShuffle = Boolean(val);
+    window.__spotiwindIsShuffle = isShuffle;
+    document.getElementById('fullShuffleBtn')?.classList.toggle('active', isShuffle);
+    document.getElementById('artistShuffleBtn')?.classList.toggle('is-active', isShuffle);
+    setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
+};
+window.__spotiwindIsShuffle = isShuffle;
 
 /**
  * Helper to reset play/pause button UI (Sync with Mobile)
@@ -1153,7 +1194,11 @@ window.toggleDownloadSong = toggleDownloadSong;
             } else if (context === 'popular') {
                 baseQueue = [...popularPlaylist];
             } else if (context.startsWith('artist-')) {
-                baseQueue = [...artistPageCurrentSongs];
+                if (Array.isArray(customPlaylist) && customPlaylist.length > 0) {
+                    baseQueue = [...customPlaylist];
+                } else {
+                    baseQueue = [...artistPageCurrentSongs];
+                }
             } else if (context === 'library') {
                 const libSongs = typeof window.getLibraryPlaylist === 'function' ? window.getLibraryPlaylist() : [];
                 baseQueue = Array.isArray(libSongs) ? [...libSongs] : [];
@@ -1219,7 +1264,9 @@ window.toggleDownloadSong = toggleDownloadSong;
                 baseQueue = [targetSong];
             }
 
-            unshuffledPlaylist = [...baseQueue];
+            unshuffledPlaylist = (context && context.startsWith('artist-') && Array.isArray(artistPageCurrentSongs) && artistPageCurrentSongs.length > 0)
+                ? [...artistPageCurrentSongs]
+                : [...baseQueue];
             const queueState = setContextPlaylist(baseQueue, songId);
             currentPlaylist = queueState.playlist;
             currentSongIndex = queueState.currentIndex;
@@ -1252,6 +1299,16 @@ window.toggleDownloadSong = toggleDownloadSong;
         window.__spotiwindCurrentSong = currentSongData;
         window.__spotiwindContext = currentPlaybackContext;
         window.__spotiwindActiveMixId = activeMixId;
+
+        // Sinkronkan status tombol shuffle di Full Player sesuai context
+        if (context && context.startsWith('artist-')) {
+            const hasCustomShuffledQueue = Array.isArray(customPlaylist) && customPlaylist.length > 1;
+            if (hasCustomShuffledQueue) {
+                isShuffle = true;
+                document.getElementById('fullShuffleBtn')?.classList.add('active');
+                setPlaybackModes({ shuffle: true, repeat: isRepeat });
+            }
+        }
 
         // Render the list of next songs instantly (don't wait for the song to load)
         renderUpNextQueue('upNextList');
@@ -1435,6 +1492,7 @@ window.toggleDownloadSong = toggleDownloadSong;
             if (artistSongs.length > 0) {
     
                 artistPageCurrentSongs = artistSongs; // Store for playPreview
+                window.__artistPageCurrentSongs = artistSongs;
                 await renderGridProgressively('#artistSongsGrid', artistSongs, (song) => createArtistSongListItemHTML(song, `artist-${artistId}`), '.artist-song-list-item-skeleton', `artist-${artistId}`);
                 return true; // Success, songs rendered.
             } else {
@@ -1464,6 +1522,7 @@ window.toggleDownloadSong = toggleDownloadSong;
         const artistSongs = getLocalArtistCatalog(indonesianSongsPlaylist, artist);
 
         artistPageCurrentSongs = artistSongs; // Update context for playback
+        window.__artistPageCurrentSongs = artistSongs;
 
         if (artistSongs.length > 0) {
             // Create a unique context for this local artist's page
@@ -2585,21 +2644,56 @@ window.spotiwind = {
             isRepeat = false;
             document.getElementById('fullRepeatBtn')?.classList.remove('active');
 
-            if (unshuffledPlaylist.length > 1 && currentSongData) {
-                const currentSong = unshuffledPlaylist.find(s => String(s.id) === String(currentSongData.id));
-                let others = unshuffledPlaylist.filter(s => String(s.id) !== String(currentSongData.id));
+            const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
+                ? unshuffledPlaylist
+                : (currentPlaylist && currentPlaylist.length > 1 ? currentPlaylist : (window.__artistPageCurrentSongs || []));
+
+            if (sourcePool.length > 1 && currentSongData) {
+                const currentSong = sourcePool.find(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id)) || currentSongData;
+                let others = sourcePool.filter(s => !areSameSongs(s, currentSongData) && String(s.id) !== String(currentSongData.id));
                 
                 for (let i = others.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [others[i], others[j]] = [others[j], others[i]];
                 }
                 
-                currentPlaylist = currentSong ? [currentSong, ...others] : others;
+                currentPlaylist = [currentSong, ...others];
                 currentSongIndex = 0;
                 syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+                window.__spotiwindCurrentPlaylist = currentPlaylist;
+                window.__spotiwindCurrentIndex = currentSongIndex;
+                window.__spotiwindCurrentSong = currentSongData;
+                window.currentPlaylist = currentPlaylist;
+                window.currentSongIndex = currentSongIndex;
             }
             renderUpNextQueue('upNextList');
+            showToast('Shuffle diaktifkan');
+        } else {
+            const sourcePool = (unshuffledPlaylist && unshuffledPlaylist.length > 1)
+                ? unshuffledPlaylist
+                : (window.__artistPageCurrentSongs || []);
+
+            if (sourcePool.length > 1 && currentSongData) {
+                currentPlaylist = [...sourcePool];
+                currentSongIndex = currentPlaylist.findIndex(s => areSameSongs(s, currentSongData) || String(s.id) === String(currentSongData.id));
+                if (currentSongIndex === -1) currentSongIndex = 0;
+                syncQueueState(currentPlaylist, currentSongData, currentSongIndex);
+                window.__spotiwindCurrentPlaylist = currentPlaylist;
+                window.__spotiwindCurrentIndex = currentSongIndex;
+                window.__spotiwindCurrentSong = currentSongData;
+                window.currentPlaylist = currentPlaylist;
+                window.currentSongIndex = currentSongIndex;
+            }
+            renderUpNextQueue('upNextList');
+            showToast('Shuffle dinonaktifkan');
         }
+        // Sinkronkan juga tombol shuffle di halaman artis jika sedang terbuka
+        const artistShuffleBtn = document.getElementById('artistShuffleBtn');
+        if (artistShuffleBtn) {
+            artistShuffleBtn.classList.toggle('is-active', isShuffle);
+        }
+
+        window.__spotiwindIsShuffle = isShuffle;
         setPlaybackModes({ shuffle: isShuffle, repeat: isRepeat });
     });
 

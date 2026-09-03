@@ -198,3 +198,102 @@ export const findUserByCode = async (code) => {
         return null;
     }
 };
+
+/**
+ * Standardize artist identifier for following subcollection ID
+ */
+export const getArtistFollowingId = (artist) => {
+    if (!artist) return '';
+    const raw = String(artist.id || artist.name || '').trim().toLowerCase();
+    return encodeURIComponent(raw).replace(/%/g, '_');
+};
+
+/**
+ * Check if current user is following an artist in their existing "following" subcollection
+ */
+export const isFollowingArtist = async (artist) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid || !artist) return false;
+
+    const artistKey = getArtistFollowingId(artist);
+    if (!artistKey) return false;
+
+    try {
+        const ref = doc(db, "users", currentUid, "following", artistKey);
+        const snapshot = await getDoc(ref);
+        return snapshot.exists();
+    } catch (error) {
+        console.error("Failed to check if following artist:", error);
+        return false;
+    }
+};
+
+/**
+ * Follow an artist (saved to user's existing "following" subcollection)
+ */
+export const followArtist = async (artist) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid || !artist) return null;
+
+    const artistKey = getArtistFollowingId(artist);
+    if (!artistKey) return null;
+
+    try {
+        const followingRef = doc(db, "users", currentUid, "following", artistKey);
+        const rawName = String(artist.name || "Artist").slice(0, 60);
+        const rawPhoto = String(artist.photo || artist.image || artist.cover || "").slice(0, 1500);
+
+        await setDoc(followingRef, {
+            uid: artistKey,
+            displayName: rawName,
+            photoURL: rawPhoto,
+            type: "artist",
+            artistId: String(artist.id || ''),
+            followedAt: Date.now()
+        }, { merge: true });
+
+        return { currentUid, artistKey };
+    } catch (error) {
+        console.error("Failed to follow artist:", error);
+        return null;
+    }
+};
+
+/**
+ * Unfollow an artist (removed from user's existing "following" subcollection)
+ */
+export const unfollowArtist = async (artist) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid || !artist) return null;
+
+    const artistKey = getArtistFollowingId(artist);
+    if (!artistKey) return null;
+
+    try {
+        const followingRef = doc(db, "users", currentUid, "following", artistKey);
+        await deleteDoc(followingRef);
+        return { currentUid, artistKey };
+    } catch (error) {
+        console.error("Failed to unfollow artist:", error);
+        return null;
+    }
+};
+
+/**
+ * Toggle follow artist in the existing "following" subcollection
+ */
+export const toggleFollowArtist = async (artist) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) {
+        return { requireAuth: true, isFollowing: false };
+    }
+
+    const currentlyFollowing = await isFollowingArtist(artist);
+    if (currentlyFollowing) {
+        await unfollowArtist(artist);
+        return { success: true, isFollowing: false };
+    } else {
+        await followArtist(artist);
+        return { success: true, isFollowing: true };
+    }
+};

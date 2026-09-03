@@ -25,6 +25,43 @@
         </div>
         <!-- This inner wrapper has the solid background that scrolls up -->
         <div class="artist-songs-content">
+            <!-- Artist Action Controls Bar -->
+            <div class="artist-actions-bar">
+                <div class="artist-actions-left">
+                    <button id="artistFollowBtn" class="artist-follow-btn" type="button" aria-label="Follow artist">
+                        <span class="artist-follow-text">Follow</span>
+                    </button>
+                    <button id="artistMoreBtn" class="artist-action-icon-btn" type="button" aria-label="More options">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75" />
+                            <circle cx="12" cy="12" r="1.75" />
+                            <circle cx="12" cy="19" r="1.75" />
+                        </svg>
+                    </button>
+                    <button id="artistShareBtn" class="artist-action-icon-btn" type="button" aria-label="Share artist">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                            <polyline points="16 6 12 2 8 6"></polyline>
+                            <line x1="12" y1="2" x2="12" y2="15"></line>
+                        </svg>
+                    </button>
+                </div>
+                <div class="artist-actions-right">
+                    <button id="artistShuffleBtn" class="artist-action-icon-btn artist-shuffle-btn" type="button" aria-label="Shuffle play">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M2 16.25a.75.75 0 0 0 0 1.5zm8.748-2.163l-.643-.386zm2.504-4.174l.643.386zM22 7l.53.53a.75.75 0 0 0 0-1.06zm-2.53 1.47a.75.75 0 0 0 1.06 1.06zm1.06-4a.75.75 0 1 0-1.06 1.06zm-5.31 2.92l-.369-.653zM2 17.75h3.603v-1.5H2zm9.39-3.277l2.505-4.174l-1.286-.772l-2.504 4.174zm7.007-6.723H22v-1.5h-3.603zm3.073-1.28l-2 2l1.06 1.06l2-2zm1.06 0l-2-2l-1.06 1.06l2 2zm-8.635 3.829c.434-.724.734-1.22 1.006-1.589c.263-.355.468-.543.689-.668l-.739-1.305c-.467.264-.82.627-1.155 1.08c-.326.44-.668 1.011-1.087 1.71zm4.502-4.049c-.815 0-1.48 0-2.025.052c-.562.055-1.054.17-1.521.435l.739 1.305c.22-.125.487-.204.927-.247c.456-.044 1.036-.045 1.88-.045zM5.603 17.75c.815 0 1.48 0 2.025-.052c.562-.055 1.054-.17 1.521-.435l-.739-1.305c-.22.125-.487.204-.927.247c-.456.044-1.036.045-1.88.045zm4.502-4.049c-.435.724-.734 1.22-1.006 1.589c-.263.355-.468.543-.689.668l.74 1.305c.466-.264.819-.627 1.154-1.08c.326-.44.668-1.011 1.087-1.71zM2 6.25a.75.75 0 0 0 0 1.5zM22 17l.53.53a.75.75 0 0 0 0-1.06zm-1.47-2.53a.75.75 0 1 0-1.06 1.06zm-1.06 4a.75.75 0 1 0 1.06 1.06zm-3.345-1.525l.144-.736zm-1.682-2.33a.75.75 0 1 0-1.286.77zm.025 1.391l.558-.501zm-6.593-8.95l.143-.737zm1.682 2.33a.75.75 0 0 0 1.286-.772zm-.025-1.393l-.558.502zM2 7.75h4.668v-1.5H2zm15.332 10H22v-1.5h-4.668zm5.198-1.28l-2-2l-1.06 1.06l2 2zm-1.06 0l-2 2l1.06 1.06l2-2zm-4.138-.22c-.645 0-.867-.003-1.063-.041l-.287 1.472c.372.072.765.069 1.35.069zm-4.175-.864c.3.502.5.84.754 1.122l1.115-1.003c-.134-.149-.25-.337-.583-.89zm3.112.823a2.25 2.25 0 0 1-1.243-.704l-1.115 1.003a3.75 3.75 0 0 0 2.071 1.173zM6.668 7.75c.645 0 .867.003 1.063.041l.287-1.472c-.372-.072-.765-.069-1.35-.069zm4.175.864c-.3-.502-.5-.84-.754-1.122L8.974 8.495c.134.149.25.337.583.89zm-3.112-.823c.48.094.916.34 1.243.704l1.115-1.003a3.75 3.75 0 0 0-2.071-1.173z" />
+                        </svg>
+                    </button>
+                    <button id="artistPlayAllBtn" class="artist-play-btn" type="button" aria-label="Play artist songs">
+                        <!-- Default paused state: ikon segitiga play -->
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             <!-- Popular Songs Section -->
             <div class="section-header" style="padding: 1.5rem var(--mobile-horizontal-padding) 0 var(--mobile-horizontal-padding);">
                 <h2 class="section-title">Popular Songs</h2>
@@ -64,6 +101,50 @@
                     <div class="skeleton-item-right"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Artist More Options Modal -->
+    <div id="artistOptionsModal" class="artist-options-modal hidden" inert>
+        <div class="artist-options-backdrop" id="artistOptionsBackdrop"></div>
+        <div class="artist-options-sheet" id="artistOptionsSheet">
+            <div class="artist-options-handle-wrapper" id="artistOptionsHandleWrapper">
+                <div class="artist-options-handle"></div>
+            </div>
+            <div class="artist-options-header" id="artistOptionsHeader">
+                <img id="artistOptionsPhoto" class="artist-options-photo" src="" alt="Artist Photo">
+                <div class="artist-options-info">
+                    <h3 id="artistOptionsName" class="artist-options-name"></h3>
+                    <p class="artist-options-sub">Artist</p>
+                </div>
+            </div>
+            <div class="artist-options-list">
+                <button type="button" class="artist-option-item" id="artistOptFollow">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="8.5" cy="7" r="4"></circle>
+                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                    <span id="artistOptFollowText">Follow Artist</span>
+                </button>
+                <button type="button" class="artist-option-item" id="artistOptShare">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                        <polyline points="16 6 12 2 8 6"></polyline>
+                        <line x1="12" y1="2" x2="12" y2="15"></line>
+                    </svg>
+                    <span>Share Artist Profile</span>
+                </button>
+                <button type="button" class="artist-option-item" id="artistOptCopyLink">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    <span>Copy Link to Artist</span>
+                </button>
+            </div>
+            <button type="button" class="artist-options-close-btn" id="artistOptionsCloseBtn">Cancel</button>
         </div>
     </div>
 </body>

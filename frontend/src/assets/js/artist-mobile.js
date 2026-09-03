@@ -4,6 +4,7 @@
  */
 
 import { defaultAvatar } from '../../utils/formatters.js';
+import { showToast } from '../../utils/domUtils.js';
 
 // These functions are expected to be available in the global scope from home-mobile.js
 const {
@@ -14,8 +15,386 @@ const {
     initializeSkeletons = () => {}
 } = (window.spotiwind && window.spotiwind.mobile) || {};
 
+import {
+    isFollowingArtist as isArtistFollowed,
+    toggleFollowArtist
+} from '../../services/userService.js';
+import { auth, onAuthStateChanged } from './firebase-config.js';
+
 let parallaxHandler = null;
 let artistPageTitleVisibilityTimeout = null;
+let currentArtistData = null;
+const isGlobalShuffleActive = () => {
+    if (typeof window.getPlaybackShuffle === 'function') {
+        return window.getPlaybackShuffle();
+    }
+    return Boolean(window.__spotiwindIsShuffle);
+};
+
+const setGlobalShuffleState = (val) => {
+    if (typeof window.setPlaybackShuffle === 'function') {
+        window.setPlaybackShuffle(val);
+    } else {
+        window.__spotiwindIsShuffle = Boolean(val);
+        const fullBtn = document.getElementById('fullShuffleBtn');
+        if (fullBtn) fullBtn.classList.toggle('active', Boolean(val));
+    }
+};
+let authUnsubscribe = null;
+
+const PLAY_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+/**
+ * Redirects guest user to authentication page
+ */
+const redirectToAuth = () => {
+    showToast('Silakan login terlebih dahulu untuk mengikuti artis.');
+    if (typeof window.navigateToAuthPage === 'function') {
+        window.navigateToAuthPage('login');
+    } else if (typeof window.loadPageContent === 'function') {
+        window.loadPageContent('auth-mobile.html', { pushState: true });
+    }
+};
+
+/**
+ * Synchronize Follow button UI
+ */
+const syncFollowUI = (isFollowed) => {
+    const btn = document.getElementById('artistFollowBtn');
+    const text = btn?.querySelector('.artist-follow-text');
+    if (btn && text) {
+        btn.classList.toggle('is-following', Boolean(isFollowed));
+        text.textContent = isFollowed ? 'Following' : 'Follow';
+    }
+    const optText = document.getElementById('artistOptFollowText');
+    if (optText) {
+        optText.textContent = isFollowed ? 'Unfollow Artist' : 'Follow Artist';
+    }
+};
+
+/**
+ * Handles follow / unfollow toggle
+ */
+const handleFollowClick = async (artist) => {
+    const user = auth.currentUser;
+    if (!user) {
+        redirectToAuth();
+        return;
+    }
+
+    const followBtn = document.getElementById('artistFollowBtn');
+    const wasFollowing = followBtn?.classList.contains('is-following');
+    const optimisticState = !wasFollowing;
+
+    // Optimistic UI update
+    syncFollowUI(optimisticState);
+
+    try {
+        const result = await toggleFollowArtist(artist);
+        if (result.requireAuth) {
+            syncFollowUI(false);
+            redirectToAuth();
+            return;
+        }
+        syncFollowUI(result.isFollowing);
+        showToast(result.isFollowing ? `Mengikuti ${artist.name}` : `Berhenti mengikuti ${artist.name}`);
+    } catch (err) {
+        console.error("Failed to toggle follow status:", err);
+        // Rollback on error
+        syncFollowUI(wasFollowing);
+        showToast('Gagal memperbarui status mengikuti');
+    }
+};
+
+/**
+ * Modal options sheet helpers
+ */
+let sheetPointerDownHandler = null;
+
+const resetArtistSheetStyles = () => {
+    const sheet = document.getElementById('artistOptionsSheet') || document.querySelector('.artist-options-sheet');
+    const backdrop = document.getElementById('artistOptionsBackdrop');
+    if (sheet) {
+        sheet.style.transform = '';
+        sheet.style.transition = '';
+    }
+    if (backdrop) {
+        backdrop.style.opacity = '';
+        backdrop.style.transition = '';
+    }
+};
+
+const setupArtistSheetDragToDismiss = () => {
+    const sheet = document.getElementById('artistOptionsSheet') || document.querySelector('.artist-options-sheet');
+    const backdrop = document.getElementById('artistOptionsBackdrop');
+    if (!sheet) return;
+
+    if (sheetPointerDownHandler) {
+        sheet.removeEventListener('pointerdown', sheetPointerDownHandler);
+        sheetPointerDownHandler = null;
+    }
+
+    sheetPointerDownHandler = (e) => {
+        // Hanya tangani tombol utama (left click atau sentuhan jari)
+        if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
+
+        // Abaikan tombol interaktif di dalam modal
+        if (e.target.closest('#artistOptFollow, #artistOptShare, #artistOptCopyLink, #artistOptionsCloseBtn')) return;
+
+        const startY = e.clientY;
+        const startTime = Date.now();
+        let currentDeltaY = 0;
+        let isDragging = false;
+        let isUpwardPullAborted = false;
+        const sheetHeight = sheet.offsetHeight || 300;
+
+        const onPointerMove = (moveEvent) => {
+            if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+                onPointerUp();
+                return;
+            }
+
+            const deltaY = moveEvent.clientY - startY;
+
+            // Jika pengguna memaksakan tarik ke ATAS (deltaY < -6):
+            // Batalkan gesture drag sepenuhnya agar modal tidak melompat atau mengikuti kursor saat kembali ke bawah
+            if (!isDragging) {
+                if (deltaY < -6) {
+                    isUpwardPullAborted = true;
+                    sheet.style.transform = 'translateY(0)';
+                    return;
+                }
+
+                if (isUpwardPullAborted) {
+                    sheet.style.transform = 'translateY(0)';
+                    return;
+                }
+
+                // Hanya aktifkan drag jika pengguna menarik ke BAWAH (deltaY > 6)
+                if (deltaY > 6) {
+                    isDragging = true;
+                    sheet.style.transition = 'none';
+                    if (backdrop) backdrop.style.transition = 'none';
+                }
+            }
+
+            if (isDragging && !isUpwardPullAborted) {
+                if (moveEvent.cancelable) moveEvent.preventDefault();
+
+                if (deltaY > 0) {
+                    currentDeltaY = deltaY;
+                    sheet.style.transform = `translateY(${deltaY}px)`;
+                    if (backdrop) {
+                        const opacity = Math.max(0, 1 - (deltaY / (sheetHeight * 0.9)));
+                        backdrop.style.opacity = String(opacity);
+                    }
+                } else {
+                    // Terkunci rapat di posisi normal (0)
+                    currentDeltaY = 0;
+                    sheet.style.transform = 'translateY(0)';
+                    if (backdrop) {
+                        backdrop.style.opacity = '1';
+                    }
+                }
+            }
+        };
+
+        const onPointerUp = () => {
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
+
+            if (isUpwardPullAborted) {
+                isUpwardPullAborted = false;
+                resetArtistSheetStyles();
+                return;
+            }
+
+            if (isDragging) {
+                const elapsed = Math.max(1, Date.now() - startTime);
+                const velocity = currentDeltaY / elapsed;
+
+                sheet.style.transition = 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+                if (backdrop) backdrop.style.transition = 'opacity 0.22s ease';
+
+                if (currentDeltaY > 75 || velocity > 0.35) {
+                    sheet.style.transform = 'translateY(100%)';
+                    if (backdrop) backdrop.style.opacity = '0';
+                    setTimeout(() => {
+                        closeArtistOptions();
+                        resetArtistSheetStyles();
+                    }, 220);
+                } else {
+                    sheet.style.transform = 'translateY(0)';
+                    if (backdrop) backdrop.style.opacity = '1';
+                    setTimeout(() => {
+                        resetArtistSheetStyles();
+                    }, 220);
+                }
+                isDragging = false;
+            }
+        };
+
+        window.addEventListener('pointermove', onPointerMove, { passive: false });
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+    };
+
+    sheet.addEventListener('pointerdown', sheetPointerDownHandler);
+};
+
+const openArtistOptions = async (artist) => {
+    const modal = document.getElementById('artistOptionsModal');
+    if (!modal) return;
+    resetArtistSheetStyles();
+
+    const photo = modal.querySelector('#artistOptionsPhoto');
+    const name = modal.querySelector('#artistOptionsName');
+    if (photo) photo.src = artist.photo || artist.image || artist.cover || defaultAvatar(artist.name);
+    if (name) name.textContent = artist.name || 'Artist';
+
+    if (auth.currentUser) {
+        const followed = await isArtistFollowed(artist);
+        syncFollowUI(followed);
+    } else {
+        syncFollowUI(false);
+    }
+
+    modal.classList.remove('hidden');
+    modal.removeAttribute('inert');
+};
+
+const closeArtistOptions = () => {
+    const modal = document.getElementById('artistOptionsModal');
+    if (!modal) return;
+    if (modal.contains(document.activeElement)) {
+        document.activeElement?.blur();
+    }
+    const moreBtn = document.getElementById('artistMoreBtn');
+    if (moreBtn && document.contains(moreBtn)) {
+        moreBtn.focus();
+    }
+    modal.classList.add('hidden');
+    modal.setAttribute('inert', '');
+    modal.removeAttribute('aria-hidden');
+    resetArtistSheetStyles();
+};
+
+/**
+ * Share artist profile
+ */
+const shareArtistProfile = async (artist) => {
+    const artistName = artist?.name || 'Artist';
+    const shareData = {
+        title: `Spotiwind - ${artistName}`,
+        text: `Listen to ${artistName} on Spotiwind!`,
+        url: window.location.href
+    };
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+        } else {
+            await navigator.clipboard.writeText(window.location.href);
+            showToast(`Tautan profil ${artistName} disalin ke clipboard`);
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                showToast(`Tautan profil ${artistName} disalin ke clipboard`);
+            } catch {
+                showToast('Gagal membagikan profil');
+            }
+        }
+    }
+};
+
+/**
+ * Helper to get currently loaded songs for the artist
+ */
+const getAvailableArtistSongs = () => {
+    if (typeof window.getArtistPageCurrentSongs === 'function') {
+        const s = window.getArtistPageCurrentSongs();
+        if (Array.isArray(s) && s.length > 0) return s;
+    }
+    if (Array.isArray(window.__artistPageCurrentSongs) && window.__artistPageCurrentSongs.length > 0) {
+        return window.__artistPageCurrentSongs;
+    }
+    const rows = Array.from(document.querySelectorAll('#artistSongsGrid .artist-song-list-item'));
+    return rows.map(r => ({
+        id: r.dataset.id || r.dataset.songId,
+        audio: r.dataset.audio || r.dataset.songAudio,
+        name: r.querySelector('.item-name')?.textContent || 'Untitled',
+        artist: r.querySelector('.item-artist')?.textContent || 'Unknown Artist',
+        cover: r.querySelector('.item-cover')?.src || '',
+        duration: Number(r.dataset.duration) || 0
+    })).filter(s => s.audio);
+};
+
+const isArtistCurrentlyPlaying = (artist) => {
+    const activeAudio = window.__activeAudio || (typeof activeAudio !== 'undefined' ? activeAudio : null);
+    const currentSongData = (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : window.__currentSongData);
+    if (!activeAudio || !activeAudio.src || !currentSongData) return false;
+    const currentArtist = currentSongData.artist?.trim()?.toLowerCase();
+    const pageArtist = artist?.name?.trim()?.toLowerCase();
+    return Boolean(currentArtist && pageArtist && (currentArtist === pageArtist || currentArtist.includes(pageArtist) || pageArtist.includes(currentArtist)));
+};
+
+/**
+ * Play/pause handler for the main artist play button
+ */
+const handleArtistPlayAllClick = (artist) => {
+    const activeAudio = window.__activeAudio || (typeof activeAudio !== 'undefined' ? activeAudio : null);
+    const isPlayingCurrentArtist = isArtistCurrentlyPlaying(artist);
+
+    if (isPlayingCurrentArtist && activeAudio) {
+        if (!activeAudio.paused) {
+            activeAudio.pause();
+        } else {
+            activeAudio.play().catch(e => console.error("Play error:", e));
+        }
+        if (typeof window.syncActiveSongUI === 'function') {
+            window.syncActiveSongUI();
+        }
+        return;
+    }
+
+    const songs = getAvailableArtistSongs();
+    if (!songs || songs.length === 0) {
+        showToast('Memuat lagu artis, mohon tunggu sebentar...');
+        return;
+    }
+
+    const context = `artist-${artist.id || artist.name.replace(/\s+/g, '-').toLowerCase()}`;
+    let targetSong = songs[0];
+    let playlistToPlay = [...songs];
+
+    if (isGlobalShuffleActive()) {
+        // Algoritma Fisher-Yates shuffle agar seluruh urutan lagu teracak sempurna
+        const shuffled = [...songs];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        targetSong = shuffled[0];
+        playlistToPlay = shuffled;
+    }
+
+    if (typeof window.playPreview === 'function') {
+        window.playPreview(
+            null,
+            targetSong.audio,
+            targetSong.name,
+            targetSong.artist,
+            targetSong.cover,
+            targetSong.id,
+            Number(targetSong.duration) || 0,
+            context,
+            playlistToPlay
+        );
+    }
+};
 
 /**
  * Initializes the artist page with the provided artist data.
@@ -26,6 +405,7 @@ export const initArtistPage = (artist, previousPage) => {
     const contentContainer = document.querySelector('.app-container');
     if (!contentContainer) return;
 
+    currentArtistData = artist;
     initializeSkeletons();
 
     parallaxHandler = () => {
@@ -37,21 +417,20 @@ export const initArtistPage = (artist, previousPage) => {
         const artistNameWrapper = document.getElementById('artistNameWrapper');
 
         if (!hero || !header || !artistNameWrapper || !artistPageTitle || !backButton) {
-            cleanupArtistPage(); // Clean up if elements are gone
+            cleanupArtistPage();
             return;
         }
 
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
         const heroHeight = hero.offsetHeight || 320;
 
-        // Gambar tetap diam di posisinya (stationary) saat scroll ke bawah
+        // Gambar tetap diam di posisinya saat scroll ke bawah
         if (heroImage) {
             if (scrollTop > 0) {
                 const fadeOpacity = Math.max(0, 1 - (scrollTop / (heroHeight * 1.25)));
                 heroImage.style.transform = 'translate3d(0, 0, 0)';
                 heroImage.style.opacity = fadeOpacity;
             } else if (scrollTop < 0) {
-                // Efek zoom elastis saat ditarik ke bawah (overscroll)
                 const scale = 1 + Math.abs(scrollTop) / 260;
                 heroImage.style.transform = `translate3d(0, 0, 0) scale(${scale})`;
                 heroImage.style.opacity = '1';
@@ -89,7 +468,8 @@ export const initArtistPage = (artist, previousPage) => {
     };
 
     // 1. Header
-    document.getElementById('artistPageName').textContent = artist.name;
+    const pageTitle = document.getElementById('artistPageName');
+    if (pageTitle) pageTitle.textContent = artist.name;
     const backButton = contentContainer.querySelector('.back-btn');
     if (backButton) {
         backButton.addEventListener('click', async (e) => {
@@ -143,7 +523,125 @@ export const initArtistPage = (artist, previousPage) => {
         `;
     }
 
-    // 4. Fetch and Render Songs
+    // 4. Action Controls Bar Setup
+    // A. Follow Button & Auth State
+    syncFollowUI(false);
+
+    const updateFollowStatusForUser = async (user) => {
+        if (!user) {
+            syncFollowUI(false);
+            return;
+        }
+        try {
+            const isFollowed = await isArtistFollowed(artist);
+            syncFollowUI(isFollowed);
+        } catch (e) {
+            console.warn("Failed to check follow status:", e);
+        }
+    };
+
+    if (auth.currentUser) {
+        updateFollowStatusForUser(auth.currentUser);
+    }
+
+    if (authUnsubscribe) {
+        authUnsubscribe();
+    }
+    authUnsubscribe = onAuthStateChanged(auth, (user) => {
+        updateFollowStatusForUser(user);
+    });
+
+    const followBtn = document.getElementById('artistFollowBtn');
+    if (followBtn) {
+        followBtn.onclick = (e) => {
+            e.preventDefault();
+            handleFollowClick(artist);
+        };
+    }
+
+    // B. More Options (Three dots)
+    const moreBtn = document.getElementById('artistMoreBtn');
+    if (moreBtn) {
+        moreBtn.onclick = (e) => {
+            e.preventDefault();
+            openArtistOptions(artist);
+        };
+    }
+
+    // C. Share Button
+    const shareBtn = document.getElementById('artistShareBtn');
+    if (shareBtn) {
+        shareBtn.onclick = (e) => {
+            e.preventDefault();
+            shareArtistProfile(artist);
+        };
+    }
+
+    // D. Shuffle Button
+    const shuffleBtn = document.getElementById('artistShuffleBtn');
+    if (shuffleBtn) {
+        shuffleBtn.classList.toggle('is-active', isGlobalShuffleActive());
+        shuffleBtn.onclick = (e) => {
+            e.preventDefault();
+            const nextState = !isGlobalShuffleActive();
+            setGlobalShuffleState(nextState);
+            shuffleBtn.classList.toggle('is-active', nextState);
+            showToast(nextState ? `Shuffle diaktifkan untuk lagu ${artist.name}` : 'Shuffle dinonaktifkan');
+        };
+    }
+
+    // E. Play / Pause Button (Default: paused / play icon)
+    const playAllBtn = document.getElementById('artistPlayAllBtn');
+    if (playAllBtn) {
+        const activeAudio = window.__activeAudio || (typeof activeAudio !== 'undefined' ? activeAudio : null);
+        const isPlaying = isArtistCurrentlyPlaying(artist) && activeAudio && !activeAudio.paused;
+        playAllBtn.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+
+        playAllBtn.onclick = (e) => {
+            e.preventDefault();
+            handleArtistPlayAllClick(artist);
+        };
+    }
+
+    // F. Modal Options Handlers
+    const optionsBackdrop = document.getElementById('artistOptionsBackdrop');
+    const optionsCloseBtn = document.getElementById('artistOptionsCloseBtn');
+    if (optionsBackdrop) optionsBackdrop.onclick = closeArtistOptions;
+    if (optionsCloseBtn) optionsCloseBtn.onclick = closeArtistOptions;
+
+    const optFollow = document.getElementById('artistOptFollow');
+    if (optFollow) {
+        optFollow.onclick = () => {
+            closeArtistOptions();
+            handleFollowClick(artist);
+        };
+    }
+
+    const optShare = document.getElementById('artistOptShare');
+    if (optShare) {
+        optShare.onclick = () => {
+            closeArtistOptions();
+            shareArtistProfile(artist);
+        };
+    }
+
+    const optCopyLink = document.getElementById('artistOptCopyLink');
+    if (optCopyLink) {
+        optCopyLink.onclick = async () => {
+            closeArtistOptions();
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                showToast(`Tautan profil ${artist.name} disalin ke clipboard`);
+            } catch {
+                showToast('Gagal menyalin tautan');
+            }
+        };
+    }
+
+    // G. Setup Drag-to-dismiss gesture for options modal
+    setupArtistSheetDragToDismiss();
+
+    // 5. Fetch and Render Songs
     const mobileOps = (window.spotiwind && window.spotiwind.mobile) || {};
     const retryFn = mobileOps.fetchWithContinuousRetry || fetchWithContinuousRetry;
     const localFn = mobileOps.fetchLocalArtistSongs || fetchLocalArtistSongs;
@@ -160,7 +658,7 @@ export const initArtistPage = (artist, previousPage) => {
         }
     }
 
-    // 5. Attach parallax scroll listener
+    // 6. Attach parallax scroll listener
     window.addEventListener('scroll', parallaxHandler);
 };
 
@@ -168,6 +666,16 @@ export const initArtistPage = (artist, previousPage) => {
  * Cleans up event listeners specific to the artist page.
  */
 export const cleanupArtistPage = () => {
+    closeArtistOptions();
+    if (sheetPointerDownHandler) {
+        const sheet = document.getElementById('artistOptionsSheet') || document.querySelector('.artist-options-sheet');
+        if (sheet) sheet.removeEventListener('pointerdown', sheetPointerDownHandler);
+        sheetPointerDownHandler = null;
+    }
+    if (authUnsubscribe) {
+        authUnsubscribe();
+        authUnsubscribe = null;
+    }
     if (parallaxHandler) {
         window.removeEventListener('scroll', parallaxHandler);
         parallaxHandler = null;

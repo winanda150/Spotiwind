@@ -344,7 +344,7 @@ window.playPreview = async (btn, audioUrl, title, artist, cover, id, duration = 
     }
 
     // Context-aware playlist management
-    if (context === 'recently-played' && Array.isArray(customPlaylist) && customPlaylist.length > 0) {
+    if ((context === 'recently-played' || (context && context.startsWith('artist-'))) && Array.isArray(customPlaylist) && customPlaylist.length > 0) {
         currentPlaylist = [...customPlaylist];
     }
     if (context && currentPlaylist.length > 0) {
