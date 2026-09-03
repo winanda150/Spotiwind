@@ -390,8 +390,8 @@ const shareArtistProfile = async (artist) => {
     const artistName = artist?.name || 'Artist';
     const shareUrl = getArtistShareUrl(artist);
     const shareData = {
-        title: `Spotiwind - ${artistName}`,
-        text: `Dengarkan lagu-lagu ${artistName} di Spotiwind!`,
+        title: `${artistName} • Artist on Spotiwind`,
+        text: `Listen to ${artistName} on Spotiwind:`,
         url: shareUrl
     };
     try {
@@ -399,15 +399,15 @@ const shareArtistProfile = async (artist) => {
             await navigator.share(shareData);
         } else {
             await navigator.clipboard.writeText(shareUrl);
-            showToast(`Tautan profil ${artistName} disalin ke clipboard`);
+            showToast(`Link to ${artistName}'s profile copied to clipboard`);
         }
     } catch (err) {
         if (err.name !== 'AbortError') {
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                showToast(`Tautan profil ${artistName} disalin ke clipboard`);
+                showToast(`Link to ${artistName}'s profile copied to clipboard`);
             } catch {
-                showToast('Gagal membagikan profil');
+                showToast('Failed to share profile');
             }
         }
     }
@@ -729,9 +729,9 @@ export const initArtistPage = (artist, previousPage) => {
             const shareUrl = getArtistShareUrl(artist);
             try {
                 await navigator.clipboard.writeText(shareUrl);
-                showToast(`Tautan profil ${artist.name} disalin ke clipboard`);
+                showToast(`Link to ${artist.name}'s profile copied to clipboard`);
             } catch {
-                showToast('Gagal menyalin tautan');
+                showToast('Failed to copy link');
             }
         };
     }

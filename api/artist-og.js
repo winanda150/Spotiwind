@@ -79,7 +79,7 @@ module.exports = async (req, res) => {
                (queryName && (aName === lowerName || aSlug === lowerName.replace(/\s+/g, '-')));
     });
 
-    const artistName = matched ? matched.name : (queryName || 'Artis');
+    const artistName = matched ? matched.name : (queryName || 'Artist');
     let photoPath = matched && matched.photo ? matched.photo : '';
 
     if (photoPath) {
@@ -97,7 +97,8 @@ module.exports = async (req, res) => {
 
     const pageUrl = `${baseUrl}/artist/${artistId}`;
     const pageTitle = `${artistName} | Spotiwind`;
-    const pageDesc = `Dengarkan lagu-lagu ${artistName} di Spotiwind! Feel The Music, Ride The Wind.`;
+    const ogTitle = `${artistName} • Artist on Spotiwind`;
+    const pageDesc = `Listen to ${artistName} on Spotiwind. Stream top songs, albums, and full discography in high audio quality.`;
 
     let html = '';
     try {
@@ -111,22 +112,22 @@ module.exports = async (req, res) => {
     const dynamicMetaTags = `
     <!-- Dynamic Artist OpenGraph Tags (WhatsApp / Social Media Preview) -->
     <title>${pageTitle}</title>
-    <meta name="title" content="${pageTitle}">
+    <meta name="title" content="${ogTitle}">
     <meta name="description" content="${pageDesc}">
     <meta property="og:type" content="music.musician">
     <meta property="og:url" content="${pageUrl}">
     <meta property="og:site_name" content="Spotiwind">
-    <meta property="og:title" content="${artistName} - Profil Artis di Spotiwind">
+    <meta property="og:title" content="${ogTitle}">
     <meta property="og:description" content="${pageDesc}">
     <meta property="og:image" content="${ogImage}">
     <meta property="og:image:secure_url" content="${ogImage}">
     <meta property="og:image:type" content="image/webp">
     <meta property="og:image:width" content="640">
     <meta property="og:image:height" content="640">
-    <meta property="og:image:alt" content="${artistName}">
+    <meta property="og:image:alt" content="Official profile of ${artistName}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${pageUrl}">
-    <meta name="twitter:title" content="${artistName} - Profil Artis di Spotiwind">
+    <meta name="twitter:title" content="${ogTitle}">
     <meta name="twitter:description" content="${pageDesc}">
     <meta name="twitter:image" content="${ogImage}">
     `;
