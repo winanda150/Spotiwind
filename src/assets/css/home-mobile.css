@@ -3819,41 +3819,44 @@ body.player-active .mix-detail-modal .mix-detail-scrollable {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem 1rem;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px dashed rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    padding: 2.5rem var(--mobile-horizontal-padding, 1rem);
+    background: transparent;
+    border: none;
     text-align: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .recent-empty-icon {
-    width: 42px;
-    height: 42px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-muted, #9ca3af);
-    margin-bottom: 0.25rem;
+    color: var(--text-muted);
+    margin-bottom: 0.2rem;
 }
 
 .recent-empty-icon svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
 }
 
 .recent-empty-title {
-    font-size: 0.875rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    color: var(--text-main, #ffffff);
+    color: var(--text-main);
     margin: 0;
 }
 
 .recent-empty-desc {
-    font-size: 0.75rem;
-    color: var(--text-muted, #9ca3af);
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--text-muted);
     margin: 0;
     max-width: 260px;
 }
