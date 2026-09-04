@@ -9,7 +9,7 @@ import { updateMyActivity as updateActivityRecord } from '../../services/activit
 import { getFollowingIds, subscribeFriendsActivityByIds } from '../../services/activityService.js';
 import { watchUserConnection, watchFriendPresence } from '../../services/presenceService.js';
 import { subscribeUserPlaylists, createUserPlaylist } from '../../services/libraryService.js';
-import { isUserPremium } from '../../services/profileService.js';
+import { isUserPremium, subscribeUserProfile } from '../../services/profileService.js';
 import { retryCatalogRequest, loadLocalCatalog, getFeaturedLocalSongs } from '../../services/catalogService.js';
 import { setContextPlaylist, syncQueueState, setPlaybackModes, nextSong as getNextSong, previousSong as getPreviousSong } from '../../services/playerService.js';
 import { searchCatalogData } from '../../services/searchService.js';
@@ -28,6 +28,7 @@ import { updateAppUrl } from '../../core/pageLoader.js';
 
 let playlistUnsubscribe = null;
 let recentlyPlayedUnsubscribe = null;
+let profileUnsubscribe = null;
 let friendActivityListeners = []; // Using an array to track multiple listeners
 let currentFriendActivityLimit = 10;
 let isLoadingMoreActivity = false;
@@ -812,7 +813,7 @@ let desktopRecentlyPlayedListCache = [];
 /**
  * Render Recently Played songs in vertical layout (Max 3 items) on Desktop
  */
-const renderDesktopRecentlyPlayed = () => {
+const renderDesktopRecentlyPlayed = (force = false) => {
     const container = document.getElementById('desktopRecentlyPlayedList');
     if (!container) return;
 
@@ -839,7 +840,7 @@ const renderDesktopRecentlyPlayed = () => {
             return;
         }
 
-        const isSameList = desktopRecentlyPlayedListCache.length === validSongs.length &&
+        const isSameList = !force && desktopRecentlyPlayedListCache.length === validSongs.length &&
             validSongs.every((s, i) => {
                 const cached = desktopRecentlyPlayedListCache[i];
                 if (!cached) return false;
@@ -1177,12 +1178,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lastGreetingHour = -1;
     let greetingName = 'Guest';
-    const updateGreeting = () => {
+    const updateGreeting = (force = false) => {
         const greetingBadge = document.getElementById('greetingBadge');
         if (!greetingBadge) return;
 
         const hour = new Date().getHours();
-        if (hour === lastGreetingHour) return;
+        if (!force && hour === lastGreetingHour) return;
         lastGreetingHour = hour;
 
         let greeting = 'Night';
@@ -1669,12 +1670,44 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("Logged in as:", user.email);
             greetingName = user.displayName || user.email?.split('@')[0] || 'User';
             lastGreetingHour = -1;
-            updateGreeting();
+            updateGreeting(true);
 
             const userNameElement = document.getElementById('userName');
             if (userNameElement) {
                 userNameElement.textContent = user.displayName || user.email.split('@')[0];
             }
+
+            // Realtime Profile Subscription from Firestore
+            if (profileUnsubscribe) {
+                profileUnsubscribe();
+                profileUnsubscribe = null;
+            }
+            profileUnsubscribe = subscribeUserProfile(user.uid, (profile) => {
+                if (!profile) return;
+                const name = profile.displayName || user.displayName || user.email?.split('@')[0] || 'User';
+                greetingName = name;
+                lastGreetingHour = -1;
+                updateGreeting(true);
+
+                const currentUserNameEl = document.getElementById('userName');
+                if (currentUserNameEl) {
+                    currentUserNameEl.textContent = name;
+                }
+
+                const premiumBadgeEl = document.getElementById('premiumBadge');
+                if (premiumBadgeEl) {
+                    if (profile.isPremium) {
+                        premiumBadgeEl.classList.remove('hidden');
+                    } else {
+                        premiumBadgeEl.classList.add('hidden');
+                    }
+                }
+
+                const currentAvatarEl = document.getElementById('userAvatar');
+                if (currentAvatarEl && profile.photoURL) {
+                    currentAvatarEl.src = profile.photoURL;
+                }
+            });
 
             setupUserPresence(user);
             renderFriendActivity();
@@ -1683,8 +1716,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 recentlyPlayedUnsubscribe();
             }
             recentlyPlayedUnsubscribe = subscribeRecentlyPlayed(user.uid, () => {
-                renderDesktopRecentlyPlayed();
+                renderDesktopRecentlyPlayed(true);
             });
+            renderDesktopRecentlyPlayed(true);
 
             const premiumBadgeElement = document.getElementById('premiumBadge');
             if (premiumBadgeElement) {
@@ -1749,7 +1783,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             greetingName = 'Guest';
             lastGreetingHour = -1;
-            updateGreeting();
+            updateGreeting(true);
+
+            if (profileUnsubscribe) {
+                profileUnsubscribe();
+                profileUnsubscribe = null;
+            }
 
             const userNameElement = document.getElementById('userName');
             if (userNameElement) userNameElement.textContent = 'Guest (Log In)';
@@ -1767,7 +1806,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 playlistUnsubscribe = null;
             }
             if (document.getElementById('premiumBadge')) document.getElementById('premiumBadge').classList.add('hidden');
-            renderDesktopRecentlyPlayed();
+            renderDesktopRecentlyPlayed(true);
             if (recentlyPlayedUnsubscribe) {
                 recentlyPlayedUnsubscribe();
                 recentlyPlayedUnsubscribe = null;
@@ -1903,7 +1942,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 initializeDesktopDashboardData();
                 setupDesktopSidebarEvents();
                 initDesktopSearch();
-                initializeDesktopUserUI(auth.currentUser);
+                await initializeDesktopUserUI(auth.currentUser);
+                renderDesktopRecentlyPlayed(true);
                 dashboardContainer.style.opacity = '1';
                 desktopCurrentPageUrl = 'home-desktop.html';
             }
@@ -1974,11 +2014,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                     await loadDesktopPageContent(targetPage, { pushState: true });
                                 },
                                 onSuccess: async (user) => {
-                                    await initializeDesktopUserUI(user);
                                     const targetPage = (desktopPreviousPageUrl && !desktopPreviousPageUrl.includes('auth-desktop.html'))
                                         ? desktopPreviousPageUrl
                                         : (sessionStorage.getItem('spotiwind_desktop_auth_previous_page') || 'home-desktop.html');
                                     await loadDesktopPageContent(targetPage, { pushState: true });
+                                    await initializeDesktopUserUI(user || auth.currentUser);
+                                    renderDesktopRecentlyPlayed(true);
                                 }
                             });
                             activeDesktopPageCleanup = authModule.cleanupAuthDesktopPage;

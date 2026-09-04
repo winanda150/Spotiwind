@@ -88,6 +88,8 @@ const saveCurrentPageScroll = () => {
         setPageScrollPosition('library-mobile.html', scrollPos);
     } else if (document.querySelector('#searchInput')) {
         setPageScrollPosition('search-mobile.html', scrollPos);
+    } else if (document.querySelector('.windflow-page, .windflow-header, #windflowController')) {
+        setPageScrollPosition('windflow-mobile.html', scrollPos);
     }
 };
 
@@ -1040,6 +1042,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.__initialLibraryTab = initialTab;
             }
             if (sidebarItem.classList.contains('sidebar-nav-item') && sidebarItem.classList.contains('active') && !initialTab) {
+                closeSidebar();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                document.body.scrollTo({ top: 0, behavior: 'smooth' });
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer && appContainer.scrollTop > 0) {
+                    appContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
                 return;
             }
             forceCloseMixDetailModal();
@@ -1970,15 +1980,84 @@ window.toggleDownloadSong = toggleDownloadSong;
             const targetPage = item.dataset.target;
             if (!targetPage) return;
 
+            const isCurrentlyOnArtistPage = Boolean(
+                document.querySelector('.artist-page-header, #artistHero, .artist-content-scroll-wrapper') ||
+                (typeof window.getCurrentPageUrl === 'function' && window.getCurrentPageUrl()?.includes('artist')) ||
+                window.location.pathname.includes('/artist')
+            );
+
+            // Jika sedang di halaman artis dan item navigasi bawah yang diklik dalam kondisi aktif:
+            // Tidak terjadi apa-apa dan scroll kembali ke atas secara mulus
+            if (isCurrentlyOnArtistPage && item.classList.contains('active')) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                document.body.scrollTo({ top: 0, behavior: 'smooth' });
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer && appContainer.scrollTop > 0) {
+                    appContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                return;
+            }
+
+            // Cek jika sedang membuka mix-detail-modal
+            const mixDetailModal = document.getElementById('mixDetailModal');
+            const isMixDetailModalOpen = Boolean(
+                document.body.classList.contains('mix-detail-open') ||
+                (mixDetailModal && !mixDetailModal.classList.contains('hidden'))
+            );
+
+            // Jika sedang membuka mix detail modal dan item navigasi bawah yang diklik dalam kondisi aktif:
+            // Tidak terjadi apa-apa (modal tidak tertutup/navigasi batal) dan scroll isi modal kembali ke atas secara mulus
+            if (isMixDetailModalOpen && item.classList.contains('active')) {
+                const scrollable = mixDetailModal?.querySelector('.mix-detail-scrollable');
+                if (scrollable) {
+                    scrollable.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                if (mixDetailModal && mixDetailModal.scrollTop > 0) {
+                    mixDetailModal.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                return;
+            }
+
+            // Cek jika sedang berada di halaman windflow
+            const isCurrentlyOnWindflowPage = Boolean(
+                document.querySelector('.windflow-page, .windflow-header, #windflowController') ||
+                (typeof window.getCurrentPageUrl === 'function' && (window.getCurrentPageUrl()?.includes('windflow') || window.getCurrentPageUrl()?.includes('radio'))) ||
+                window.location.pathname.includes('/windflow') ||
+                window.location.pathname.includes('/radio')
+            );
+
+            // Jika sedang di halaman windflow dan item navigasi bawah yang diklik dalam kondisi aktif:
+            // Tidak terjadi apa-apa dan scroll kembali ke atas secara mulus
+            if (isCurrentlyOnWindflowPage && item.classList.contains('active')) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                document.body.scrollTo({ top: 0, behavior: 'smooth' });
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer && appContainer.scrollTop > 0) {
+                    appContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                setPageScrollPosition('windflow-mobile.html', 0);
+                return;
+            }
+
             // Check if we are already viewing the primary content of that tab
             const isAlreadyOnHome = (targetPage === 'home-mobile.html' || targetPage === '/' || targetPage === 'mobile.html') && isGenuineHomeView();
             const isAlreadyOnSearch = targetPage.includes('search') && document.querySelector('.app-container #searchInput');
             const isAlreadyOnLibrary = targetPage.includes('library') && document.querySelector('.app-container .library-tabs');
-            const isAlreadyOnWindflow = (targetPage.includes('windflow') || targetPage.includes('radio')) && document.querySelector('.app-container .radio-container, .app-container .windflow-container');
+            const isAlreadyOnWindflow = (targetPage.includes('windflow') || targetPage.includes('radio')) && Boolean(
+                document.querySelector('.app-container .windflow-page, .app-container .windflow-header, .app-container #windflowController, .app-container .radio-container, .app-container .windflow-container')
+            );
             const isAlreadyOnAccount = targetPage.includes('account') && document.querySelector('.app-container .account-profile-section, .app-container #accountAvatar');
 
             if (isAlreadyOnHome || isAlreadyOnSearch || isAlreadyOnLibrary || isAlreadyOnWindflow || isAlreadyOnAccount) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+                document.body.scrollTo({ top: 0, behavior: 'smooth' });
+                const appContainer = document.querySelector('.app-container');
+                if (appContainer && appContainer.scrollTop > 0) {
+                    appContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
                 if (isAlreadyOnHome) {
                     homeScrollPosition = 0;
                     setPageScrollPosition('home-mobile.html', 0);
@@ -1986,6 +2065,8 @@ window.toggleDownloadSong = toggleDownloadSong;
                     setPageScrollPosition('library-mobile.html', 0);
                 } else if (isAlreadyOnSearch) {
                     setPageScrollPosition('search-mobile.html', 0);
+                } else if (isAlreadyOnWindflow) {
+                    setPageScrollPosition('windflow-mobile.html', 0);
                 }
                 return;
             }
@@ -2071,12 +2152,12 @@ window.toggleDownloadSong = toggleDownloadSong;
 
     let lastGreetingHour = -1;
     let greetingName = 'Guest';
-    const updateGreeting = () => {
+    const updateGreeting = (force = false) => {
         const greetingBadge = document.getElementById('greetingBadge');
         if (!greetingBadge) return;
 
         const hour = new Date().getHours();
-        if (hour === lastGreetingHour) return;
+        if (!force && hour === lastGreetingHour) return;
         lastGreetingHour = hour;
 
         let greeting = 'Night';
@@ -2172,6 +2253,15 @@ window.toggleDownloadSong = toggleDownloadSong;
         sidebarProfileUnsubscribe = subscribeUserProfile(user.uid, (profile) => {
             currentUserProfile = profile;
             currentUserIsPro = profile?.isPremium === true;
+            if (profile?.displayName) {
+                greetingName = profile.displayName;
+            } else {
+                greetingName = user.displayName || user.email?.split('@')[0] || 'User';
+            }
+            lastGreetingHour = -1;
+            updateGreeting(true);
+            if (sidebarName) sidebarName.textContent = greetingName;
+
             const proBadge = document.getElementById('sidebarProBadge');
             const sidebarAvatarWrapper = document.querySelector('.sidebar-profile-avatar-wrapper');
             const sidebarProfileContainer = document.querySelector('.sidebar-profile');
@@ -2196,7 +2286,7 @@ window.toggleDownloadSong = toggleDownloadSong;
 
         greetingName = user.displayName || user.email?.split('@')[0] || 'User';
         lastGreetingHour = -1;
-        updateGreeting();
+        updateGreeting(true);
         if (sidebarName) sidebarName.textContent = user.displayName || user.email?.split('@')[0] || 'User';
         if (sidebarEmail) sidebarEmail.textContent = user.email || '';
 
@@ -2428,9 +2518,13 @@ window.toggleDownloadSong = toggleDownloadSong;
                 const user = auth.currentUser;
                 if (user) {
                     initializeUserUI(user);
+                    loadLikedSongsCount(user.uid);
+                    renderHomeRecentlyPlayed(true);
                     setupUnreadNotificationsListener(user.uid);
+                    setupUserPresence(user);
                 } else {
                     initializeGuestUI();
+                    renderHomeRecentlyPlayed(true);
                 }
                 const notificationBtn = document.getElementById('notificationBtn');
                 if (notificationBtn) {
@@ -2583,7 +2677,7 @@ window.toggleDownloadSong = toggleDownloadSong;
     /**
      * Render Recently Played songs in vertical layout (Max 3 items)
      */
-    const renderHomeRecentlyPlayed = () => {
+    const renderHomeRecentlyPlayed = (force = false) => {
         const container = document.getElementById('homeRecentlyPlayedList');
         if (!container) return;
 
@@ -2610,7 +2704,7 @@ window.toggleDownloadSong = toggleDownloadSong;
                 return;
             }
 
-            const isSameList = homeRecentlyPlayedListCache.length === validSongs.length &&
+            const isSameList = !force && homeRecentlyPlayedListCache.length === validSongs.length &&
                 validSongs.every((s, i) => {
                     const cached = homeRecentlyPlayedListCache[i];
                     if (!cached) return false;
@@ -2914,6 +3008,21 @@ window.spotiwind = {
                 initializeHomeContent();
                 syncActiveSongUI();
                 initializeData();
+                const user = auth.currentUser;
+                if (user) {
+                    initializeUserUI(user);
+                    loadLikedSongsCount(user.uid);
+                    renderHomeRecentlyPlayed(true);
+                    setupUnreadNotificationsListener(user.uid);
+                    setupUserPresence(user);
+                } else {
+                    initializeGuestUI();
+                    renderHomeRecentlyPlayed(true);
+                }
+                const notificationBtn = document.getElementById('notificationBtn');
+                if (notificationBtn) {
+                    notificationBtn.addEventListener('click', () => navigateToNotificationPage(true));
+                }
             }
         };
 

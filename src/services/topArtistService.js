@@ -299,14 +299,25 @@ export const getTopArtists = async (limitCount = DEFAULT_LIMIT) => {
         for (const docSnap of querySnapshot.docs) {
             const data = docSnap.data() || {};
             const artistName = String(data.name || '').trim();
-            const matched = await getKnownLocalArtist(artistName || docSnap.id);
+            let matched = await getKnownLocalArtist(artistName);
+            if (!matched && docSnap.id) {
+                matched = await getKnownLocalArtist(docSnap.id);
+            }
+            if (!matched && data.id) {
+                matched = await getKnownLocalArtist(data.id);
+            }
+
+            // Filter: Hanya tampilkan artis jika sudah ditulis manual di data/artists.json
+            if (!matched) {
+                continue;
+            }
 
             // Automatically migrate and fix paths in Firestore background
             syncArtistPathToFirestore(docSnap.id, data, matched);
 
-            const resolvedPhoto = matched?.photo || normalizeArtistPhotoUrl(data.photo);
-            const resolvedName = matched?.name || artistName || 'Unknown Artist';
-            const resolvedId = matched?.id || docSnap.id;
+            const resolvedPhoto = matched.photo || normalizeArtistPhotoUrl(data.photo);
+            const resolvedName = matched.name || artistName || 'Unknown Artist';
+            const resolvedId = matched.id || docSnap.id;
 
             processedArtists.push({
                 ...data,
@@ -349,14 +360,25 @@ export const subscribeTopArtists = (callback, limitCount = DEFAULT_LIMIT) => {
             for (const docSnap of snapshot.docs) {
                 const data = docSnap.data() || {};
                 const artistName = String(data.name || '').trim();
-                const matched = await getKnownLocalArtist(artistName || docSnap.id);
+                let matched = await getKnownLocalArtist(artistName);
+                if (!matched && docSnap.id) {
+                    matched = await getKnownLocalArtist(docSnap.id);
+                }
+                if (!matched && data.id) {
+                    matched = await getKnownLocalArtist(data.id);
+                }
+
+                // Filter: Hanya tampilkan artis jika sudah ditulis manual di data/artists.json
+                if (!matched) {
+                    continue;
+                }
 
                 // Automatically migrate and fix paths in Firestore background
                 syncArtistPathToFirestore(docSnap.id, data, matched);
 
-                const resolvedPhoto = matched?.photo || normalizeArtistPhotoUrl(data.photo);
-                const resolvedName = matched?.name || artistName || 'Unknown Artist';
-                const resolvedId = matched?.id || docSnap.id;
+                const resolvedPhoto = matched.photo || normalizeArtistPhotoUrl(data.photo);
+                const resolvedName = matched.name || artistName || 'Unknown Artist';
+                const resolvedId = matched.id || docSnap.id;
 
                 processedArtists.push({
                     ...data,

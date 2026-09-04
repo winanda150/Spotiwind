@@ -15,6 +15,7 @@ let homeScrollPosition = Number(sessionStorage.getItem('home_scroll_pos')) || 0;
 let initialHomeContent = null;
 let activeStyleLinks = new Map();
 let isNavigatingOrRestoring = false;
+let savedRouterContext = {};
 
 // Pages that preserve user scroll position across navigation
 export const PERSISTENT_SCROLL_PAGES = new Set([
@@ -157,7 +158,8 @@ export const switchPageStyles = async (targetPage) => {
 /**
  * Main function to load a subpage into the mobile SPA shell
  */
-export const loadSubpage = async (page, options = {}, context = {}) => {
+export const loadSubpage = async (page, options = {}, context = null) => {
+    const activeContext = (context && Object.keys(context).length > 0) ? context : (savedRouterContext || {});
     const contentContainer = document.querySelector('.app-container') || document.getElementById('mobileMainContent');
     if (!contentContainer) return;
 
@@ -221,7 +223,7 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
             targetRoute = initialTab === 'register' ? '/register' : '/login';
             targetTitle = initialTab === 'register' ? 'Register | Spotiwind' : 'Login | Spotiwind';
         } else if (page.includes('artist-mobile.html')) {
-            const artist = context.artistData;
+            const artist = activeContext.artistData;
             const artistUniqueId = artist ? getArtistUniqueId(artist) : '';
             targetRoute = artistUniqueId ? `/artist/${artistUniqueId}` : '/artist';
             targetTitle = artist?.name ? `${artist.name} | Spotiwind` : 'Artist | Spotiwind';
@@ -280,8 +282,8 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
             window.syncActiveSongUI();
         }
 
-        if (typeof context.onHomeMounted === 'function') {
-            context.onHomeMounted();
+        if (typeof activeContext.onHomeMounted === 'function') {
+            activeContext.onHomeMounted();
         }
 
         if (typeof window.syncActiveSongUI === 'function') {
@@ -391,13 +393,13 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
             if (page.includes('search-mobile.html')) {
                 const searchModule = await import('../assets/js/search-mobile.js');
                 if (typeof searchModule.initSearchPage === 'function') {
-                    searchModule.initSearchPage(context.searchParams || {});
+                    searchModule.initSearchPage(activeContext.searchParams || {});
                 }
             } else if (page.includes('artist-mobile.html')) {
                 const artistModule = await import('../assets/js/artist-mobile.js');
                 activePageCleanup = artistModule.cleanupArtistPage;
-                if (typeof artistModule.initArtistPage === 'function' && context.artistData) {
-                    artistModule.initArtistPage(context.artistData, previousPageUrl);
+                if (typeof artistModule.initArtistPage === 'function' && activeContext.artistData) {
+                    artistModule.initArtistPage(activeContext.artistData, previousPageUrl);
                 }
             } else if (page.includes('notifications-mobile.html')) {
                 const notificationsModule = await import('../assets/js/notifications-mobile.js');
@@ -451,12 +453,12 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
                                 window.location.href = returnPage;
                             }
                         },
-                        onSuccess: () => {
+                        onSuccess: async () => {
                             const returnPage = (previousPageUrl && !previousPageUrl.includes('auth-mobile.html'))
                                 ? previousPageUrl
                                 : (sessionStorage.getItem('spotiwind_auth_previous_page') || 'home-mobile.html');
                             updateBottomNavActive(returnPage);
-                            loadSubpage(returnPage, { pushState: true });
+                            await loadSubpage(returnPage, { pushState: true }, savedRouterContext);
                         }
                     });
                 }
@@ -502,7 +504,8 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
 };
 
 export const initPageRouter = (context = {}) => {
-    window.loadPageContent = (page, options) => loadSubpage(page, options, context);
+    savedRouterContext = context;
+    window.loadPageContent = (page, options) => loadSubpage(page, options, savedRouterContext);
     window.setPageScrollPosition = setPageScrollPosition;
     window.getPageScrollPosition = getPageScrollPosition;
     window.setHomeScrollPosition = (pos) => setPageScrollPosition('home-mobile.html', pos);
