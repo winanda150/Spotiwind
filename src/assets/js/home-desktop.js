@@ -575,6 +575,14 @@ const renderGridProgressively = async (gridSelector, items, itemRenderer, skelet
 
     const skeletons = grid.querySelectorAll(skeletonSelector);
 
+    // Jika tidak ada skeleton (misal halaman dipulihkan dari cache snapshot DOM),
+    // langsung ganti konten agar tidak menduplikasi kartu di bawah kartu lama
+    if (skeletons.length === 0) {
+        grid.innerHTML = items.map(itemRenderer).join('');
+        syncActiveDesktopUI();
+        return;
+    }
+
     // Clear any excess skeletons if the number of items is less than skeletons
     for (let i = items.length; i < skeletons.length; i++) {
         skeletons[i].remove();
@@ -589,6 +597,7 @@ const renderGridProgressively = async (gridSelector, items, itemRenderer, skelet
         }
         await new Promise(res => setTimeout(res, 50)); // Small delay for visual effect
     }
+    syncActiveDesktopUI();
 };
 
 /**
@@ -653,7 +662,8 @@ const fetchTopArtists = async () => {
                     </div>
                 `;
             } else {
-                if (isFirstLoad) {
+                const hasSkeletons = Boolean(grid.querySelector('.artist-card-skeleton'));
+                if (isFirstLoad && hasSkeletons) {
                     renderGridProgressively('.artists-grid', artists, createArtistCardHTML, '.artist-card-skeleton');
                 } else {
                     grid.innerHTML = artists.map(createArtistCardHTML).join('');
@@ -719,7 +729,16 @@ const fetchMadeForYou = async () => {
         const mixes = await getMadeForYouMixes();
         if (!mixes || mixes.length === 0) return false;
         desktopMadeForYouMixes = mixes;
-        renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton');
+        const hasSkeletons = Boolean(document.querySelector(`${gridSelector} .song-card-skeleton`));
+        if (hasSkeletons) {
+            renderGridProgressively(gridSelector, mixes, createMixCardHTML, '.song-card-skeleton');
+        } else {
+            const grid = document.querySelector(gridSelector);
+            if (grid) {
+                grid.innerHTML = mixes.map(createMixCardHTML).join('');
+                syncActiveDesktopUI();
+            }
+        }
         return true;
     } catch (error) {
         console.error("Failed to load desktop Made for You mixes:", error);
@@ -771,10 +790,12 @@ const fetchTrendingMusic = async () => {
             } else {
                 currentPlaylist = rawSongs;
                 syncQueueState(currentPlaylist, null, -1);
-                if (isFirstLoad) {
+                const hasSkeletons = Boolean(grid.querySelector('.song-card-skeleton'));
+                if (isFirstLoad && hasSkeletons) {
                     renderGridProgressively(gridSelector, rawSongs, createSongCardHTML, '.song-card-skeleton');
                 } else {
                     grid.innerHTML = rawSongs.map(createSongCardHTML).join('');
+                    syncActiveDesktopUI();
                 }
             }
 
