@@ -1,6 +1,6 @@
 # Spotiwind
 
-![Spotiwind Banner](frontend/public/Elemen/Logo/Spotiwind%20Animation%20Logo.gif)
+![Spotiwind Banner](public/branding/Spotiwind%20Animation%20Logo.gif)
 
 **Feel the Music, Ride the Wind.**
 
@@ -15,7 +15,8 @@ Implementasi yang sudah menjadi fondasi meliputi:
 - Halaman web responsif untuk desktop dan mobile
 - Service autentikasi, profil, library, favorit, player, pencarian, katalog, aktivitas, notifikasi, dan presence
 - Integrasi yang direncanakan dengan Firebase dan Jamendo
-- Katalog aset lagu dan artis Indonesia di `frontend/public/Elemen/`
+- Katalog aset lagu dan artis Indonesia di `public/music/`
+- Branding dan logo resmi Spotiwind di `public/branding/`
 - Cloud Functions Firebase di `database/`
 
 ## Produk yang Direncanakan
@@ -62,17 +63,18 @@ Firestore menjadi sumber data utama, bukan Firebase Realtime Database. Model dat
 ```text
 .
 ├── index.html                   # Router redirect otomatis berdasarkan ukuran layar
-├── frontend/
-│   ├── public/                  # Logo, gambar, audio, dan manifest katalog
-│   └── src/
-│       ├── assets/              # CSS (index.css, auth-desktop.css, auth-mobile.css, home-desktop.css, home-mobile.css, dll) & JS (index.js, auth-desktop.js, auth-mobile.js, home-desktop.js, home-mobile.js, dll)
-│       ├── pages/               # Halaman aplikasi (home-desktop.html, home-mobile.html, auth-desktop.html, auth-mobile.html, search, radio, library, account, notifications, artist)
-│       └── services/            # Auth, catalog, player, library, dan service lain
-├── database/
-│   ├── index.js                 # Entry point Cloud Functions
-│   ├── src/handlers/            # Handler backend
-│   ├── firestore.rules          # Firestore Security Rules
-│   └── database.rules.json      # Aturan database terkait
+├── public/                      # Branding, gambar, audio, dan manifest katalog
+│   ├── branding/                # Logo resmi, banner, dan ikon aplikasi
+│   ├── data/                    # Manifest katalog JSON (artists.json, songs.json, albums.json)
+│   └── music/                   # Folder katalog musik & foto artis lokal
+├── src/
+│   ├── assets/                  # CSS & JS modular
+│   ├── components/              # Modals, sheets, players
+│   ├── core/                    # Core engine, audio, router & page loader
+│   ├── pages/                   # Halaman aplikasi (home-desktop.html, home-mobile.html, dll)
+│   └── services/                # Auth, catalog, player, library, dan service lain
+├── api/                         # Vercel Serverless Functions (OG Image generator, dll)
+├── database/                    # Cloud Functions & Security Rules Firebase
 ├── docs/                        # Dokumentasi produk dan engineering
 └── README.md
 ```
@@ -93,7 +95,7 @@ Urutan bacaan yang disarankan adalah `PRD.md` untuk scope, `DESIGN.md` untuk UI,
 
 ## Pengembangan Lokal
 
-Untuk mencoba UI saat ini, buka `index.html` (router otomatis) atau langsung ke `frontend/src/pages/home-desktop.html` / `frontend/src/pages/home-mobile.html` melalui local server. Service Firebase Functions menggunakan Node.js 18 dan memiliki perintah berikut dari folder `database/`:
+Untuk mencoba UI saat ini, buka `index.html` (router otomatis) atau langsung ke `src/pages/home-desktop.html` / `src/pages/home-mobile.html` melalui local server. Service Firebase Functions menggunakan Node.js 18 dan memiliki perintah berikut dari folder `database/`:
 
 ```bash
 npm install

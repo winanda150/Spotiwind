@@ -1,33 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#0f172a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" type="image/x-icon" href="frontend/public/Elemen/Logo/Spotiwind.ico">
+    <link rel="icon" type="image/x-icon" href="public/branding/Spotiwind.ico">
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="frontend/src/assets/css/index.css">
+    <link rel="stylesheet" href="src/assets/css/index.css">
     <title>Spotiwind — Feel The Music, Ride The Wind</title>
     <meta name="title" content="Spotiwind — Your Favorite Music Streaming Platform">
-    <meta name="description" content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
+    <meta name="description"
+        content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
     <!-- Open Graph / WhatsApp Preview Meta Tags -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Spotiwind">
-    <meta property="og:title" content="Spotiwind — Your Favorite Music Streaming Platform">
-    <meta property="og:description" content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
-    <meta property="og:image" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
-    <meta property="og:image:secure_url" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
-    <meta property="og:image:type" content="image/webp">
-    <meta property="og:image:width" content="512">
-    <meta property="og:image:height" content="512">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:title" content="Spotiwind — Music Streaming Platform">
+    <meta property="og:description"
+        content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
+    <meta property="og:image" content="https://spotiwind-music.vercel.app/public/branding/Spotiwind%20OG%20Image.jpg">
+    <meta property="og:image:secure_url"
+        content="https://spotiwind-music.vercel.app/public/branding/Spotiwind%20OG%20Image.jpg">
+    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Spotiwind — Your Favorite Music Streaming Platform">
-    <meta name="twitter:description" content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
-    <meta name="twitter:image" content="https://spotiwind-music.vercel.app/frontend/public/Elemen/Logo/Spotiwind.webp">
+    <meta name="twitter:description"
+        content="Discover millions of songs, trending artists, and curated playlists. Enjoy crystal-clear audio and modern streaming on Spotiwind.">
+    <meta name="twitter:image" content="https://spotiwind-music.vercel.app/public/branding/Spotiwind%20OG%20Image.jpg">
     <script>
         // Register PWA Service Worker for 100% offline access
         if ('serviceWorker' in navigator) {
@@ -40,21 +46,21 @@
     </script>
     <script>
         // Ensure relative asset URLs resolve correctly from app root on deep paths or refresh
-        (function() {
+        (function () {
             var base = document.createElement('base');
             base.href = window.location.origin + '/';
             document.head.appendChild(base);
         })();
 
         // Suppress third-party/extension performance observer noise in console
-        (function() {
-            var isExtensionNoise = function(text) {
+        (function () {
+            var isExtensionNoise = function (text) {
                 if (!text) return false;
                 var str = String(text);
                 return str.indexOf('startTime') !== -1 || str.indexOf('reportAllChanges') !== -1;
             };
 
-            var suppress = function(e) {
+            var suppress = function (e) {
                 var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
                 var stack = (e && e.error && e.error.stack) || '';
                 if (isExtensionNoise(msg) || isExtensionNoise(stack)) {
@@ -64,13 +70,13 @@
                 }
             };
             window.addEventListener('error', suppress, true);
-            window.onerror = function(msg, url, line, col, err) {
+            window.onerror = function (msg, url, line, col, err) {
                 var text = String(msg || '') + ' ' + String(err && err.stack || '');
                 if (isExtensionNoise(text)) {
                     return true;
                 }
             };
-            window.addEventListener('unhandledrejection', function(e) {
+            window.addEventListener('unhandledrejection', function (e) {
                 var reason = String(e && e.reason ? (e.reason.message || e.reason.stack || e.reason) : '');
                 if (isExtensionNoise(reason)) {
                     e.preventDefault();
@@ -80,9 +86,9 @@
             // Intercept console.error calls from injected scripts
             if (window.console && window.console.error) {
                 var origError = window.console.error;
-                window.console.error = function() {
+                window.console.error = function () {
                     var args = Array.prototype.slice.call(arguments);
-                    var joined = args.map(function(a) {
+                    var joined = args.map(function (a) {
                         return (a && (a.message || a.stack || String(a))) || '';
                     }).join(' ');
                     if (isExtensionNoise(joined)) {
@@ -93,12 +99,14 @@
             }
         })();
     </script>
-    <script type="module" src="frontend/src/assets/js/index.js"></script>
+    <script type="module" src="src/assets/js/index.js"></script>
 </head>
+
 <body>
     <main class="router-loader" aria-live="polite" aria-busy="true">
-        <img class="router-logo" src="frontend/public/Elemen/Logo/Spotiwind.webp" alt="Spotiwind Logo">
+        <img class="router-logo" src="public/branding/Spotiwind.webp" alt="Spotiwind Logo">
         <p class="router-text">Loading Spotiwind...</p>
     </main>
 </body>
+
 </html>

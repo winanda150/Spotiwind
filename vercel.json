@@ -5,6 +5,18 @@
       "destination": "/api/artist-og?id=:id"
     },
     {
+      "source": "/branding/:path*",
+      "destination": "/public/branding/:path*"
+    },
+    {
+      "source": "/music/:path*",
+      "destination": "/public/music/:path*"
+    },
+    {
+      "source": "/data/:path*",
+      "destination": "/public/data/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

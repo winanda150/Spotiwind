@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script>
+        // Suppress third-party/extension performance observer noise in console
+        (function() {
+            var isExtensionNoise = function(text) {
+                if (!text) return false;
+                var str = String(text);
+                return str.indexOf('startTime') !== -1 || str.indexOf('reportAllChanges') !== -1;
+            };
+
+            var suppress = function(e) {
+                var msg = (e && (e.message || (e.error && e.error.message) || String(e))) || '';
+                var stack = (e && e.error && e.error.stack) || '';
+                if (isExtensionNoise(msg) || isExtensionNoise(stack)) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                    return true;
+                }
+            };
+            window.addEventListener('error', suppress, true);
+            window.onerror = function(msg, url, line, col, err) {
+                var text = String(msg || '') + ' ' + String(err && err.stack || '');
+                if (isExtensionNoise(text)) {
+                    return true;
+                }
+            };
+            window.addEventListener('unhandledrejection', function(e) {
+                var reason = String(e && e.reason ? (e.reason.message || e.reason.stack || e.reason) : '');
+                if (isExtensionNoise(reason)) {
+                    e.preventDefault();
+                }
+            });
+
+            // Intercept console.error calls from injected scripts
+            if (window.console && window.console.error) {
+                var origError = window.console.error;
+                window.console.error = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    var joined = args.map(function(a) {
+                        return (a && (a.message || a.stack || String(a))) || '';
+                    }).join(' ');
+                    if (isExtensionNoise(joined)) {
+                        return;
+                    }
+                    return origError.apply(window.console, arguments);
+                };
+            }
+        })();
+
+        // Ensure relative URLs in DOM and fetch resolve correctly from pages directory
+        (function() {
+            var base = document.createElement('base');
+            base.href = window.location.origin + '/src/pages/';
+            document.head.appendChild(base);
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#03030a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Login & Register - Spotiwind Mobile</title>
+    <meta name="description"
+        content="Log in or create a Spotiwind account on mobile. Stream millions of lossless tracks and enjoy curated playlists on the go.">
+    <meta name="keywords" content="Spotiwind mobile login, music streaming, playlists, mobile auth">
+    <link rel="icon" type="image/x-icon" href="../../public/branding/Spotiwind.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/auth-mobile.css">
+</head>
+
+<body>
+    <main class="mobile-auth-container">
+        <!-- Top App Navigation -->
+        <header class="mobile-top-bar">
+            <button type="button" id="mBackBtn" class="back-btn-pill" title="Back to Music">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m15 18-6-6 6-6"/>
+                </svg>
+                <span>Back</span>
+            </button>
+        </header>
+
+        <!-- Brand Hero -->
+        <section class="mobile-brand-hero">
+            <img class="hero-logo-img" src="../../public/branding/Spotiwind.webp" alt="Spotiwind Logo">
+            <div class="hero-brand-name">Spotiwind</div>
+            <div class="hero-tagline">FEEL THE MUSIC, RIDE THE WIND</div>
+            
+            <div class="mobile-heading-group">
+                <h1 class="mobile-title" id="mTitle">Welcome back!</h1>
+                <p class="mobile-subtitle" id="mSubtitle">Good to see you again. Log in to continue your music journey.</p>
+            </div>
+        </section>
+
+        <!-- Login Form -->
+        <form id="mLoginForm" class="mobile-form" autocomplete="on">
+            <div class="m-input-group">
+                <label for="m-login-email" class="m-label">Email or Username</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </span>
+                    <input id="m-login-email" name="username" type="text" autocomplete="username" required placeholder="Email or username" class="m-input-field no-right">
+                </div>
+            </div>
+
+            <div class="m-input-group">
+                <label for="m-login-password" class="m-label">Password</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
+                    <input id="m-login-password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" class="m-input-field">
+                    <button type="button" class="m-pwd-toggle" aria-label="Toggle password visibility">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="m-options-row">
+                <label class="m-checkbox-label">
+                    <input type="checkbox" id="m-login-remember" checked>
+                    <span class="m-check-box-ui">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </span>
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="m-forgot-link" id="mForgotPassword">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="m-submit-btn">
+                <span>Log In</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="mRegisterForm" class="mobile-form hidden" autocomplete="on">
+            <div class="m-row-2col">
+                <div class="m-input-group">
+                    <label for="m-reg-firstname" class="m-label">First Name</label>
+                    <div class="m-input-box">
+                        <span class="m-input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </span>
+                        <input id="m-reg-firstname" name="firstName" type="text" autocomplete="given-name" required placeholder="First name" class="m-input-field no-right">
+                    </div>
+                </div>
+
+                <div class="m-input-group">
+                    <label for="m-reg-lastname" class="m-label">Last Name</label>
+                    <div class="m-input-box">
+                        <span class="m-input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </span>
+                        <input id="m-reg-lastname" name="lastName" type="text" autocomplete="family-name" required placeholder="Last name" class="m-input-field no-right">
+                    </div>
+                </div>
+            </div>
+
+            <div class="m-input-group">
+                <label for="m-reg-email" class="m-label">Email Address</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </span>
+                    <input id="m-reg-email" name="email" type="email" autocomplete="email" required placeholder="Email address" class="m-input-field no-right">
+                </div>
+            </div>
+
+            <div class="m-input-group">
+                <label for="m-reg-username" class="m-label">Username</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="4"/>
+                            <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/>
+                        </svg>
+                    </span>
+                    <input id="m-reg-username" name="username" type="text" autocomplete="username" required placeholder="Username" class="m-input-field no-right">
+                </div>
+            </div>
+
+            <div class="m-input-group">
+                <label for="m-reg-password" class="m-label">Password</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </span>
+                    <input id="m-reg-password" name="password" type="password" autocomplete="new-password" required placeholder="Min 6 characters" class="m-input-field">
+                    <button type="button" class="m-pwd-toggle" aria-label="Toggle password visibility">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="m-input-group">
+                <label for="m-reg-confirm-password" class="m-label">Confirm Password</label>
+                <div class="m-input-box">
+                    <span class="m-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+                        </svg>
+                    </span>
+                    <input id="m-reg-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required placeholder="Confirm password" class="m-input-field">
+                    <button type="button" class="m-pwd-toggle" aria-label="Toggle password visibility">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <label class="m-checkbox-label m-terms-row">
+                <input type="checkbox" id="m-reg-terms" required>
+                <span class="m-check-box-ui">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </span>
+                <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span>
+            </label>
+
+            <button type="submit" class="m-submit-btn">
+                <span>Sign Up</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="mobile-divider">
+            <span class="m-divider-line"></span>
+            <span class="m-divider-text">or continue with</span>
+            <span class="m-divider-line"></span>
+        </div>
+
+        <!-- Social Logins (Positioned below inputs) -->
+        <div class="mobile-social-row">
+            <button type="button" class="m-social-btn" id="mGoogleBtn" aria-label="Sign in with Google">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="#4285F4" d="M23.49 12.275c0-.826-.074-1.62-.21-2.384H12v4.508h6.44a5.505 5.505 0 0 1-2.389 3.614l3.864 3c2.261-2.082 3.575-5.144 3.575-8.738z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.958-1.076 7.944-2.912l-3.864-3c-1.072.718-2.443 1.144-4.08 1.144-3.14 0-5.8-2.12-6.753-4.975l-3.993 3.093C3.21 21.013 7.29 24 12 24z" />
+                    <path fill="#FBBC05" d="M5.247 14.257c-.24-.718-.377-1.488-.377-2.257s.137-1.539.377-2.257l-3.993-3.093C.478 8.442 0 10.17 0 12c0 1.83.478 3.558 1.254 5.35l3.993-3.093z" />
+                    <path fill="#EA4335" d="M12 4.773c1.762 0 3.344.605 4.587 1.792l3.438-3.438C17.95 1.127 15.234 0 12 0 7.29 0 3.21 2.987 1.254 6.65l3.993 3.093c.953-2.855 3.613-4.97 6.753-4.97z" />
+                </svg>
+            </button>
+            <button type="button" class="m-social-btn" id="mFacebookBtn" aria-label="Sign in with Facebook">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="12" fill="#1877F2" />
+                    <path d="M15.12 12.355h-2.207v7.928h-3.282v-7.928H8.188V9.562h1.443V7.729c0-1.192.566-3.058 3.058-3.058l2.246.009v2.71h-1.629c-.268 0-.644.134-.644.704v1.468h2.3l-.284 2.793z" fill="white" />
+                </svg>
+            </button>
+            <button type="button" class="m-social-btn" id="mAppleBtn" aria-label="Sign in with Apple">
+                <svg fill="white" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Footer Switch -->
+        <footer class="m-footer-switch" id="mLoginFooter">
+            <span>Don't have an account?</span>
+            <button type="button" class="m-switch-btn" id="mRegisterSwitchBtn">Sign up</button>
+        </footer>
+        <footer class="m-footer-switch hidden" id="mRegisterFooter">
+            <span>Already have an account?</span>
+            <button type="button" class="m-switch-btn" id="mLoginSwitchBtn">Log in</button>
+        </footer>
+    </main>
+
+    <!-- Mobile Toast Container -->
+    <div class="m-toast-container" id="mToastContainer"></div>
+
+    <script type="module" src="../assets/js/auth-mobile.js"></script>
+</body>
+
+</html>

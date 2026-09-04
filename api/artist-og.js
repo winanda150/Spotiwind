@@ -39,11 +39,11 @@ function getArtistsList() {
     if (cachedArtists) return cachedArtists;
     try {
         // Require directly so Vercel Node File Trace bundles it into the function
-        cachedArtists = require('../frontend/public/data/artists.json');
+        cachedArtists = require('../public/data/artists.json');
         if (Array.isArray(cachedArtists)) return cachedArtists;
     } catch {
         try {
-            const p = path.join(process.cwd(), 'frontend', 'public', 'data', 'artists.json');
+            const p = path.join(process.cwd(), 'public', 'data', 'artists.json');
             if (fs.existsSync(p)) {
                 cachedArtists = JSON.parse(fs.readFileSync(p, 'utf8'));
                 return cachedArtists;
@@ -92,8 +92,11 @@ module.exports = async (req, res) => {
     }
 
     const ogImage = photoPath
-        ? `${baseUrl}/frontend/public/${photoPath}`
-        : `${baseUrl}/frontend/public/Elemen/Logo/Spotiwind.webp`;
+        ? `${baseUrl}/public/${photoPath}`
+        : `${baseUrl}/public/branding/Spotiwind%20OG%20Image.jpg`;
+    const ogImageType = photoPath ? 'image/webp' : 'image/jpeg';
+    const ogImageWidth = photoPath ? '640' : '1200';
+    const ogImageHeight = photoPath ? '640' : '630';
 
     const pageUrl = `${baseUrl}/artist/${artistId}`;
     const pageTitle = `${artistName} | Spotiwind`;
@@ -121,9 +124,9 @@ module.exports = async (req, res) => {
     <meta property="og:description" content="${pageDesc}">
     <meta property="og:image" content="${ogImage}">
     <meta property="og:image:secure_url" content="${ogImage}">
-    <meta property="og:image:type" content="image/webp">
-    <meta property="og:image:width" content="640">
-    <meta property="og:image:height" content="640">
+    <meta property="og:image:type" content="${ogImageType}">
+    <meta property="og:image:width" content="${ogImageWidth}">
+    <meta property="og:image:height" content="${ogImageHeight}">
     <meta property="og:image:alt" content="Official profile of ${artistName}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${pageUrl}">
