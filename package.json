@@ -4,6 +4,6 @@
   "description": "Spotiwind Music Streaming Web App",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }
