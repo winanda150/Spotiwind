@@ -55,10 +55,57 @@ export const normalizePopularTrackAssetUrl = (url) => {
         .replace(/^\/?frontend\/public\//, '')
         .replace(/^\/?public\//, '')
         .replace(/^Elemen\/Logo\//, 'branding/')
+        .replace(/^Logo\//, 'branding/')
         .replace(/^Elemen\//, 'music/')
+        .replace(/Gambar[12]\.webp/gi, 'Hero%20Section.webp')
         .replace(/^\/+/, '');
 
     return `../../public/${cleanPath}`;
+};
+
+/**
+ * Automatically syncs & updates track paths in Firestore if Firestore holds legacy or outdated paths.
+ * @param {string} docId - Firestore document ID
+ * @param {Object} rawData - Raw data stored in Firestore document
+ */
+export const syncPopularTrackPathToFirestore = async (docId, rawData = {}) => {
+    if (!docId) return;
+
+    const rawCover = String(rawData.cover || '').trim();
+    const rawAudio = String(rawData.audio || '').trim();
+
+    const targetCover = normalizePopularTrackAssetUrl(rawCover || '../../public/branding/Spotiwind.webp');
+    const targetAudio = normalizePopularTrackAssetUrl(rawAudio);
+
+    const hasLegacyCover = rawCover && (
+        rawCover.includes('Elemen') ||
+        rawCover.includes('frontend') ||
+        rawCover.includes('Logo') ||
+        rawCover.includes('Gambar1') ||
+        rawCover.includes('Gambar2') ||
+        rawCover !== targetCover
+    );
+
+    const hasLegacyAudio = rawAudio && (
+        rawAudio.includes('Elemen') ||
+        rawAudio.includes('frontend') ||
+        rawAudio !== targetAudio
+    );
+
+    if (hasLegacyCover || hasLegacyAudio) {
+        try {
+            const trackRef = doc(getPopularTracksRef(), docId);
+            const updates = {
+                updatedAt: serverTimestamp()
+            };
+            if (hasLegacyCover) updates.cover = targetCover;
+            if (hasLegacyAudio) updates.audio = targetAudio;
+
+            await setDoc(trackRef, updates, { merge: true });
+        } catch {
+            // Background sync is silent to avoid blocking UI
+        }
+    }
 };
 
 /**
@@ -154,6 +201,7 @@ export const getPopularTracks = async (limitCount = DEFAULT_LIMIT) => {
 
         const tracks = querySnapshot.docs.map((docSnap) => {
             const data = docSnap.data() || {};
+            syncPopularTrackPathToFirestore(docSnap.id, data);
             return {
                 id: docSnap.id,
                 ...data,
@@ -189,6 +237,7 @@ export const subscribePopularTracks = (callback, limitCount = DEFAULT_LIMIT) => 
         return onSnapshot(q, (snapshot) => {
             const tracks = snapshot.docs.map((docSnap) => {
                 const data = docSnap.data() || {};
+                syncPopularTrackPathToFirestore(docSnap.id, data);
                 return {
                     id: docSnap.id,
                     ...data,
