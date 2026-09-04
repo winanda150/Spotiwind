@@ -322,8 +322,13 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
         return;
     }
 
-    if (currentPageUrl && currentPageUrl !== page && !page.includes('auth-mobile.html')) {
-        previousPageUrl = currentPageUrl;
+    if (currentPageUrl && currentPageUrl !== page) {
+        if (!currentPageUrl.includes('auth-mobile.html')) {
+            previousPageUrl = currentPageUrl;
+            try {
+                sessionStorage.setItem('spotiwind_auth_previous_page', currentPageUrl);
+            } catch {}
+        }
     }
     currentPageUrl = page;
 
@@ -426,9 +431,33 @@ export const loadSubpage = async (page, options = {}, context = {}) => {
                 const authModule = await import('../assets/js/auth-mobile.js');
                 activePageCleanup = authModule.cleanupAuthMobilePage;
                 if (typeof authModule.initAuthMobilePage === 'function') {
+                    const resolvedPrevious = (previousPageUrl && !previousPageUrl.includes('auth-mobile.html'))
+                        ? previousPageUrl
+                        : (sessionStorage.getItem('spotiwind_auth_previous_page') || 'home-mobile.html');
+
                     authModule.initAuthMobilePage({
                         initialTab: options.initialTab || 'login',
-                        onSuccess: () => loadSubpage('home-mobile.html', { pushState: true })
+                        previousPage: resolvedPrevious,
+                        onBack: async () => {
+                            const returnPage = (previousPageUrl && !previousPageUrl.includes('auth-mobile.html'))
+                                ? previousPageUrl
+                                : (sessionStorage.getItem('spotiwind_auth_previous_page') || 'home-mobile.html');
+
+                            updateBottomNavActive(returnPage);
+
+                            if (typeof window.loadPageContent === 'function') {
+                                await window.loadPageContent(returnPage, { pushState: true });
+                            } else {
+                                window.location.href = returnPage;
+                            }
+                        },
+                        onSuccess: () => {
+                            const returnPage = (previousPageUrl && !previousPageUrl.includes('auth-mobile.html'))
+                                ? previousPageUrl
+                                : (sessionStorage.getItem('spotiwind_auth_previous_page') || 'home-mobile.html');
+                            updateBottomNavActive(returnPage);
+                            loadSubpage(returnPage, { pushState: true });
+                        }
                     });
                 }
             }

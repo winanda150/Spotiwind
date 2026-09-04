@@ -1894,8 +1894,13 @@ document.addEventListener('DOMContentLoaded', () => {
             initialDesktopHomeContent = dashboardContainer.innerHTML;
         }
 
-        if (desktopCurrentPageUrl && desktopCurrentPageUrl !== page && !page.includes('auth-desktop.html')) {
-            desktopPreviousPageUrl = desktopCurrentPageUrl;
+        if (desktopCurrentPageUrl && desktopCurrentPageUrl !== page) {
+            if (!desktopCurrentPageUrl.includes('auth-desktop.html')) {
+                desktopPreviousPageUrl = desktopCurrentPageUrl;
+                try {
+                    sessionStorage.setItem('spotiwind_desktop_auth_previous_page', desktopCurrentPageUrl);
+                } catch {}
+            }
         }
         desktopCurrentPageUrl = page;
 
@@ -1934,14 +1939,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         const authModule = await import('./auth-desktop.js');
                         if (authModule && typeof authModule.initAuthDesktopPage === 'function') {
+                            const resolvedPrev = (desktopPreviousPageUrl && !desktopPreviousPageUrl.includes('auth-desktop.html'))
+                                ? desktopPreviousPageUrl
+                                : (sessionStorage.getItem('spotiwind_desktop_auth_previous_page') || 'home-desktop.html');
+
                             authModule.initAuthDesktopPage({
                                 initialTab: options.initialTab || 'login',
+                                previousPage: resolvedPrev,
                                 onBack: async () => {
-                                    await loadDesktopPageContent('home-desktop.html', { pushState: true });
+                                    const targetPage = (desktopPreviousPageUrl && !desktopPreviousPageUrl.includes('auth-desktop.html'))
+                                        ? desktopPreviousPageUrl
+                                        : (sessionStorage.getItem('spotiwind_desktop_auth_previous_page') || 'home-desktop.html');
+                                    await loadDesktopPageContent(targetPage, { pushState: true });
                                 },
                                 onSuccess: async (user) => {
                                     await initializeDesktopUserUI(user);
-                                    await loadDesktopPageContent('home-desktop.html', { pushState: true });
+                                    const targetPage = (desktopPreviousPageUrl && !desktopPreviousPageUrl.includes('auth-desktop.html'))
+                                        ? desktopPreviousPageUrl
+                                        : (sessionStorage.getItem('spotiwind_desktop_auth_previous_page') || 'home-desktop.html');
+                                    await loadDesktopPageContent(targetPage, { pushState: true });
                                 }
                             });
                             activeDesktopPageCleanup = authModule.cleanupAuthDesktopPage;

@@ -40,6 +40,8 @@ export const getErrorMessage = (code) => {
     }
 };
 
+import { clearGuestHistory } from "./guestHistoryService.js";
+
 /**
  * Handles user registration with email and password.
  * @param {string} name - The user's full name.
@@ -62,6 +64,7 @@ export const registerWithEmail = async (name, email, password, rememberMe, usern
 
     await setPersistence(auth, persistence);
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    clearGuestHistory();
     await updateProfile(userCredential.user, {
         displayName: name
     });
@@ -108,6 +111,7 @@ export const loginWithEmail = async (email, password, rememberMe) => {
     await setPersistence(auth, persistence);
     const loginEmail = await resolveLoginEmail(email.trim());
     const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+    clearGuestHistory();
     return userCredential.user;
 };
 
@@ -120,7 +124,9 @@ export const loginWithSocial = async (providerName) => {
     const provider = providerName === 'google' ? new GoogleAuthProvider()
         : providerName === 'facebook' ? new FacebookAuthProvider()
         : new OAuthProvider('apple.com');
-    return signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    clearGuestHistory();
+    return result;
 };
 
 export const resetPassword = (email) => {

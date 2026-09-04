@@ -64,7 +64,7 @@ export function switchToLibraryTab(tabKey, options = {}) {
         renderRecentPlaylistsOverview(currentPlaylists, !auth.currentUser);
         renderLikedSongsOverview(currentLikedSongs, !auth.currentUser);
     } else if (activeLibraryTab === 'download') {
-        renderDownloadsPanel();
+        renderDownloadsPanel(!auth.currentUser);
     } else if (activeLibraryTab === 'tracks') {
         renderTracksPanel(currentLikedSongs, !auth.currentUser);
     } else if (activeLibraryTab === 'playlists') {
@@ -84,7 +84,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     const handleDownloadsUpdated = () => {
         updateLocalStats();
         if (activeLibraryTab === 'download') {
-            renderDownloadsPanel();
+            renderDownloadsPanel(!auth.currentUser);
         }
     };
     window.addEventListener('downloads-updated', handleDownloadsUpdated);
@@ -208,7 +208,7 @@ function formatCount(count, singular = 'song', plural = 'songs') {
 function setupRealtimeOverviewData() {
     // 1. Update localStorage-based counts (Downloads & Recently Played)
     updateLocalStats();
-    renderDownloadsPanel();
+    renderDownloadsPanel(!auth.currentUser);
 
     window.addEventListener('recently-played-updated', updateLocalStats, { passive: true });
 
@@ -217,17 +217,25 @@ function setupRealtimeOverviewData() {
         cleanupUserSubscriptions();
 
         if (user) {
+            updateLocalStats();
             bindUserLikedSongs(user.uid);
             bindUserPlaylists(user.uid);
+            if (activeLibraryTab === 'download') {
+                renderDownloadsPanel(false);
+            }
         } else {
             currentLikedSongs = [];
             currentPlaylists = [];
             setLikedSongsCount(0);
             setFavoritesCount(0);
+            setDownloadsCount(0);
             renderTracksPanel([], true);
             renderPlaylistsPanel([], true);
             renderRecentPlaylistsOverview([], true);
             renderLikedSongsOverview([], true);
+            if (activeLibraryTab === 'download') {
+                renderDownloadsPanel(true);
+            }
         }
     });
 
@@ -336,9 +344,13 @@ function bindUserPlaylists(uid) {
 function updateLocalStats() {
     // Downloads
     try {
-        const savedDownloads = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
-        const count = Array.isArray(savedDownloads) ? savedDownloads.length : 0;
-        setDownloadsCount(count);
+        if (!auth.currentUser) {
+            setDownloadsCount(0);
+        } else {
+            const savedDownloads = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
+            const count = Array.isArray(savedDownloads) ? savedDownloads.length : 0;
+            setDownloadsCount(count);
+        }
     } catch {
         setDownloadsCount(0);
     }
@@ -562,15 +574,31 @@ function renderTracksPanel(songs = [], isGuest = false) {
     }
 }
 
-function renderDownloadsPanel() {
+function renderDownloadsPanel(isGuest = !auth.currentUser) {
     const container = document.getElementById('libraryDownloadsList');
     if (!container) return;
+
+    if (isGuest) {
+        setDownloadsCount(0);
+        container.innerHTML = `
+            <div class="library-empty-state">
+                <div class="library-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </div>
+                <h3 class="library-empty-title">Download music for offline listening</h3>
+                <p class="library-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
+                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
+            </div>
+        `;
+        return;
+    }
 
     try {
         const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
         const downloads = JSON.parse(raw);
 
         if (!Array.isArray(downloads) || downloads.length === 0) {
+            setDownloadsCount(0);
             container.innerHTML = `
                 <div class="library-empty-state">
                     <div class="library-empty-icon">
@@ -583,6 +611,7 @@ function renderDownloadsPanel() {
             return;
         }
 
+        setDownloadsCount(downloads.length);
         container.innerHTML = downloads.map(song => createSongItemHTML(song, { isDownloadView: true })).join('');
         if (typeof window.syncActiveSongUI === 'function') {
             window.syncActiveSongUI();
@@ -700,6 +729,9 @@ function setupSongActionListeners() {
         const emptyAuthBtn = e.target.closest('a.library-empty-btn, a[href*="auth"]');
         if (emptyAuthBtn) {
             e.preventDefault();
+            try {
+                sessionStorage.setItem('spotiwind_auth_previous_page', 'library-mobile.html');
+            } catch {}
             if (typeof window.navigateToAuthPage === 'function') {
                 window.navigateToAuthPage('login');
             } else {

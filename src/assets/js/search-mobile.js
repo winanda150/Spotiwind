@@ -1,4 +1,4 @@
-import { auth } from './firebase-config.js';
+import { auth, onAuthStateChanged } from './firebase-config.js';
 import { areSameSongs } from '../../utils/audioUtils.js';
 import { searchCatalogData } from '../../services/searchService.js';
 import {
@@ -386,6 +386,16 @@ export const initSearchPage = ({
     };
 
     renderRecentSearches();
+
+    window.addEventListener('recent-searches-updated', () => {
+        renderRecentSearches();
+    }, { passive: true });
+
+    if (typeof onAuthStateChanged === 'function') {
+        onAuthStateChanged(auth, () => {
+            renderRecentSearches();
+        });
+    }
 
     recentSearchesList?.addEventListener('click', (event) => {
         const recentCard = event.target.closest('[data-recent-query]');

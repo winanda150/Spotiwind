@@ -33,7 +33,8 @@ export const initAuthDesktopPage = (options = {}) => {
     const {
         initialTab = 'login',
         onBack = null,
-        onSuccess = null
+        onSuccess = null,
+        previousPage = null
     } = options;
 
     // Elements
@@ -132,17 +133,45 @@ export const initAuthDesktopPage = (options = {}) => {
 
     // Back to Music Handler
     if (backToMusicBtn) {
-        backToMusicBtn.addEventListener('click', (e) => {
+        backToMusicBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+
             if (typeof onBack === 'function') {
-                onBack();
-            } else if (typeof window.loadDesktopPageContent === 'function') {
-                window.loadDesktopPageContent('home-desktop.html');
-            } else if (window.history.length > 1) {
+                await onBack();
+                return;
+            }
+
+            let targetPage = previousPage;
+            if (!targetPage || targetPage.includes('auth')) {
+                try {
+                    const savedPrev = sessionStorage.getItem('spotiwind_desktop_auth_previous_page');
+                    if (savedPrev && !savedPrev.includes('auth')) {
+                        targetPage = savedPrev;
+                    }
+                } catch {}
+            }
+
+            if (!targetPage && document.referrer) {
+                try {
+                    const refUrl = new URL(document.referrer);
+                    if (refUrl.origin === window.location.origin && !refUrl.pathname.includes('auth')) {
+                        const refPage = refUrl.pathname.split('/').pop();
+                        if (refPage) targetPage = refPage;
+                    }
+                } catch {}
+            }
+
+            if (!targetPage || targetPage.includes('auth')) {
+                targetPage = 'home-desktop.html';
+            }
+
+            if (typeof window.loadDesktopPageContent === 'function') {
+                await window.loadDesktopPageContent(targetPage, { pushState: true });
+            } else if (window.history.length > 1 && document.referrer && !document.referrer.includes('auth')) {
                 window.history.back();
             } else {
-                window.location.replace('home-desktop.html');
+                window.location.replace(targetPage);
             }
         });
     }
@@ -311,7 +340,11 @@ if (typeof window !== 'undefined') {
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const initialTab = urlParams.get('tab') || 'login';
-            initAuthDesktopPage({ initialTab });
+            let savedPrev = null;
+            try {
+                savedPrev = sessionStorage.getItem('spotiwind_desktop_auth_previous_page');
+            } catch {}
+            initAuthDesktopPage({ initialTab, previousPage: savedPrev });
         });
     }
 }

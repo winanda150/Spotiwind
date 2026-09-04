@@ -63,42 +63,8 @@ export const pruneOldRecentSearches = async (uid) => {
     }
 };
 
-/**
- * Migrates any guest recent searches stored in localStorage to Firebase Firestore upon login,
- * then cleans up the localStorage key so subsequent operations purely rely on Firebase.
- */
-export const migrateGuestSearchesToCloud = async (uid) => {
-    if (!uid) return;
-    const localSearches = getLocalRecentSearches();
-    if (localSearches.length === 0) return;
-
-    try {
-        const now = Date.now();
-        // Upload each local search item to Firestore (preserving order with descending timestamps)
-        await Promise.all(localSearches.map((queryText, index) => {
-            const queryId = getQueryId(queryText.toLowerCase());
-            return setDoc(doc(getRecentSearchesRef(uid), queryId), {
-                query: queryText,
-                createdAt: now - (index * 1000)
-            }, { merge: true });
-        }));
-
-        // Clean up guest local storage so it is never re-uploaded or mixed with cloud data
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        await pruneOldRecentSearches(uid);
-    } catch (error) {
-        console.error('Failed to migrate guest searches to cloud:', error);
-    }
-};
-
-// Automatic listener to migrate guest search history as soon as user logs in
-if (typeof onAuthStateChanged === 'function') {
-    onAuthStateChanged(auth, async (user) => {
-        if (user?.uid) {
-            await migrateGuestSearchesToCloud(user.uid);
-        }
-    });
-}
+import { clearLocalRecentSearches } from "./guestHistoryService.js";
+export { clearLocalRecentSearches };
 
 export const getRecentSearches = async () => {
     const uid = auth.currentUser?.uid;
@@ -108,10 +74,7 @@ export const getRecentSearches = async () => {
         return getLocalRecentSearches();
     }
 
-    // LOGGED IN USER: ensure any guest searches are migrated first
-    await migrateGuestSearchesToCloud(uid);
-
-    // Read exclusively from Firebase Firestore
+    // LOGGED IN USER: read exclusively from Firebase Firestore
     try {
         const recentQuery = firestoreQuery(
             getRecentSearchesRef(uid),
@@ -163,15 +126,13 @@ export const saveRecentSearch = async (queryText) => {
 };
 
 export const clearRecentSearches = async () => {
+    // Always clear localStorage
+    clearLocalRecentSearches();
+
     const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
-    // GUEST: clear localStorage
-    if (!uid) {
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        return;
-    }
-
-    // LOGGED IN USER: clear exclusively from Firebase Firestore
+    // LOGGED IN USER: also clear from Firebase Firestore
     try {
         const snapshot = await getDocs(getRecentSearchesRef(uid));
         await Promise.all(snapshot.docs.map((item) => deleteDoc(item.ref)));

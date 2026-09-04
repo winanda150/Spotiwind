@@ -169,6 +169,9 @@ const parseCloudDocs = (docs) => {
     });
 };
 
+import { clearLocalRecentlyPlayed } from "./guestHistoryService.js";
+export { clearLocalRecentlyPlayed };
+
 /**
  * Subscribe to realtime Recently Played changes from Cloud Firestore across all devices
  */
@@ -185,10 +188,8 @@ export const subscribeRecentlyPlayed = (uid, callback) => {
         return onSnapshot(q, (snapshot) => {
             const cloudItems = parseCloudDocs(snapshot.docs);
 
-            if (cloudItems.length > 0) {
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudItems));
-                window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: cloudItems }));
-            }
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudItems));
+            window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: cloudItems }));
 
             if (typeof callback === 'function') {
                 callback(cloudItems);
@@ -220,43 +221,16 @@ export const syncRecentlyPlayedFromCloud = async (uid) => {
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-            return getRecentlyPlayed();
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([]));
+            window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: [] }));
+            return [];
         }
 
         const cloudItems = parseCloudDocs(snapshot.docs);
-        const localItems = getRecentlyPlayed();
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudItems));
+        window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: cloudItems }));
 
-        // Merge cloud and local items uniquely, sorted by latest playedAt
-        const itemMap = new Map();
-
-        // Add local first
-        localItems.forEach(item => {
-            const key = String(item.id || item.audio).trim();
-            if (key) itemMap.set(key, item);
-        });
-
-        // Merge cloud items (override if newer or missing)
-        cloudItems.forEach(item => {
-            const key = String(item.id || item.audio).trim();
-            if (!key) return;
-            if (!itemMap.has(key)) {
-                itemMap.set(key, item);
-            } else {
-                const existing = itemMap.get(key);
-                if ((item.playedAt || 0) > (existing.playedAt || 0)) {
-                    itemMap.set(key, item);
-                }
-            }
-        });
-
-        const mergedList = Array.from(itemMap.values())
-            .sort((a, b) => (b.playedAt || 0) - (a.playedAt || 0))
-            .slice(0, MAX_LOCAL_ITEMS);
-
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mergedList));
-        window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: mergedList }));
-
-        return mergedList;
+        return cloudItems;
     } catch (error) {
         if (error?.code !== 'permission-denied') {
             console.warn("Cloud recently played fetch notice:", error?.message || error);
@@ -269,8 +243,7 @@ export const syncRecentlyPlayedFromCloud = async (uid) => {
  * Clear recently played history locally and in the cloud
  */
 export const clearRecentlyPlayed = async (uid) => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    window.dispatchEvent(new CustomEvent('recently-played-updated', { detail: [] }));
+    clearLocalRecentlyPlayed();
 
     if (uid) {
         try {

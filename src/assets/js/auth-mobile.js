@@ -33,7 +33,8 @@ export const initAuthMobilePage = (options = {}) => {
     const {
         initialTab = 'login',
         onBack = null,
-        onSuccess = null
+        onSuccess = null,
+        previousPage = null
     } = options;
 
     const loginTab = document.getElementById('mLoginTab');
@@ -114,17 +115,53 @@ export const initAuthMobilePage = (options = {}) => {
 
     // Back button
     if (backBtn) {
-        backBtn.addEventListener('click', (e) => {
+        backBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+
             if (typeof onBack === 'function') {
-                onBack();
-            } else if (typeof window.loadPageContent === 'function') {
-                window.loadPageContent('home-mobile.html');
-            } else if (window.history.length > 1) {
+                await onBack();
+                return;
+            }
+
+            // Determine target previous page if onBack wasn't provided or in standalone mode
+            let targetPage = previousPage;
+            if (!targetPage || targetPage.includes('auth')) {
+                try {
+                    const savedPrev = sessionStorage.getItem('spotiwind_auth_previous_page');
+                    if (savedPrev && !savedPrev.includes('auth')) {
+                        targetPage = savedPrev;
+                    }
+                } catch {}
+            }
+
+            if (!targetPage && document.referrer) {
+                try {
+                    const refUrl = new URL(document.referrer);
+                    if (refUrl.origin === window.location.origin && !refUrl.pathname.includes('auth')) {
+                        const refPage = refUrl.pathname.split('/').pop();
+                        if (refPage) targetPage = refPage;
+                    }
+                } catch {}
+            }
+
+            if (!targetPage || targetPage.includes('auth')) {
+                targetPage = 'home-mobile.html';
+            }
+
+            if (typeof window.loadPageContent === 'function') {
+                if (typeof window.updateBottomNavActive === 'function') {
+                    window.updateBottomNavActive(targetPage);
+                } else {
+                    document.querySelectorAll('.mobile-bottom-nav .nav-item.active').forEach(item => item.classList.remove('active'));
+                    const targetNavItem = document.querySelector(`.mobile-bottom-nav .nav-item[data-target="${targetPage}"]`);
+                    if (targetNavItem) targetNavItem.classList.add('active');
+                }
+                await window.loadPageContent(targetPage, { pushState: true });
+            } else if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host) && !document.referrer.includes('auth')) {
                 window.history.back();
             } else {
-                window.location.href = 'home-mobile.html';
+                window.location.href = targetPage;
             }
         });
     }
@@ -291,7 +328,11 @@ if (typeof window !== 'undefined') {
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const initialTab = urlParams.get('tab') || 'login';
-            initAuthMobilePage({ initialTab });
+            let savedPrev = null;
+            try {
+                savedPrev = sessionStorage.getItem('spotiwind_auth_previous_page');
+            } catch {}
+            initAuthMobilePage({ initialTab, previousPage: savedPrev });
         });
     }
 }
