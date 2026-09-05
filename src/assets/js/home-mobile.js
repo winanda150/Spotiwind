@@ -632,6 +632,35 @@ const updateMyActivity = async (songName) => {
 };
 
 /**
+ * Universal function to sync all Like buttons across player and page lists
+ */
+const syncAllLikeButtons = (songId, isLiked) => {
+    if (!songId) return;
+    const cleanId = String(songId).trim();
+
+    // 1. Sync player like buttons if current song matches
+    if (currentSongData && (String(currentSongData.id).trim() === cleanId || areSameSongs(currentSongData, { id: cleanId }))) {
+        const mobileLikeBtn = document.getElementById('mobileLoveBtn');
+        if (mobileLikeBtn) mobileLikeBtn.classList.toggle('liked', isLiked);
+        const fullLikeBtn = document.getElementById('fullLoveBtn');
+        if (fullLikeBtn) fullLikeBtn.classList.toggle('liked', isLiked);
+    }
+
+    // 2. Sync all song-list like buttons in DOM (Library, Search, etc.)
+    document.querySelectorAll(`.like-song-btn[data-song-id="${cleanId}"]`).forEach(btn => {
+        btn.classList.toggle('is-liked', isLiked);
+        btn.setAttribute('title', isLiked ? 'Unlike song' : 'Like song');
+        btn.setAttribute('aria-label', isLiked ? 'Unlike song' : 'Like song');
+        const svg = btn.querySelector('svg');
+        if (svg) {
+            svg.setAttribute('fill', isLiked ? 'currentColor' : 'none');
+            svg.setAttribute('stroke-width', isLiked ? '0' : '2');
+        }
+    });
+};
+window.syncAllLikeButtons = syncAllLikeButtons;
+
+/**
  * Function to sync the Like button status in the player
  */
 const syncPlayerLikeButtons = (isLiked) => {
@@ -640,7 +669,23 @@ const syncPlayerLikeButtons = (isLiked) => {
     
     const fullLikeBtn = document.getElementById('fullLoveBtn');
     if (fullLikeBtn) fullLikeBtn.classList.toggle('liked', isLiked);
+
+    if (currentSongData && currentSongData.id) {
+        syncAllLikeButtons(currentSongData.id, isLiked);
+    }
 };
+window.syncPlayerLikeButtons = syncPlayerLikeButtons;
+
+// Listen to global favorites updates across modules/pages
+window.addEventListener('favorites-updated', (e) => {
+    const { songId, isLiked, favorites } = e.detail || {};
+    if (favorites && typeof updateLikedSongsCount === 'function') {
+        updateLikedSongsCount(favorites);
+    }
+    if (songId) {
+        syncAllLikeButtons(songId, isLiked);
+    }
+});
 
 /**
  * Function to check if a song is liked in Firestore

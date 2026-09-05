@@ -200,7 +200,7 @@
 
 /* Gradients matching Search "Browse by mood" palette */
 .overview-card.card-liked {
-    background: linear-gradient(135deg, #421A2C, #2D111D);
+    background: linear-gradient(135deg, #134026, #0e2918);
 }
 
 .overview-card.card-downloads {
@@ -224,7 +224,7 @@
 }
 
 .overview-card.card-liked .overview-card-icon {
-    color: #FB5D95;
+    color: #22c55e;
 }
 
 .overview-card.card-downloads .overview-card-icon {
@@ -454,7 +454,7 @@
 .library-song-meta {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.15rem;
     flex-shrink: 0;
 }
 
@@ -467,8 +467,8 @@
     background: transparent;
     border: none;
     color: var(--text-muted);
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -481,6 +481,52 @@
 .library-song-action-btn:hover {
     color: var(--text-main);
     background: rgba(255, 255, 255, 0.08);
+}
+
+.library-song-action-btn.like-song-btn {
+    color: var(--text-muted);
+    transition: color 0.2s ease, background 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.library-song-action-btn.like-song-btn svg {
+    fill: transparent;
+    stroke: currentColor;
+    stroke-width: 2;
+    transition: fill 0.2s, stroke 0.2s;
+}
+
+.library-song-action-btn.like-song-btn.is-liked {
+    color: #22c55e;
+}
+
+.library-song-action-btn.like-song-btn.is-liked svg {
+    fill: currentColor;
+    stroke: transparent;
+}
+
+.library-song-action-btn.like-song-btn:hover {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    transform: scale(1.1);
+}
+
+.library-song-action-btn.like-song-btn:active {
+    transform: scale(0.9);
+}
+
+.library-song-action-btn.library-song-more-btn {
+    color: var(--text-muted);
+    transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.library-song-action-btn.library-song-more-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+    transform: scale(1.06);
+}
+
+.library-song-action-btn.library-song-more-btn:active {
+    transform: scale(0.92);
 }
 
 .library-song-action-btn.btn-danger:hover {

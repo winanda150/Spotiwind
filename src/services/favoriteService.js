@@ -33,14 +33,28 @@ export const toggleFavorite = async (song) => {
         const songId = String(song.id).trim();
         const ref = getLikedSongRef(uid, songId);
         const snapshot = await getDoc(ref);
+        let isLiked = false;
 
         if (snapshot.exists()) {
             await deleteDoc(ref);
+            isLiked = false;
         } else {
             await setDoc(ref, { ...song, id: songId, likedAt: serverTimestamp() });
+            isLiked = true;
         }
 
-        return getFavoriteSongs(uid);
+        const favorites = await getFavoriteSongs(uid);
+
+        if (typeof window !== 'undefined') {
+            if (typeof window.syncAllLikeButtons === 'function') {
+                window.syncAllLikeButtons(songId, isLiked);
+            }
+            window.dispatchEvent(new CustomEvent('favorites-updated', {
+                detail: { songId, isLiked, favorites, song }
+            }));
+        }
+
+        return favorites;
     } catch (error) {
         console.error("Failed to toggle favorite song:", error);
         return null;

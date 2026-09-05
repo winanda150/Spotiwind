@@ -4,10 +4,11 @@
  */
 
 import { auth, db, onAuthStateChanged, collection, onSnapshot, query, orderBy } from './firebase-config.js';
-import { getFavoriteSongs } from '../../services/favoriteService.js';
+import { getFavoriteSongs, toggleFavorite } from '../../services/favoriteService.js';
 import { getUserPlaylists } from '../../services/libraryService.js';
 import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
 import { openProSubscriptionModal, closeProSubscriptionModal } from '../../components/modals/proSubscriptionModal.js';
+import { isSongDownloaded, toggleDownloadSong } from '../../components/sheets/songOptionsSheet.js';
 
 let activeLibraryTab = 'overview';
 const listeners = [];
@@ -209,12 +210,49 @@ function formatCount(count, singular = 'song', plural = 'songs') {
     return `${n} ${n === 1 ? singular : plural}`;
 }
 
+export function syncAllLikeButtons(songId, isLiked) {
+    if (!songId) return;
+    const cleanId = String(songId).trim();
+
+    // 1. Sync all like buttons on current DOM
+    document.querySelectorAll(`.like-song-btn[data-song-id="${cleanId}"]`).forEach(btn => {
+        btn.classList.toggle('is-liked', isLiked);
+        btn.setAttribute('title', isLiked ? 'Unlike song' : 'Like song');
+        btn.setAttribute('aria-label', isLiked ? 'Unlike song' : 'Like song');
+    });
+
+    // 2. Sync player like buttons (Mini player & Full player)
+    const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
+    if (currentSong && (String(currentSong.id).trim() === cleanId || (typeof window.areSameSongs === 'function' && window.areSameSongs(currentSong, { id: cleanId })))) {
+        const mobileLikeBtn = document.getElementById('mobileLoveBtn');
+        if (mobileLikeBtn) mobileLikeBtn.classList.toggle('liked', isLiked);
+        const fullLikeBtn = document.getElementById('fullLoveBtn');
+        if (fullLikeBtn) fullLikeBtn.classList.toggle('liked', isLiked);
+    }
+}
+if (typeof window !== 'undefined' && !window.syncAllLikeButtons) {
+    window.syncAllLikeButtons = syncAllLikeButtons;
+}
+
 function setupRealtimeOverviewData() {
     // 1. Update localStorage-based counts (Downloads & Recently Played)
     updateLocalStats();
     renderDownloadsPanel(!auth.currentUser);
 
     window.addEventListener('recently-played-updated', updateLocalStats, { passive: true });
+
+    const handleFavoritesUpdated = (e) => {
+        const { songId, isLiked, favorites } = e.detail || {};
+        if (Array.isArray(favorites)) {
+            currentLikedSongs = sortSongsByNewest(favorites);
+            setLikedSongsCount(favorites.length);
+        }
+        if (songId) {
+            syncAllLikeButtons(songId, isLiked);
+        }
+    };
+    window.addEventListener('favorites-updated', handleFavoritesUpdated);
+    listeners.push({ element: window, type: 'favorites-updated', handler: handleFavoritesUpdated });
 
     // 2. Listen to Auth State to bind live Firestore data
     const authUnsub = onAuthStateChanged(auth, async (user) => {
@@ -454,6 +492,10 @@ function createSongItemHTML(song, options = {}) {
     const isActive = Boolean(isSame);
     const isPaused = isActive && Boolean(activeAudio?.paused);
 
+    const isLiked = currentLikedSongs && currentLikedSongs.length
+        ? currentLikedSongs.some(item => String(item.id || item.songId) === String(songId))
+        : true;
+
     return `
         <div class="library-song-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${songId}" data-audio="${audio}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${name}" data-song-artist="${artist}" data-song-cover="${coverUrl}" data-song-duration="${duration}">
             <div class="library-song-cover-wrapper">
@@ -485,12 +527,16 @@ function createSongItemHTML(song, options = {}) {
                         </svg>
                     </button>
                 ` : `
-                    ${duration ? `<span class="library-song-duration">${durationText}</span>` : ''}
-                    <button class="library-song-action-btn download-song-btn" type="button" data-song-id="${songId}" title="Download song" aria-label="Download song">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                    <button class="library-song-action-btn like-song-btn ${isLiked ? 'is-liked' : ''}" type="button" data-song-id="${songId}" title="${isLiked ? 'Unlike song' : 'Like song'}" aria-label="${isLiked ? 'Unlike song' : 'Like song'}">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${isLiked ? '0' : '2'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+                        </svg>
+                    </button>
+                    <button class="library-song-action-btn library-song-more-btn" type="button" data-song-id="${songId}" title="More options" aria-label="More options">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                            <circle cx="12" cy="5" r="1.75"></circle>
+                            <circle cx="12" cy="12" r="1.75"></circle>
+                            <circle cx="12" cy="19" r="1.75"></circle>
                         </svg>
                     </button>
                 `}
@@ -773,7 +819,7 @@ function setupSongActionListeners() {
     const libraryContainer = document.querySelector('.library-panels');
     if (!libraryContainer) return;
 
-    const clickHandler = (e) => {
+    const clickHandler = async (e) => {
         const emptyAuthBtn = e.target.closest('a.library-empty-btn, a[href*="auth"]');
         if (emptyAuthBtn) {
             e.preventDefault();
@@ -838,11 +884,56 @@ function setupSongActionListeners() {
             return;
         }
 
-        const downloadBtn = e.target.closest('.download-song-btn');
-        if (downloadBtn) {
+        const likeBtn = e.target.closest('.like-song-btn');
+        if (likeBtn) {
             e.stopPropagation();
-            const songItem = downloadBtn.closest('.library-song-item');
-            if (songItem && window.toggleDownloadSong) {
+            const songItem = likeBtn.closest('.library-song-item');
+            if (!songItem) return;
+
+            const songId = songItem.dataset.songId;
+            const song = {
+                id: songId,
+                name: songItem.dataset.songName,
+                artist: songItem.dataset.songArtist,
+                cover: songItem.dataset.songCover,
+                audio: songItem.dataset.songAudio,
+                duration: Number(songItem.dataset.songDuration) || 0
+            };
+
+            const user = auth.currentUser;
+            if (!user) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Silakan login untuk mengelola lagu favorit.");
+                }
+                return;
+            }
+
+            const wasLiked = likeBtn.classList.contains('is-liked');
+            const targetLiked = !wasLiked;
+
+            // Optimistic update instan ke SEMUA tombol like (di halaman dan di player)
+            syncAllLikeButtons(songId, targetLiked);
+
+            try {
+                const updatedList = await toggleFavorite(song);
+                const isNowLiked = Array.isArray(updatedList) && updatedList.some(item => String(item.id || item.songId) === String(songId));
+                syncAllLikeButtons(songId, isNowLiked);
+
+                if (typeof window.showToast === 'function') {
+                    window.showToast(isNowLiked ? `Menambahkan "${song.name}" ke Lagu yang Disukai` : `Menghapus "${song.name}" dari Lagu yang Disukai`);
+                }
+            } catch (err) {
+                console.error("Error toggling favorite from library:", err);
+                syncAllLikeButtons(songId, wasLiked);
+            }
+            return;
+        }
+
+        const songMoreBtn = e.target.closest('.library-song-more-btn');
+        if (songMoreBtn) {
+            e.stopPropagation();
+            const songItem = songMoreBtn.closest('.library-song-item');
+            if (songItem) {
                 const song = {
                     id: songItem.dataset.songId,
                     name: songItem.dataset.songName,
@@ -851,7 +942,7 @@ function setupSongActionListeners() {
                     audio: songItem.dataset.songAudio,
                     duration: Number(songItem.dataset.songDuration) || 0
                 };
-                window.toggleDownloadSong(song);
+                openDownloadOptions(song);
             }
             return;
         }
@@ -1068,6 +1159,43 @@ function openDownloadOptions(song) {
     if (artistEl) artistEl.textContent = song.artist || 'Unknown Artist';
     if (coverEl) coverEl.src = song.cover || '../../public/branding/Spotiwind.webp';
 
+    const deleteOfflineBtn = document.getElementById('optDeleteOfflineBtn');
+    if (deleteOfflineBtn) {
+        const isDownloaded = typeof isSongDownloaded === 'function'
+            ? isSongDownloaded(song.id)
+            : (typeof window.isSongDownloaded === 'function' ? window.isSongDownloaded(song.id) : false);
+        const titleSpan = deleteOfflineBtn.querySelector('.opt-title');
+        const descSpan = deleteOfflineBtn.querySelector('.opt-desc');
+        const iconContainer = deleteOfflineBtn.querySelector('.opt-btn-icon');
+
+        if (isDownloaded) {
+            deleteOfflineBtn.classList.add('btn-danger');
+            if (titleSpan) titleSpan.textContent = 'Hapus dari Unduhan Offline';
+            if (descSpan) descSpan.textContent = 'Hapus audio dari penyimpanan aplikasi';
+            if (iconContainer) {
+                iconContainer.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                `;
+            }
+        } else {
+            deleteOfflineBtn.classList.remove('btn-danger');
+            if (titleSpan) titleSpan.textContent = 'Unduh untuk Offline';
+            if (descSpan) descSpan.textContent = 'Simpan audio agar bisa diputar tanpa internet';
+            if (iconContainer) {
+                iconContainer.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                `;
+            }
+        }
+    }
+
     if (modal) {
         const sheet = modal.querySelector('.download-options-sheet');
         if (sheet) {
@@ -1184,10 +1312,14 @@ function setupDownloadOptionsModal() {
 
     if (deleteOfflineBtn) {
         const handleDelete = () => {
-            if (selectedDownloadSong && typeof window.toggleDownloadSong === 'function') {
+            if (selectedDownloadSong) {
                 const song = { ...selectedDownloadSong };
                 closeDownloadOptions();
-                window.toggleDownloadSong(song);
+                if (typeof toggleDownloadSong === 'function') {
+                    toggleDownloadSong(song);
+                } else if (typeof window.toggleDownloadSong === 'function') {
+                    window.toggleDownloadSong(song);
+                }
                 renderDownloadsPanel();
             } else {
                 closeDownloadOptions();
