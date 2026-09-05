@@ -3,7 +3,7 @@
  * Handles Tabs, Real-time Liked Songs, Downloads & Overview statistics.
  */
 
-import { auth, db, onAuthStateChanged, collection, onSnapshot, query, orderBy } from './firebase-config.js';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, query, orderBy, getDocs } from './firebase-config.js';
 import { getFavoriteSongs, toggleFavorite } from '../../services/favoriteService.js';
 import { getUserPlaylists } from '../../services/libraryService.js';
 import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
@@ -18,6 +18,20 @@ let userProfileUnsubscribe = null;
 let isCurrentUserPro = false;
 let currentLikedSongs = [];
 let currentPlaylists = [];
+let playlistSearchQuery = '';
+let playlistFilterMode = 'all'; // 'all' | 'create' | 'collab'
+let playlistSortMode = 'recently-added'; // 'recently-added' | 'recently-played'
+let playlistViewMode = 'list'; // 'list' | 'grid'
+
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 export function switchToLibraryTab(tabKey, options = {}) {
     const tabs = document.querySelectorAll('[data-library-tab]');
@@ -68,12 +82,16 @@ export function switchToLibraryTab(tabKey, options = {}) {
         updateLocalStats();
         renderRecentPlaylistsOverview(currentPlaylists, !auth.currentUser);
         renderLikedSongsOverview(currentLikedSongs, !auth.currentUser);
-    } else if (activeLibraryTab === 'download') {
-        renderDownloadsPanel(!auth.currentUser);
-    } else if (activeLibraryTab === 'tracks') {
-        renderTracksPanel(currentLikedSongs, !auth.currentUser);
     } else if (activeLibraryTab === 'playlists') {
         renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+    } else if (activeLibraryTab === 'albums') {
+        renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+    } else if (activeLibraryTab === 'artists') {
+        renderArtistsPanel(!auth.currentUser);
+    } else if (activeLibraryTab === 'tracks') {
+        renderTracksPanel(currentLikedSongs, !auth.currentUser);
+    } else if (activeLibraryTab === 'download') {
+        renderDownloadsPanel(!auth.currentUser);
     }
 }
 
@@ -84,6 +102,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupRealtimeOverviewData();
     setupSongActionListeners();
     setupDownloadOptionsModal();
+    setupPlaylistControls();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -298,6 +317,8 @@ function setupRealtimeOverviewData() {
             renderPlaylistsPanel([], true);
             renderRecentPlaylistsOverview([], true);
             renderLikedSongsOverview([], true);
+            renderAlbumsPanel([], true);
+            renderArtistsPanel(true);
             if (activeLibraryTab === 'download') {
                 renderDownloadsPanel(true);
             }
@@ -342,6 +363,8 @@ function bindUserLikedSongs(uid) {
             setLikedSongsCount(songs.length);
             renderTracksPanel(songs, false);
             renderLikedSongsOverview(songs, false);
+            if (activeLibraryTab === 'albums') renderAlbumsPanel(songs, false);
+            if (activeLibraryTab === 'artists') renderArtistsPanel(false);
         }, async (error) => {
             console.warn("Firestore snapshot error, falling back to getFavoriteSongs:", error);
             const fallbackSongs = await getFavoriteSongs(uid);
@@ -350,6 +373,8 @@ function bindUserLikedSongs(uid) {
             setLikedSongsCount(sorted.length);
             renderTracksPanel(sorted, false);
             renderLikedSongsOverview(sorted, false);
+            if (activeLibraryTab === 'albums') renderAlbumsPanel(sorted, false);
+            if (activeLibraryTab === 'artists') renderArtistsPanel(false);
         });
     } catch (e) {
         console.error("Error setting up liked songs listener:", e);
@@ -473,7 +498,7 @@ export function getLibraryPlaylist() {
 window.getLibraryPlaylist = getLibraryPlaylist;
 
 function createSongItemHTML(song, options = {}) {
-    const { isDownloadView = false } = options;
+    const { isDownloadView = false, context = 'tracks' } = options;
     const defaultCover = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80';
     const coverUrl = song.cover || song.coverUrl || song.image || defaultCover;
     const songId = song.id || song.songId || '';
@@ -496,11 +521,16 @@ function createSongItemHTML(song, options = {}) {
         ? currentLikedSongs.some(item => String(item.id || item.songId) === String(songId))
         : true;
 
+    // Per-tab dedicated wrapper class + backwards-compatible library-song-item
+    const itemClass = context === 'overview'
+        ? 'overview-song-item library-song-item'
+        : (context === 'download' ? 'download-item library-song-item' : 'track-item library-song-item');
+
     return `
-        <div class="library-song-item ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${songId}" data-audio="${audio}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${name}" data-song-artist="${artist}" data-song-cover="${coverUrl}" data-song-duration="${duration}">
-            <div class="library-song-cover-wrapper">
-                <img src="${coverUrl}" alt="${name}" class="library-song-cover" width="46" height="46" loading="lazy" onerror="this.src='${defaultCover}'">
-                <div class="library-song-play-icon" aria-hidden="true">
+        <div class="${itemClass} ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${songId}" data-audio="${audio}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}" data-song-duration="${duration}">
+            <div class="${context === 'overview' ? 'overview-song-cover-wrapper' : (context === 'download' ? 'download-cover-wrapper' : 'track-cover-wrapper')} library-song-cover-wrapper">
+                <img src="${coverUrl}" alt="${escapeHTML(name)}" class="${context === 'overview' ? 'overview-song-cover' : (context === 'download' ? 'download-cover' : 'track-cover')} library-song-cover" width="46" height="46" loading="lazy" onerror="this.src='${defaultCover}'">
+                <div class="${context === 'overview' ? 'overview-song-play-icon' : (context === 'download' ? 'download-play-icon' : 'track-play-icon')} library-song-play-icon" aria-hidden="true">
                     ${isActive && !isPaused ? `
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
                     ` : `
@@ -508,18 +538,18 @@ function createSongItemHTML(song, options = {}) {
                     `}
                 </div>
             </div>
-            <div class="library-song-info">
-                <h3 class="library-song-name">${name}</h3>
-                <p class="library-song-artist">${artist}</p>
+            <div class="${context === 'overview' ? 'overview-song-info' : (context === 'download' ? 'download-info' : 'track-info')} library-song-info">
+                <h3 class="${context === 'overview' ? 'overview-song-name' : (context === 'download' ? 'download-name' : 'track-name')} library-song-name">${escapeHTML(name)}</h3>
+                <p class="${context === 'overview' ? 'overview-song-artist' : (context === 'download' ? 'download-artist' : 'track-artist')} library-song-artist">${escapeHTML(artist)}</p>
             </div>
-            <div class="library-song-meta">
+            <div class="${context === 'overview' ? 'overview-song-meta' : (context === 'download' ? 'download-meta' : 'track-meta')} library-song-meta">
                 ${isDownloadView ? `
-                    <span class="library-download-status-badge ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadBadge_${songId}">
+                    <span class="download-status-badge library-download-status-badge ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadBadge_${songId}">
                         <svg class="spin-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                         <span id="downloadText_${songId}">${song.downloadProgress || 10}%</span>
                     </span>
-                    <span class="library-song-duration ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadDuration_${songId}">${durationText}</span>
-                    <button class="library-song-action-btn download-options-btn ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadOptBtn_${songId}" type="button" data-song-id="${songId}" title="Opsi Unduhan" aria-label="Opsi Unduhan">
+                    <span class="download-duration library-song-duration ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadDuration_${songId}">${durationText}</span>
+                    <button class="download-options-btn download-opt-trigger-btn library-song-action-btn ${song.downloadStatus === 'downloading' ? 'hidden' : ''}" id="downloadOptBtn_${songId}" type="button" data-song-id="${songId}" title="Opsi Unduhan" aria-label="Opsi Unduhan">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
                             <circle cx="12" cy="5" r="2"></circle>
                             <circle cx="12" cy="12" r="2"></circle>
@@ -527,12 +557,12 @@ function createSongItemHTML(song, options = {}) {
                         </svg>
                     </button>
                 ` : `
-                    <button class="library-song-action-btn like-song-btn ${isLiked ? 'is-liked' : ''}" type="button" data-song-id="${songId}" title="${isLiked ? 'Unlike song' : 'Like song'}" aria-label="${isLiked ? 'Unlike song' : 'Like song'}">
+                    <button class="${context === 'overview' ? 'overview-song-like-btn' : 'track-like-btn'} library-song-action-btn like-song-btn ${isLiked ? 'is-liked' : ''}" type="button" data-song-id="${songId}" title="${isLiked ? 'Unlike song' : 'Like song'}" aria-label="${isLiked ? 'Unlike song' : 'Like song'}">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${isLiked ? '0' : '2'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
                         </svg>
                     </button>
-                    <button class="library-song-action-btn library-song-more-btn" type="button" data-song-id="${songId}" title="More options" aria-label="More options">
+                    <button class="${context === 'overview' ? 'overview-song-more-btn' : 'track-more-btn'} library-song-action-btn library-song-more-btn" type="button" data-song-id="${songId}" title="More options" aria-label="More options">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
                             <circle cx="12" cy="5" r="1.75"></circle>
                             <circle cx="12" cy="12" r="1.75"></circle>
@@ -542,8 +572,8 @@ function createSongItemHTML(song, options = {}) {
                 `}
             </div>
             ${isDownloadView ? `
-                <div class="library-download-progress-track ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadTrack_${songId}">
-                    <div class="library-download-progress-fill ${song.downloadStatus === 'completed' ? 'is-done' : ''}" id="downloadFill_${songId}" style="width: ${song.downloadProgress || 10}%;"></div>
+                <div class="download-progress-track library-download-progress-track ${song.downloadStatus === 'downloading' ? '' : 'hidden'}" id="downloadTrack_${songId}">
+                    <div class="download-progress-fill library-download-progress-fill ${song.downloadStatus === 'completed' ? 'is-done' : ''}" id="downloadFill_${songId}" style="width: ${song.downloadProgress || 10}%;"></div>
                 </div>
             ` : ''}
         </div>
@@ -554,19 +584,20 @@ function createSongItemHTML(song, options = {}) {
    Panel Renderers
    ============================================= */
 
+// --- 1. OVERVIEW: Recent Playlists (Separated from Your Playlist) ---
 function renderRecentPlaylistsOverview(playlists = [], isGuest = false) {
     const container = document.getElementById('overviewRecentList');
     if (!container) return;
 
     if (isGuest) {
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="overview-empty-state">
+                <div class="overview-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </div>
-                <h3 class="library-empty-title">Create your custom playlists</h3>
-                <p class="library-empty-desc">Log in to create, organize, and view your custom playlists.</p>
-                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
+                <h3 class="overview-empty-title">Create your custom playlists</h3>
+                <p class="overview-empty-desc">Log in to create, organize, and view your custom playlists.</p>
+                <a href="auth-mobile.html" class="overview-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -576,12 +607,12 @@ function renderRecentPlaylistsOverview(playlists = [], isGuest = false) {
 
     if (!Array.isArray(sortedPlaylists) || sortedPlaylists.length === 0) {
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="overview-empty-state">
+                <div class="overview-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                 </div>
-                <h3 class="library-empty-title">No playlists yet</h3>
-                <p class="library-empty-desc">Create your first custom playlist to see it here.</p>
+                <h3 class="overview-empty-title">No playlists yet</h3>
+                <p class="overview-empty-desc">Create your first custom playlist to see it here.</p>
             </div>
         `;
         return;
@@ -590,16 +621,16 @@ function renderRecentPlaylistsOverview(playlists = [], isGuest = false) {
     const recentPlaylists = sortedPlaylists.slice(0, 5);
 
     container.innerHTML = recentPlaylists.map(p => `
-        <div class="library-song-item" data-playlist-id="${p.id}">
-            <div class="library-song-cover-wrapper" style="background: linear-gradient(135deg, #B91EC9, #8B5CF6); display: flex; align-items: center; justify-content: center; color: #fff;">
+        <div class="overview-playlist-item" data-playlist-id="${p.id}">
+            <div class="overview-playlist-cover">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
             </div>
-            <div class="library-song-info">
-                <h3 class="library-song-name">${p.name || 'Untitled Playlist'}</h3>
-                <p class="library-song-artist">${formatCount(p.songs?.length || 0, 'song', 'songs')}</p>
+            <div class="overview-playlist-info">
+                <h3 class="overview-playlist-name">${escapeHTML(p.name || 'Untitled Playlist')}</h3>
+                <p class="overview-playlist-meta">${formatCount(p.songs?.length || 0, 'song', 'songs')}</p>
             </div>
-            <div class="library-song-meta">
-                <button class="library-song-action-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${p.name || ''}" title="Playlist options" aria-label="Playlist options">
+            <div class="overview-playlist-actions">
+                <button class="overview-playlist-more-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${escapeHTML(p.name || '')}" title="Playlist options" aria-label="Playlist options">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                         <circle cx="12" cy="5" r="1.75"></circle>
                         <circle cx="12" cy="12" r="1.75"></circle>
@@ -611,57 +642,392 @@ function renderRecentPlaylistsOverview(playlists = [], isGuest = false) {
     `).join('');
 }
 
-function renderTracksPanel(songs = [], isGuest = false) {
-    const container = document.getElementById('libraryTracksList');
+// --- 2. PLAYLISTS: "Your playlist" (Distinct List & Grid Views) ---
+function renderPlaylistsPanel(playlists = [], isGuest = false) {
+    const container = document.getElementById('libraryPlaylistsList');
+    const countEl = document.getElementById('playlistSubheaderCount');
+    if (!container) return;
+
+    if (isGuest || !Array.isArray(playlists) || playlists.length === 0) {
+        if (countEl) countEl.textContent = '0 playlists';
+        container.className = `your-playlists-container ${playlistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+        container.innerHTML = `
+            <div class="your-playlists-empty-state">
+                <div class="your-playlists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <h3 class="your-playlists-empty-title">Your playlists are empty</h3>
+                <p class="your-playlists-empty-desc">Create a playlist to collect<br>the music you love.</p>
+                <button class="your-playlists-empty-btn" type="button" data-action="add-playlist">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Create playlist</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // 1. Filter by category
+    let filtered = [...playlists];
+    if (playlistFilterMode === 'create') {
+        filtered = filtered.filter(p => !p.isCollaborative && !p.isCollab && !p.collab && (!p.collaboratorIds || p.collaboratorIds.length === 0));
+    } else if (playlistFilterMode === 'collab') {
+        filtered = filtered.filter(p => Boolean(p.isCollaborative || p.isCollab || p.collab || (p.collaborators && p.collaborators.length > 0) || (p.collaboratorIds && p.collaboratorIds.length > 0)));
+    }
+
+    // 2. Filter by search input
+    if (playlistSearchQuery) {
+        filtered = filtered.filter(p => (p.name || '').toLowerCase().includes(playlistSearchQuery));
+    }
+
+    // 3. Sort playlists
+    if (playlistSortMode === 'recently-played') {
+        filtered.sort((a, b) => {
+            const timeA = a.lastPlayedAt?.toMillis ? a.lastPlayedAt.toMillis() : (a.lastPlayedAt || a.updatedAt || a.createdAt || 0);
+            const timeB = b.lastPlayedAt?.toMillis ? b.lastPlayedAt.toMillis() : (b.lastPlayedAt || b.updatedAt || b.createdAt || 0);
+            return timeB - timeA;
+        });
+    } else {
+        filtered = sortPlaylistsByNewest(filtered);
+    }
+
+    // Update count in subheader
+    if (countEl) {
+        countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'playlist' : 'playlists'}`;
+    }
+
+    // Empty search / filter results
+    if (filtered.length === 0) {
+        container.className = `your-playlists-container ${playlistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+        container.innerHTML = `
+            <div class="your-playlists-empty-state" style="padding: 2.5rem var(--mobile-horizontal-padding) 2rem;">
+                <div class="your-playlists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <h3 class="your-playlists-empty-title">No playlists found</h3>
+                <p class="your-playlists-empty-desc">${playlistSearchQuery ? `No playlists matching "${escapeHTML(playlistSearchQuery)}".` : 'No playlists in this category.'}</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Ensure correct grid/list class
+    container.className = `your-playlists-container ${playlistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+
+    if (playlistViewMode === 'grid') {
+        container.innerHTML = filtered.map(p => {
+            const isCollab = Boolean(p.isCollaborative || p.isCollab || p.collab || (p.collaboratorIds && p.collaboratorIds.length > 0));
+            const countStr = formatCount(p.songs?.length || 0, 'song', 'songs');
+            return `
+                <div class="your-playlist-grid-card" data-playlist-id="${p.id}">
+                    <div class="your-playlist-grid-cover">
+                        ${isCollab ? '<span class="your-playlist-badge">Collab</span>' : ''}
+                        <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                    </div>
+                    <div class="your-playlist-grid-info">
+                        <h3 class="your-playlist-grid-title">${escapeHTML(p.name || 'Untitled Playlist')}</h3>
+                        <div class="your-playlist-grid-meta">
+                            <span>${countStr}</span>
+                            <button class="your-playlist-grid-more-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${escapeHTML(p.name || '')}" title="Playlist options" aria-label="Playlist options">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                    <circle cx="12" cy="5" r="1.75"></circle>
+                                    <circle cx="12" cy="12" r="1.75"></circle>
+                                    <circle cx="12" cy="19" r="1.75"></circle>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        container.innerHTML = filtered.map(p => {
+            const isCollab = Boolean(p.isCollaborative || p.isCollab || p.collab || (p.collaboratorIds && p.collaboratorIds.length > 0));
+            const countStr = formatCount(p.songs?.length || 0, 'song', 'songs');
+            return `
+                <div class="your-playlist-item" data-playlist-id="${p.id}">
+                    <div class="your-playlist-cover">
+                        ${isCollab ? '<span class="your-playlist-badge">Collab</span>' : ''}
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    </div>
+                    <div class="your-playlist-info">
+                        <h3 class="your-playlist-title">${escapeHTML(p.name || 'Untitled Playlist')}</h3>
+                        <p class="your-playlist-meta">${isCollab ? 'Collab • ' : ''}${countStr}</p>
+                    </div>
+                    <div class="your-playlist-actions">
+                        <button class="your-playlist-more-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${escapeHTML(p.name || '')}" title="Playlist options" aria-label="Playlist options">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+// --- 3. ALBUMS: Dedicated Albums Tab Renderer ---
+function renderAlbumsPanel(songs = [], isGuest = false) {
+    const container = document.getElementById('libraryAlbumsList');
+    const badgeEl = document.getElementById('libraryAlbumsCount');
     if (!container) return;
 
     if (isGuest) {
+        if (badgeEl) badgeEl.textContent = '0 albums';
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="albums-empty-state">
+                <div class="albums-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </div>
+                <h3 class="albums-empty-title">Collect your favorite albums</h3>
+                <p class="albums-empty-desc">Log in to save and browse your album collection.</p>
+                <a href="auth-mobile.html" class="albums-empty-btn">Log In / Sign Up</a>
+            </div>
+        `;
+        return;
+    }
+
+    // Extract unique albums from currentLikedSongs + downloads
+    const allSongs = [...(Array.isArray(songs) ? songs : [])];
+    try {
+        const rawDl = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
+        const dls = JSON.parse(rawDl);
+        if (Array.isArray(dls)) allSongs.push(...dls);
+    } catch {}
+
+    const albumMap = new Map();
+    allSongs.forEach(song => {
+        const albumName = song.album || song.album_name || song.albumTitle;
+        if (!albumName || albumName === 'Unknown Album' || albumName.trim() === '') return;
+        const key = albumName.trim().toLowerCase();
+        if (!albumMap.has(key)) {
+            albumMap.set(key, {
+                id: song.albumId || key,
+                name: albumName.trim(),
+                artist: song.artist || 'Various Artists',
+                cover: song.albumCover || song.cover || song.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80',
+                tracks: [song]
+            });
+        } else {
+            const existing = albumMap.get(key);
+            if (!existing.tracks.some(t => String(t.id || t.songId) === String(song.id || song.songId))) {
+                existing.tracks.push(song);
+            }
+        }
+    });
+
+    const albums = Array.from(albumMap.values());
+    if (badgeEl) badgeEl.textContent = `${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
+
+    if (albums.length === 0) {
+        container.innerHTML = `
+            <div class="albums-empty-state">
+                <div class="albums-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </div>
+                <h3 class="albums-empty-title">No albums saved yet</h3>
+                <p class="albums-empty-desc">Albums from songs you like or download will automatically appear here.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = albums.map(album => `
+        <div class="album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
+            <div class="album-cover-wrapper">
+                <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="album-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
+                <div class="album-play-overlay">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </div>
+            </div>
+            <div class="album-info">
+                <h3 class="album-title">${escapeHTML(album.name)}</h3>
+                <p class="album-artist">${escapeHTML(album.artist)}</p>
+                <span class="album-track-count">${album.tracks.length} ${album.tracks.length === 1 ? 'track' : 'tracks'}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// --- 4. ARTISTS: Dedicated Artists Tab Renderer ---
+async function renderArtistsPanel(isGuest = false) {
+    const container = document.getElementById('libraryArtistsList');
+    const badgeEl = document.getElementById('libraryArtistsCount');
+    if (!container) return;
+
+    if (isGuest || !auth.currentUser) {
+        if (badgeEl) badgeEl.textContent = '0 artists';
+        container.innerHTML = `
+            <div class="artists-empty-state">
+                <div class="artists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="5"></circle>
+                        <path d="M20 21a8 8 0 0 0-16 0"></path>
+                    </svg>
+                </div>
+                <h3 class="artists-empty-title">Follow your favorite artists</h3>
+                <p class="artists-empty-desc">Log in to follow artists and view them in your library.</p>
+                <a href="auth-mobile.html" class="artists-empty-btn">Log In / Sign Up</a>
+            </div>
+        `;
+        return;
+    }
+
+    const uid = auth.currentUser.uid;
+    const artistMap = new Map();
+
+    // 1. Fetch from Firestore users/{uid}/following
+    try {
+        const followingRef = collection(db, "users", uid, "following");
+        const snap = await getDocs(followingRef);
+        snap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.type === 'artist' || !data.type) {
+                const name = data.displayName || data.name || docSnap.id;
+                const photo = data.photoURL || data.photo || data.image || '';
+                const key = name.trim().toLowerCase();
+                artistMap.set(key, {
+                    id: data.artistId || docSnap.id,
+                    name: name,
+                    photo: photo,
+                    isFollowed: true
+                });
+            }
+        });
+    } catch (err) {
+        console.warn("Could not fetch followed artists:", err);
+    }
+
+    // 2. Also extract artists from currentLikedSongs as suggestions
+    if (artistMap.size === 0 && Array.isArray(currentLikedSongs)) {
+        currentLikedSongs.forEach(song => {
+            const artistName = song.artist || song.artistName;
+            if (!artistName || artistName === 'Unknown Artist') return;
+            const key = artistName.trim().toLowerCase();
+            if (!artistMap.has(key)) {
+                artistMap.set(key, {
+                    id: song.artistId || key,
+                    name: artistName,
+                    photo: song.artistPhoto || song.cover || '',
+                    isFollowed: false
+                });
+            }
+        });
+    }
+
+    const artists = Array.from(artistMap.values());
+    if (badgeEl) badgeEl.textContent = `${artists.length} ${artists.length === 1 ? 'artist' : 'artists'}`;
+
+    if (artists.length === 0) {
+        container.innerHTML = `
+            <div class="artists-empty-state">
+                <div class="artists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="5"></circle>
+                        <path d="M20 21a8 8 0 0 0-16 0"></path>
+                    </svg>
+                </div>
+                <h3 class="artists-empty-title">No artists followed yet</h3>
+                <p class="artists-empty-desc">Follow artists you love to stay up-to-date with their latest music.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const defaultAvatar = '../../public/branding/Spotiwind.webp';
+    container.innerHTML = artists.map(artist => `
+        <div class="artist-card" data-artist-id="${escapeHTML(artist.id)}" data-artist-name="${escapeHTML(artist.name)}" data-artist-photo="${escapeHTML(artist.photo || defaultAvatar)}">
+            <div class="artist-avatar-wrapper">
+                <img src="${artist.photo || defaultAvatar}" alt="${escapeHTML(artist.name)}" class="artist-avatar-img" loading="lazy" onerror="this.src='${defaultAvatar}'">
+            </div>
+            <div class="artist-info">
+                <h3 class="artist-name">${escapeHTML(artist.name)}</h3>
+                <span class="artist-role">Artist</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// --- 5. TRACKS: Dedicated Liked Songs Panel Renderer ---
+function renderTracksPanel(songs = [], isGuest = false) {
+    const container = document.getElementById('libraryTracksList');
+    const countBadge = document.getElementById('libraryTracksCount');
+    if (!container) return;
+
+    if (isGuest) {
+        if (countBadge) countBadge.textContent = '0 songs';
+        container.innerHTML = `
+            <div class="tracks-empty-state">
+                <div class="tracks-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
                 </div>
-                <h3 class="library-empty-title">Save your favorite tracks</h3>
-                <p class="library-empty-desc">Log in to like songs and access them on any device.</p>
-                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
+                <h3 class="tracks-empty-title">Save your favorite tracks</h3>
+                <p class="tracks-empty-desc">Log in to like songs and access them on any device.</p>
+                <a href="auth-mobile.html" class="tracks-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
     }
 
     if (!Array.isArray(songs) || songs.length === 0) {
+        if (countBadge) countBadge.textContent = '0 songs';
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="tracks-empty-state">
+                <div class="tracks-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
                 </div>
-                <h3 class="library-empty-title">No liked songs yet</h3>
-                <p class="library-empty-desc">Tap the heart icon on any song you love to save it here.</p>
+                <h3 class="tracks-empty-title">No liked songs yet</h3>
+                <p class="tracks-empty-desc">Tap the heart icon on any song you love to save it here.</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = songs.map(song => createSongItemHTML(song)).join('');
+    if (countBadge) countBadge.textContent = `${songs.length} ${songs.length === 1 ? 'song' : 'songs'}`;
+    container.innerHTML = songs.map(song => createSongItemHTML(song, { context: 'tracks' })).join('');
     if (typeof window.syncActiveSongUI === 'function') {
         window.syncActiveSongUI();
     }
 }
 
+// --- 6. DOWNLOADS: Dedicated Downloads Panel Renderer ---
 function renderDownloadsPanel(isGuest = !auth.currentUser) {
     const container = document.getElementById('libraryDownloadsList');
+    const badgeEl = document.getElementById('libraryDownloadsBadge');
     if (!container) return;
 
     if (isGuest) {
         setDownloadsCount(0);
+        if (badgeEl) badgeEl.textContent = '0 songs';
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="downloads-empty-state">
+                <div class="downloads-empty-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 </div>
-                <h3 class="library-empty-title">Download music for offline listening</h3>
-                <p class="library-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
-                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
+                <h3 class="downloads-empty-title">Download music for offline listening</h3>
+                <p class="downloads-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
+                <a href="auth-mobile.html" class="downloads-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -670,16 +1036,17 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
     const isPro = isCurrentUserPro || (typeof window.isCurrentUserPro === 'function' && window.isCurrentUserPro());
     if (!isPro) {
         setDownloadsCount(0);
+        if (badgeEl) badgeEl.textContent = '0 songs';
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon is-pro" aria-hidden="true">
+            <div class="downloads-empty-state downloads-pro-state">
+                <div class="downloads-empty-icon is-pro" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
                         <path d="M5 16h14a1 1 0 0 0 1-1L21 6l-4.5 4L12 3 7.5 10 3 6l1 9a1 1 0 0 0 1 1zm-1 2a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4z"/>
                     </svg>
                 </div>
-                <h3 class="library-empty-title">Available with Spotiwind PRO</h3>
-                <p class="library-empty-desc">Subscribe to Spotiwind PRO to download tracks and listen offline anytime.</p>
-                <button id="libraryUpgradeProBtn" class="library-empty-btn library-pro-upgrade-btn" type="button" aria-label="Upgrade to PRO">
+                <h3 class="downloads-empty-title">Available with Spotiwind PRO</h3>
+                <p class="downloads-empty-desc">Subscribe to Spotiwind PRO to download tracks and listen offline anytime.</p>
+                <button id="libraryUpgradeProBtn" class="downloads-empty-btn downloads-pro-upgrade-btn" type="button" aria-label="Upgrade to PRO">
                     <span>Upgrade to PRO</span>
                 </button>
             </div>
@@ -693,20 +1060,22 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
 
         if (!Array.isArray(downloads) || downloads.length === 0) {
             setDownloadsCount(0);
+            if (badgeEl) badgeEl.textContent = '0 songs';
             container.innerHTML = `
-                <div class="library-empty-state">
-                    <div class="library-empty-icon">
+                <div class="downloads-empty-state">
+                    <div class="downloads-empty-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </div>
-                    <h3 class="library-empty-title">No downloaded songs yet</h3>
-                    <p class="library-empty-desc">Download tracks from the player or song options to listen offline anywhere.</p>
+                    <h3 class="downloads-empty-title">No downloaded songs yet</h3>
+                    <p class="downloads-empty-desc">Download tracks from the player or song options to listen offline anywhere.</p>
                 </div>
             `;
             return;
         }
 
         setDownloadsCount(downloads.length);
-        container.innerHTML = downloads.map(song => createSongItemHTML(song, { isDownloadView: true })).join('');
+        if (badgeEl) badgeEl.textContent = `${downloads.length} ${downloads.length === 1 ? 'song' : 'songs'}`;
+        container.innerHTML = downloads.map(song => createSongItemHTML(song, { isDownloadView: true, context: 'download' })).join('');
         if (typeof window.syncActiveSongUI === 'function') {
             window.syncActiveSongUI();
         }
@@ -715,60 +1084,123 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
     }
 }
 
-function renderPlaylistsPanel(playlists = [], isGuest = false) {
-    const container = document.getElementById('libraryPlaylistsList');
-    if (!container) return;
+function setupPlaylistControls() {
+    const searchInput = document.getElementById('playlistSearchInput');
+    const searchClearBtn = document.getElementById('playlistSearchClearBtn');
+    const filterChips = document.querySelectorAll('[data-playlist-filter]');
+    const sortDropdown = document.getElementById('playlistSortDropdown');
+    const sortBtn = document.getElementById('playlistSortBtn');
+    const sortMenu = document.getElementById('playlistSortMenu');
+    const sortLabel = document.getElementById('playlistSortLabel');
+    const sortItems = document.querySelectorAll('[data-sort-val]');
+    const viewListBtn = document.getElementById('playlistViewListBtn');
+    const viewGridBtn = document.getElementById('playlistViewGridBtn');
+    const playlistsGrid = document.getElementById('libraryPlaylistsList');
 
-    if (isGuest) {
-        container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                </div>
-                <h3 class="library-empty-title">Create your custom playlists</h3>
-                <p class="library-empty-desc">Log in to create, edit, and organize your favorite music.</p>
-                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
-            </div>
-        `;
-        return;
+    if (searchInput) {
+        const handleSearchInput = (e) => {
+            playlistSearchQuery = (e.target.value || '').trim().toLowerCase();
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+        };
+        searchInput.addEventListener('input', handleSearchInput);
+        listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });
     }
 
-    const sortedPlaylists = sortPlaylistsByNewest(playlists);
-
-    if (!Array.isArray(sortedPlaylists) || sortedPlaylists.length === 0) {
-        container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                </div>
-                <h3 class="library-empty-title">No playlists created</h3>
-                <p class="library-empty-desc">Create custom playlists to organize your favorite music.</p>
-                <button class="library-empty-btn" type="button" data-action="add-playlist">+ Create Playlist</button>
-            </div>
-        `;
-        return;
+    if (searchClearBtn) {
+        const handleClearClick = () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            playlistSearchQuery = '';
+            renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+        };
+        searchClearBtn.addEventListener('click', handleClearClick);
+        listeners.push({ element: searchClearBtn, type: 'click', handler: handleClearClick });
     }
 
-    container.innerHTML = sortedPlaylists.map(p => `
-        <div class="library-song-item" data-playlist-id="${p.id}">
-            <div class="library-song-cover-wrapper" style="background: linear-gradient(135deg, #B91EC9, #8B5CF6); display: flex; align-items: center; justify-content: center; color: #fff;">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            </div>
-            <div class="library-song-info">
-                <h3 class="library-song-name">${p.name || 'Untitled Playlist'}</h3>
-                <p class="library-song-artist">${formatCount(p.songs?.length || 0, 'song', 'songs')}</p>
-            </div>
-            <div class="library-song-meta">
-                <button class="library-song-action-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${p.name || ''}" title="Playlist options" aria-label="Playlist options">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <circle cx="12" cy="5" r="1.75"></circle>
-                        <circle cx="12" cy="12" r="1.75"></circle>
-                        <circle cx="12" cy="19" r="1.75"></circle>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `).join('');
+    filterChips.forEach(chip => {
+        const handleChipClick = () => {
+            filterChips.forEach(c => c.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            playlistFilterMode = chip.dataset.playlistFilter || 'all';
+            renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+        };
+        chip.addEventListener('click', handleChipClick);
+        listeners.push({ element: chip, type: 'click', handler: handleChipClick });
+    });
+
+    if (sortBtn && sortMenu && sortDropdown) {
+        const toggleSortMenu = (e) => {
+            e.stopPropagation();
+            const isOpen = !sortMenu.classList.contains('hidden');
+            if (isOpen) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                sortMenu.classList.remove('hidden');
+                sortDropdown.classList.add('is-open');
+                sortBtn.setAttribute('aria-expanded', 'true');
+            }
+        };
+        sortBtn.addEventListener('click', toggleSortMenu);
+        listeners.push({ element: sortBtn, type: 'click', handler: toggleSortMenu });
+
+        sortItems.forEach(item => {
+            const handleSortItemClick = (e) => {
+                e.stopPropagation();
+                playlistSortMode = item.dataset.sortVal || 'recently-added';
+                sortItems.forEach(it => it.classList.toggle('is-selected', it === item));
+                if (sortLabel) {
+                    sortLabel.textContent = item.querySelector('span')?.textContent || 'Recently added';
+                }
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+                renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+            };
+            item.addEventListener('click', handleSortItemClick);
+            listeners.push({ element: item, type: 'click', handler: handleSortItemClick });
+        });
+
+        const handleOutsideClick = (e) => {
+            if (!sortDropdown.contains(e.target)) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        listeners.push({ element: document, type: 'click', handler: handleOutsideClick });
+    }
+
+    const setViewMode = (mode) => {
+        playlistViewMode = mode;
+        if (viewListBtn) viewListBtn.classList.toggle('is-active', mode === 'list');
+        if (viewGridBtn) viewGridBtn.classList.toggle('is-active', mode === 'grid');
+        if (playlistsGrid) {
+            playlistsGrid.classList.toggle('view-list', mode === 'list');
+            playlistsGrid.classList.toggle('view-grid', mode === 'grid');
+        }
+        renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+    };
+
+    if (viewListBtn) {
+        const handleListClick = () => setViewMode('list');
+        viewListBtn.addEventListener('click', handleListClick);
+        listeners.push({ element: viewListBtn, type: 'click', handler: handleListClick });
+    }
+
+    if (viewGridBtn) {
+        const handleGridClick = () => setViewMode('grid');
+        viewGridBtn.addEventListener('click', handleGridClick);
+        listeners.push({ element: viewGridBtn, type: 'click', handler: handleGridClick });
+    }
 }
 
 function renderLikedSongsOverview(songs = [], isGuest = false) {
@@ -777,13 +1209,13 @@ function renderLikedSongsOverview(songs = [], isGuest = false) {
 
     if (isGuest) {
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="overview-empty-state">
+                <div class="overview-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
                 </div>
-                <h3 class="library-empty-title">Save your favorite tracks</h3>
-                <p class="library-empty-desc">Log in to like songs and access them on any device.</p>
-                <a href="auth-mobile.html" class="library-empty-btn">Log In / Sign Up</a>
+                <h3 class="overview-empty-title">Save your favorite tracks</h3>
+                <p class="overview-empty-desc">Log in to like songs and access them on any device.</p>
+                <a href="auth-mobile.html" class="overview-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -793,19 +1225,19 @@ function renderLikedSongsOverview(songs = [], isGuest = false) {
 
     if (!Array.isArray(sortedSongs) || sortedSongs.length === 0) {
         container.innerHTML = `
-            <div class="library-empty-state">
-                <div class="library-empty-icon">
+            <div class="overview-empty-state">
+                <div class="overview-empty-icon">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
                 </div>
-                <h3 class="library-empty-title">No liked songs yet</h3>
-                <p class="library-empty-desc">Tap the heart icon on any song you love to save it here.</p>
+                <h3 class="overview-empty-title">No liked songs yet</h3>
+                <p class="overview-empty-desc">Tap the heart icon on any song you love to save it here.</p>
             </div>
         `;
         return;
     }
 
     const recentLiked = sortedSongs.slice(0, 5);
-    container.innerHTML = recentLiked.map(song => createSongItemHTML(song)).join('');
+    container.innerHTML = recentLiked.map(song => createSongItemHTML(song, { context: 'overview' })).join('');
     if (typeof window.syncActiveSongUI === 'function') {
         window.syncActiveSongUI();
     }
@@ -820,7 +1252,7 @@ function setupSongActionListeners() {
     if (!libraryContainer) return;
 
     const clickHandler = async (e) => {
-        const emptyAuthBtn = e.target.closest('a.library-empty-btn, a[href*="auth"]');
+        const emptyAuthBtn = e.target.closest('a.library-empty-btn, a.overview-empty-btn, a.your-playlists-empty-btn, a.albums-empty-btn, a.artists-empty-btn, a.tracks-empty-btn, a.downloads-empty-btn, a[href*="auth"]');
         if (emptyAuthBtn) {
             e.preventDefault();
             try {
@@ -834,7 +1266,7 @@ function setupSongActionListeners() {
             return;
         }
 
-        const upgradeProBtn = e.target.closest('#libraryUpgradeProBtn, .library-pro-upgrade-btn');
+        const upgradeProBtn = e.target.closest('#libraryUpgradeProBtn, .library-pro-upgrade-btn, .downloads-pro-upgrade-btn');
         if (upgradeProBtn) {
             e.preventDefault();
             openProSubscriptionModal({
@@ -847,16 +1279,93 @@ function setupSongActionListeners() {
             return;
         }
 
-        const createPlaylistBtn = e.target.closest('#createPlaylistBtn, [data-action="add-playlist"], .library-create-btn');
+        const createPlaylistBtn = e.target.closest('#createPlaylistBtn, [data-action="add-playlist"], .playlists-create-btn, .library-create-btn');
         if (createPlaylistBtn) {
             e.preventDefault();
+            if (!auth.currentUser) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Please log in to create and manage playlists.");
+                }
+                try {
+                    sessionStorage.setItem('spotiwind_auth_previous_page', 'library-mobile.html');
+                } catch {}
+                setTimeout(() => {
+                    if (typeof window.navigateToAuthPage === 'function') {
+                        window.navigateToAuthPage('login');
+                    } else {
+                        window.location.href = 'auth-mobile.html';
+                    }
+                }, 700);
+                return;
+            }
             if (typeof window.openCreatePlaylistModal === 'function') {
                 window.openCreatePlaylistModal(createPlaylistBtn);
             }
             return;
         }
 
-        const playlistMoreBtn = e.target.closest('.playlist-more-btn');
+        // Play All Liked Songs in Tracks tab
+        const playAllBtn = e.target.closest('#tracksPlayAllBtn, .tracks-play-all-btn');
+        if (playAllBtn) {
+            e.preventDefault();
+            if (!currentLikedSongs || currentLikedSongs.length === 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast("Belum ada lagu yang disukai untuk diputar.");
+                }
+                return;
+            }
+            const firstSong = currentLikedSongs[0];
+            if (typeof window.playPreview === 'function') {
+                window.playPreview(
+                    null,
+                    firstSong.audio || firstSong.audioUrl || firstSong.songAudio,
+                    firstSong.name || firstSong.title,
+                    firstSong.artist,
+                    firstSong.cover || firstSong.coverUrl || firstSong.image,
+                    firstSong.id,
+                    Number(firstSong.duration) || 0,
+                    'library'
+                );
+            }
+            return;
+        }
+
+        // Artist card click -> navigate to artist profile page
+        const artistCard = e.target.closest('.artist-card');
+        if (artistCard) {
+            const artistName = artistCard.dataset.artistName;
+            const artistId = artistCard.dataset.artistId;
+            const artistPhoto = artistCard.dataset.artistPhoto;
+            const artist = { id: artistId, name: artistName, photo: artistPhoto, image: artistPhoto };
+            if (typeof window.loadPageContent === 'function') {
+                window.loadPageContent('artist-mobile.html', {
+                    pushState: true,
+                    route: `/artist/${encodeURIComponent(artistId || artistName)}`,
+                    title: `${artistName} | Spotiwind`,
+                    state: { route: 'artist', artist }
+                });
+            }
+            return;
+        }
+
+        // Album card click -> preview first song or show info
+        const albumCard = e.target.closest('.album-card');
+        if (albumCard) {
+            const firstAudio = albumCard.dataset.firstAudio;
+            const albumName = albumCard.dataset.albumName;
+            if (firstAudio && typeof window.playPreview === 'function') {
+                const songItem = currentLikedSongs.find(s => (s.album || s.album_name) === albumName);
+                if (songItem) {
+                    window.playPreview(null, songItem.audio, songItem.name, songItem.artist, songItem.cover, songItem.id, Number(songItem.duration) || 0, 'library');
+                }
+            } else if (typeof window.showToast === 'function') {
+                window.showToast(`Album: ${albumName}`);
+            }
+            return;
+        }
+
+        // Playlist options more button
+        const playlistMoreBtn = e.target.closest('.playlist-more-btn, .overview-playlist-more-btn, .your-playlist-more-btn, .your-playlist-grid-more-btn');
         if (playlistMoreBtn) {
             e.stopPropagation();
             const playlistName = playlistMoreBtn.dataset.playlistName || 'Playlist';
@@ -866,10 +1375,27 @@ function setupSongActionListeners() {
             return;
         }
 
-        const optionsBtn = e.target.closest('.download-options-btn');
+        // Playlist item click (Recent playlist or Your playlist)
+        const playlistItem = e.target.closest('.overview-playlist-item, .your-playlist-item, .your-playlist-grid-card');
+        if (playlistItem && !e.target.closest('.playlist-more-btn')) {
+            const playlistId = playlistItem.dataset.playlistId;
+            const targetPlaylist = currentPlaylists.find(p => String(p.id) === String(playlistId));
+            const playlistName = targetPlaylist?.name || playlistItem.querySelector('.overview-playlist-name, .your-playlist-title, .your-playlist-grid-title')?.textContent?.trim() || 'Playlist';
+            if (targetPlaylist && targetPlaylist.songs && targetPlaylist.songs.length > 0) {
+                const first = targetPlaylist.songs[0];
+                if (typeof window.playPreview === 'function') {
+                    window.playPreview(null, first.audio, first.name, first.artist, first.cover, first.id, Number(first.duration) || 0, 'library');
+                }
+            } else if (typeof window.showToast === 'function') {
+                window.showToast(`Membuka playlist: ${playlistName}`);
+            }
+            return;
+        }
+
+        const optionsBtn = e.target.closest('.download-options-btn, .download-opt-trigger-btn');
         if (optionsBtn) {
             e.stopPropagation();
-            const songItem = optionsBtn.closest('.library-song-item');
+            const songItem = optionsBtn.closest('.library-song-item, .download-item');
             if (songItem) {
                 const song = {
                     id: songItem.dataset.songId,
@@ -884,10 +1410,10 @@ function setupSongActionListeners() {
             return;
         }
 
-        const likeBtn = e.target.closest('.like-song-btn');
+        const likeBtn = e.target.closest('.like-song-btn, .track-like-btn, .overview-song-like-btn');
         if (likeBtn) {
             e.stopPropagation();
-            const songItem = likeBtn.closest('.library-song-item');
+            const songItem = likeBtn.closest('.library-song-item, .track-item, .overview-song-item');
             if (!songItem) return;
 
             const songId = songItem.dataset.songId;
@@ -929,10 +1455,10 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songMoreBtn = e.target.closest('.library-song-more-btn');
+        const songMoreBtn = e.target.closest('.library-song-more-btn, .track-more-btn, .overview-song-more-btn');
         if (songMoreBtn) {
             e.stopPropagation();
-            const songItem = songMoreBtn.closest('.library-song-item');
+            const songItem = songMoreBtn.closest('.library-song-item, .track-item, .overview-song-item');
             if (songItem) {
                 const song = {
                     id: songItem.dataset.songId,
@@ -947,7 +1473,7 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songItem = e.target.closest('.library-song-item');
+        const songItem = e.target.closest('.library-song-item, .track-item, .download-item, .overview-song-item');
         if (songItem && songItem.dataset.songAudio) {
             const { songId, songAudio, songName, songArtist, songCover, songDuration } = songItem.dataset;
             const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
