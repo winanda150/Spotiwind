@@ -193,6 +193,10 @@
                                     <span>Recently played</span>
                                     <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                 </button>
+                                <button type="button" class="playlists-sort-item" data-sort-val="alphabetical" role="menuitem">
+                                    <span>Alphabetical</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
                             </div>
                         </div>
 
@@ -249,12 +253,91 @@
             <!-- 3. Albums Panel -->
             <section class="library-panel albums-tab-panel" id="albumsPanel" data-library-panel="albums">
                 <div class="albums-header">
-                    <div class="albums-header-left">
-                        <h2 class="albums-title">Albums</h2>
-                        <span class="albums-count-badge" id="libraryAlbumsCount">0 albums</span>
+                    <h2 class="albums-title">Albums</h2>
+                </div>
+
+                <!-- Album Search Box -->
+                <div class="albums-search-container">
+                    <div class="albums-search-box">
+                        <svg class="albums-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="search" id="albumSearchInput" class="albums-search-input" placeholder="Search your albums..." autocomplete="off" aria-label="Search albums">
+                        <button type="button" id="albumSearchClearBtn" class="albums-search-clear hidden" aria-label="Clear search">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <div class="albums-grid-container" id="libraryAlbumsList"></div>
+
+                <!-- Album Controls Bar (Filter Chips + Sort & View Controls) -->
+                <div class="albums-controls-bar">
+                    <div class="albums-filter-chips" role="tablist" aria-label="Filter albums">
+                        <button type="button" class="albums-filter-chip is-active" data-album-filter="all">All</button>
+                        <button type="button" class="albums-filter-chip" data-album-filter="saved">Saved</button>
+                        <button type="button" class="albums-filter-chip" data-album-filter="downloaded">Downloaded</button>
+                    </div>
+
+                    <div class="albums-actions-right">
+                        <!-- Sort Dropdown -->
+                        <div class="albums-sort-dropdown" id="albumSortDropdown">
+                            <button type="button" class="albums-sort-trigger" id="albumSortBtn" aria-haspopup="true" aria-expanded="false" title="Sort albums">
+                                <span class="albums-sort-prefix">Sort:</span>
+                                <span class="albums-sort-current" id="albumSortLabel">Recently added</span>
+                                <svg class="albums-sort-arrow" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                            <div class="albums-sort-menu hidden" id="albumSortMenu" role="menu">
+                                <button type="button" class="albums-sort-item is-selected" data-album-sort-val="recently-added" role="menuitem">
+                                    <span>Recently added</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="albums-sort-item" data-album-sort-val="recently-played" role="menuitem">
+                                    <span>Recently played</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="albums-sort-item" data-album-sort-val="alphabetical" role="menuitem">
+                                    <span>Alphabetical</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle: List & Grid (SVG Icons) -->
+                        <div class="albums-view-toggle" role="group" aria-label="Album view mode">
+                            <button type="button" class="albums-view-btn" id="albumViewListBtn" data-album-view-mode="list" aria-label="List view" title="List view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button type="button" class="albums-view-btn is-active" id="albumViewGridBtn" data-album-view-mode="grid" aria-label="Grid view" title="Grid view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Albums Subheader (Title on left, Count on right) -->
+                <div class="albums-sub-header">
+                    <span class="albums-sub-title">Your albums</span>
+                    <span class="albums-sub-count" id="libraryAlbumsCount">0 albums</span>
+                </div>
+
+                <div class="your-albums-container view-grid" id="libraryAlbumsList"></div>
             </section>
 
             <!-- 4. Artists Panel -->

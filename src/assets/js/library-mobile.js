@@ -24,6 +24,11 @@ let playlistFilterMode = 'all'; // 'all' | 'create' | 'collab'
 let playlistSortMode = 'recently-added'; // 'recently-added' | 'recently-played'
 let playlistViewMode = 'list'; // 'list' | 'grid'
 
+let albumSearchQuery = '';
+let albumFilterMode = 'all';
+let albumSortMode = 'recently-added'; // 'recently-added' | 'alphabetical' | 'artist'
+let albumViewMode = 'grid'; // 'grid' | 'list'
+
 function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -104,6 +109,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupSongActionListeners();
     setupDownloadOptionsModal();
     setupPlaylistControls();
+    setupAlbumControls();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -693,6 +699,8 @@ function renderPlaylistsPanel(playlists = [], isGuest = false) {
             const timeB = b.lastPlayedAt?.toMillis ? b.lastPlayedAt.toMillis() : (b.lastPlayedAt || b.updatedAt || b.createdAt || 0);
             return timeB - timeA;
         });
+    } else if (playlistSortMode === 'alphabetical') {
+        filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     } else {
         filtered = sortPlaylistsByNewest(filtered);
     }
@@ -788,6 +796,7 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
 
     if (isGuest) {
         if (badgeEl) badgeEl.textContent = '0 albums';
+        container.className = `your-albums-container ${albumViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
             <div class="albums-empty-state">
                 <div class="albums-empty-icon" aria-hidden="true">
@@ -805,36 +814,96 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
     }
 
     // Extract unique albums from currentLikedSongs + downloads
-    const allSongs = [...(Array.isArray(songs) ? songs : [])];
+    const likedSongs = Array.isArray(songs) ? songs : [];
+    let downloadedSongs = [];
     try {
         const rawDl = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
         const dls = JSON.parse(rawDl);
-        if (Array.isArray(dls)) allSongs.push(...dls);
+        if (Array.isArray(dls)) downloadedSongs = dls;
     } catch {}
+
+    const allSongs = [...likedSongs, ...downloadedSongs];
 
     const albumMap = new Map();
     allSongs.forEach(song => {
         const albumName = song.album || song.album_name || song.albumTitle;
         if (!albumName || albumName === 'Unknown Album' || albumName.trim() === '') return;
         const key = albumName.trim().toLowerCase();
+        const isLiked = likedSongs.some(ls => String(ls.id || ls.songId) === String(song.id || song.songId));
+        const isDl = downloadedSongs.some(ds => String(ds.id || ds.songId) === String(song.id || song.songId));
+
         if (!albumMap.has(key)) {
             albumMap.set(key, {
                 id: song.albumId || key,
                 name: albumName.trim(),
                 artist: song.artist || 'Various Artists',
                 cover: song.albumCover || song.cover || song.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80',
-                tracks: [song]
+                tracks: [song],
+                hasSaved: isLiked,
+                hasDownloaded: isDl
             });
         } else {
             const existing = albumMap.get(key);
             if (!existing.tracks.some(t => String(t.id || t.songId) === String(song.id || song.songId))) {
                 existing.tracks.push(song);
             }
+            if (isLiked) existing.hasSaved = true;
+            if (isDl) existing.hasDownloaded = true;
         }
     });
 
-    const albums = Array.from(albumMap.values());
+    let albums = Array.from(albumMap.values());
+
+    // 1. Filter by category chip
+    if (albumFilterMode === 'saved') {
+        albums = albums.filter(a => a.hasSaved);
+    } else if (albumFilterMode === 'downloaded') {
+        albums = albums.filter(a => a.hasDownloaded);
+    }
+
+    // 2. Filter by search input
+    if (albumSearchQuery) {
+        albums = albums.filter(a => 
+            (a.name || '').toLowerCase().includes(albumSearchQuery) || 
+            (a.artist || '').toLowerCase().includes(albumSearchQuery)
+        );
+    }
+
+    // 3. Sort albums
+    if (albumSortMode === 'recently-played') {
+        let recentList = [];
+        try {
+            const rawRecent = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+            recentList = JSON.parse(rawRecent);
+            if (!Array.isArray(recentList)) recentList = [];
+        } catch {}
+
+        const getAlbumRecentIndex = (album) => {
+            const index = recentList.findIndex(recentSong => {
+                if (!recentSong) return false;
+                const recentAlbum = (recentSong.album || recentSong.album_name || recentSong.albumTitle || '').trim().toLowerCase();
+                if (recentAlbum && recentAlbum === (album.name || '').trim().toLowerCase()) return true;
+                return album.tracks.some(t => {
+                    const sid = String(t.id || t.songId || '');
+                    const rid = String(recentSong.id || recentSong.songId || '');
+                    if (sid && rid && sid === rid) return true;
+                    if (t.audio && recentSong.audio && t.audio === recentSong.audio) return true;
+                    return false;
+                });
+            });
+            return index >= 0 ? index : 999999;
+        };
+
+        albums.sort((a, b) => getAlbumRecentIndex(a) - getAlbumRecentIndex(b));
+    } else if (albumSortMode === 'alphabetical') {
+        albums.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } else {
+        albums.reverse();
+    }
+
     if (badgeEl) badgeEl.textContent = `${albums.length} ${albums.length === 1 ? 'album' : 'albums'}`;
+
+    container.className = `your-albums-container ${albumViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
 
     if (albums.length === 0) {
         container.innerHTML = `
@@ -845,30 +914,64 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
                 </div>
-                <h3 class="albums-empty-title">No albums saved yet</h3>
-                <p class="albums-empty-desc">Albums from songs you like or download will automatically appear here.</p>
+                <h3 class="albums-empty-title">${albumSearchQuery ? 'No matching albums' : 'No albums saved yet'}</h3>
+                <p class="albums-empty-desc">${albumSearchQuery ? `No albums matching "${escapeHTML(albumSearchQuery)}".` : 'Albums from songs you like or download will automatically appear here.'}</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = albums.map(album => `
-        <div class="album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
-            <div class="album-cover-wrapper">
-                <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="album-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
-                <div class="album-play-overlay">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
+    if (albumViewMode === 'grid') {
+        container.innerHTML = albums.map(album => `
+            <div class="your-album-grid-card album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
+                <div class="your-album-grid-cover">
+                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-grid-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
+                    <div class="your-album-grid-play-overlay">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </div>
+                </div>
+                <div class="your-album-grid-info">
+                    <div class="your-album-grid-text">
+                        <h3 class="your-album-grid-title">${escapeHTML(album.name)}</h3>
+                        <p class="your-album-grid-meta">${escapeHTML(album.artist)} • ${album.tracks.length} ${album.tracks.length === 1 ? 'track' : 'tracks'}</p>
+                    </div>
+                    <button class="your-album-grid-more-btn album-more-btn" type="button" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" title="Album options" aria-label="Album options">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75"></circle>
+                            <circle cx="12" cy="12" r="1.75"></circle>
+                            <circle cx="12" cy="19" r="1.75"></circle>
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <div class="album-info">
-                <h3 class="album-title">${escapeHTML(album.name)}</h3>
-                <p class="album-artist">${escapeHTML(album.artist)}</p>
-                <span class="album-track-count">${album.tracks.length} ${album.tracks.length === 1 ? 'track' : 'tracks'}</span>
+        `).join('');
+    } else {
+        container.innerHTML = albums.map(album => `
+            <div class="your-album-item album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
+                <div class="your-album-cover">
+                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
+                    <div class="your-album-play-overlay">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    </div>
+                </div>
+                <div class="your-album-info">
+                    <h3 class="your-album-title">${escapeHTML(album.name)}</h3>
+                    <p class="your-album-meta">${escapeHTML(album.artist)} • ${album.tracks.length} ${album.tracks.length === 1 ? 'track' : 'tracks'}</p>
+                </div>
+                <div class="your-album-actions">
+                    <button class="your-album-more-btn album-more-btn" type="button" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" title="Album options" aria-label="Album options">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75"></circle>
+                            <circle cx="12" cy="12" r="1.75"></circle>
+                            <circle cx="12" cy="19" r="1.75"></circle>
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
+    }
 }
 
 // --- 4. ARTISTS: Dedicated Artists Tab Renderer ---
@@ -1210,6 +1313,131 @@ function setupPlaylistControls() {
     }
 }
 
+function setupAlbumControls() {
+    const searchInput = document.getElementById('albumSearchInput');
+    const searchClearBtn = document.getElementById('albumSearchClearBtn');
+    const filterChips = document.querySelectorAll('[data-album-filter]');
+    const sortDropdown = document.getElementById('albumSortDropdown');
+    const sortBtn = document.getElementById('albumSortBtn');
+    const sortMenu = document.getElementById('albumSortMenu');
+    const sortLabel = document.getElementById('albumSortLabel');
+    const sortItems = document.querySelectorAll('[data-album-sort-val]');
+    const viewListBtn = document.getElementById('albumViewListBtn');
+    const viewGridBtn = document.getElementById('albumViewGridBtn');
+    const albumsGrid = document.getElementById('libraryAlbumsList');
+
+    if (searchInput) {
+        const debouncedSearch = debounce(() => {
+            if (searchInput) {
+                albumSearchQuery = (searchInput.value || '').trim().toLowerCase();
+            }
+            renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+        }, 250);
+
+        const handleSearchInput = (e) => {
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            debouncedSearch();
+        };
+        searchInput.addEventListener('input', handleSearchInput);
+        listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });
+    }
+
+    if (searchClearBtn) {
+        const handleClearClick = () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            albumSearchQuery = '';
+            renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+        };
+        searchClearBtn.addEventListener('click', handleClearClick);
+        listeners.push({ element: searchClearBtn, type: 'click', handler: handleClearClick });
+    }
+
+    filterChips.forEach(chip => {
+        const handleChipClick = () => {
+            filterChips.forEach(c => c.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            albumFilterMode = chip.dataset.albumFilter || 'all';
+            renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+        };
+        chip.addEventListener('click', handleChipClick);
+        listeners.push({ element: chip, type: 'click', handler: handleChipClick });
+    });
+
+    if (sortBtn && sortMenu && sortDropdown) {
+        const toggleSortMenu = (e) => {
+            e.stopPropagation();
+            const isOpen = !sortMenu.classList.contains('hidden');
+            if (isOpen) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                sortMenu.classList.remove('hidden');
+                sortDropdown.classList.add('is-open');
+                sortBtn.setAttribute('aria-expanded', 'true');
+            }
+        };
+        sortBtn.addEventListener('click', toggleSortMenu);
+        listeners.push({ element: sortBtn, type: 'click', handler: toggleSortMenu });
+
+        sortItems.forEach(item => {
+            const handleSortItemClick = (e) => {
+                e.stopPropagation();
+                albumSortMode = item.dataset.albumSortVal || 'recently-added';
+                sortItems.forEach(it => it.classList.toggle('is-selected', it === item));
+                if (sortLabel) {
+                    sortLabel.textContent = item.querySelector('span')?.textContent || 'Recently added';
+                }
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+                renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+            };
+            item.addEventListener('click', handleSortItemClick);
+            listeners.push({ element: item, type: 'click', handler: handleSortItemClick });
+        });
+
+        const handleOutsideClick = (e) => {
+            if (!sortDropdown.contains(e.target)) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        listeners.push({ element: document, type: 'click', handler: handleOutsideClick });
+    }
+
+    const setViewMode = (mode) => {
+        albumViewMode = mode;
+        if (viewListBtn) viewListBtn.classList.toggle('is-active', mode === 'list');
+        if (viewGridBtn) viewGridBtn.classList.toggle('is-active', mode === 'grid');
+        if (albumsGrid) {
+            albumsGrid.classList.toggle('view-list', mode === 'list');
+            albumsGrid.classList.toggle('view-grid', mode === 'grid');
+        }
+        renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
+    };
+
+    if (viewListBtn) {
+        const handleListClick = () => setViewMode('list');
+        viewListBtn.addEventListener('click', handleListClick);
+        listeners.push({ element: viewListBtn, type: 'click', handler: handleListClick });
+    }
+
+    if (viewGridBtn) {
+        const handleGridClick = () => setViewMode('grid');
+        viewGridBtn.addEventListener('click', handleGridClick);
+        listeners.push({ element: viewGridBtn, type: 'click', handler: handleGridClick });
+    }
+}
+
 function renderLikedSongsOverview(songs = [], isGuest = false) {
     const container = document.getElementById('overviewLikedList');
     if (!container) return;
@@ -1395,6 +1623,32 @@ function setupSongActionListeners() {
                 }
             } else if (typeof window.showToast === 'function') {
                 window.showToast(`Membuka playlist: ${playlistName}`);
+            }
+            return;
+        }
+
+        // Album options more button
+        const albumMoreBtn = e.target.closest('.album-more-btn, .your-album-more-btn, .your-album-grid-more-btn');
+        if (albumMoreBtn) {
+            e.stopPropagation();
+            const albumName = albumMoreBtn.dataset.albumName || 'Album';
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Options for ${albumName}`);
+            }
+            return;
+        }
+
+        // Album item click
+        const albumItem = e.target.closest('.album-card, .your-album-item, .your-album-grid-card');
+        if (albumItem && !e.target.closest('.album-more-btn')) {
+            const albumName = albumItem.dataset.albumName || 'Album';
+            const albumArtist = albumItem.dataset.albumArtist || '';
+            const firstAudio = albumItem.dataset.firstAudio;
+            if (firstAudio && typeof window.playPreview === 'function') {
+                const cover = albumItem.querySelector('img')?.src || '';
+                window.playPreview(null, firstAudio, albumName, albumArtist, cover, null, 0, 'library');
+            } else if (typeof window.showToast === 'function') {
+                window.showToast(`Membuka album: ${albumName}`);
             }
             return;
         }
