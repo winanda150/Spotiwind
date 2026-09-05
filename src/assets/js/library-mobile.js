@@ -9,6 +9,7 @@ import { getUserPlaylists } from '../../services/libraryService.js';
 import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
 import { openProSubscriptionModal, closeProSubscriptionModal } from '../../components/modals/proSubscriptionModal.js';
 import { isSongDownloaded, toggleDownloadSong } from '../../components/sheets/songOptionsSheet.js';
+import { debounce } from '../../utils/formatters.js';
 
 let activeLibraryTab = 'overview';
 const listeners = [];
@@ -735,17 +736,17 @@ function renderPlaylistsPanel(playlists = [], isGuest = false) {
                         </svg>
                     </div>
                     <div class="your-playlist-grid-info">
-                        <h3 class="your-playlist-grid-title">${escapeHTML(p.name || 'Untitled Playlist')}</h3>
-                        <div class="your-playlist-grid-meta">
-                            <span>${countStr}</span>
-                            <button class="your-playlist-grid-more-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${escapeHTML(p.name || '')}" title="Playlist options" aria-label="Playlist options">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                                    <circle cx="12" cy="5" r="1.75"></circle>
-                                    <circle cx="12" cy="12" r="1.75"></circle>
-                                    <circle cx="12" cy="19" r="1.75"></circle>
-                                </svg>
-                            </button>
+                        <div class="your-playlist-grid-text">
+                            <h3 class="your-playlist-grid-title">${escapeHTML(p.name || 'Untitled Playlist')}</h3>
+                            <p class="your-playlist-grid-meta">${countStr}</p>
                         </div>
+                        <button class="your-playlist-grid-more-btn playlist-more-btn" type="button" data-playlist-id="${p.id}" data-playlist-name="${escapeHTML(p.name || '')}" title="Playlist options" aria-label="Playlist options">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             `;
@@ -790,7 +791,7 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
         container.innerHTML = `
             <div class="albums-empty-state">
                 <div class="albums-empty-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
@@ -839,7 +840,7 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
         container.innerHTML = `
             <div class="albums-empty-state">
                 <div class="albums-empty-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <circle cx="12" cy="12" r="3"></circle>
                     </svg>
@@ -881,7 +882,7 @@ async function renderArtistsPanel(isGuest = false) {
         container.innerHTML = `
             <div class="artists-empty-state">
                 <div class="artists-empty-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="8" r="5"></circle>
                         <path d="M20 21a8 8 0 0 0-16 0"></path>
                     </svg>
@@ -943,7 +944,7 @@ async function renderArtistsPanel(isGuest = false) {
         container.innerHTML = `
             <div class="artists-empty-state">
                 <div class="artists-empty-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="8" r="5"></circle>
                         <path d="M20 21a8 8 0 0 0-16 0"></path>
                     </svg>
@@ -1098,12 +1099,18 @@ function setupPlaylistControls() {
     const playlistsGrid = document.getElementById('libraryPlaylistsList');
 
     if (searchInput) {
+        const debouncedSearch = debounce(() => {
+            if (searchInput) {
+                playlistSearchQuery = (searchInput.value || '').trim().toLowerCase();
+            }
+            renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+        }, 250);
+
         const handleSearchInput = (e) => {
-            playlistSearchQuery = (e.target.value || '').trim().toLowerCase();
             if (searchClearBtn) {
                 searchClearBtn.classList.toggle('hidden', !e.target.value);
             }
-            renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
+            debouncedSearch();
         };
         searchInput.addEventListener('input', handleSearchInput);
         listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });

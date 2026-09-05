@@ -41,7 +41,6 @@ export const openCreatePlaylistModal = (triggerElement = null) => {
     modal.removeAttribute('inert');
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
-    setTimeout(() => input?.focus(), 120);
 };
 
 export const closeCreatePlaylistModal = () => {

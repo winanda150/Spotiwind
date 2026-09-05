@@ -348,6 +348,22 @@ body.player-active .right-sidebar {
     border-color: var(--accent-color);
 }
 
+.search-box input::-webkit-search-decoration,
+.search-box input::-webkit-search-cancel-button,
+.search-box input::-webkit-search-results-button,
+.search-box input::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+.search-box input::-ms-clear,
+.search-box input::-ms-reveal {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
 .search-results-dropdown {
     position: absolute;
     top: calc(100% + 8px);
