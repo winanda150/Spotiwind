@@ -265,8 +265,10 @@ const syncActiveSongUI = () => {
         el.classList.remove('is-active-song', 'is-paused');
     });
 
-    document.querySelectorAll('.play-overlay, .play-pause-btn').forEach(el => {
-        el.classList.remove('btn-loading');
+    document.querySelectorAll('.play-overlay, .play-pause-btn, .library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon').forEach(el => {
+        if (!isAudioBuffering) {
+            el.classList.remove('btn-loading');
+        }
         if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
     });
 
@@ -484,6 +486,60 @@ activeAudio.addEventListener('loadedmetadata', () => {
     document.getElementById('fullTotalTime').textContent = formatTime(activeAudio.duration);
 });
 
+let isAudioBuffering = false;
+
+/**
+ * Sync play icon loading spinner with audio buffering & loading states
+ */
+const setAudioLoadingState = (isLoading) => {
+    isAudioBuffering = isLoading;
+    const playPauseBtns = document.querySelectorAll('.play-pause-btn, #mobileMainPlayBtn, #fullMainPlayBtn');
+    if (isLoading) {
+        playPauseBtns.forEach(b => b.classList.add('btn-loading'));
+        if (currentSongData) {
+            const activeElements = getSongElements(currentSongData);
+            activeElements.forEach(el => {
+                const overlay = el.querySelector('.play-overlay');
+                if (overlay) overlay.classList.add('btn-loading');
+                const rowIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .recent-track-play-icon, .mix-track-play-icon');
+                if (rowIcon) rowIcon.classList.add('btn-loading');
+            });
+            if (activeMixId) {
+                document.querySelectorAll(`.mix-card[data-mix-id="${activeMixId}"] .play-overlay`).forEach(o => o.classList.add('btn-loading'));
+            }
+        }
+        if (currentPlayingBtn) {
+            currentPlayingBtn.classList.add('btn-loading');
+        }
+    } else {
+        playPauseBtns.forEach(b => b.classList.remove('btn-loading'));
+        document.querySelectorAll('.btn-loading').forEach(el => el.classList.remove('btn-loading'));
+    }
+};
+
+// Global audio loading and buffering listeners
+activeAudio.addEventListener('loadstart', () => {
+    setAudioLoadingState(true);
+});
+
+activeAudio.addEventListener('waiting', () => {
+    setAudioLoadingState(true);
+});
+
+activeAudio.addEventListener('playing', () => {
+    setAudioLoadingState(false);
+});
+
+activeAudio.addEventListener('canplay', () => {
+    if (!activeAudio.paused) {
+        setAudioLoadingState(false);
+    }
+});
+
+activeAudio.addEventListener('error', () => {
+    setAudioLoadingState(false);
+});
+
 // Toggle is-playing class on the card for CSS animation
 activeAudio.addEventListener('play', () => {
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
@@ -500,6 +556,7 @@ activeAudio.addEventListener('play', () => {
 });
 
 activeAudio.addEventListener('pause', () => {
+    setAudioLoadingState(false);
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     document.querySelectorAll('#mobileMainPlayBtn').forEach(btn => btn.innerHTML = PLAY_ICON);
     document.getElementById('mobilePlayerBar')?.classList.remove('is-playing');
@@ -513,6 +570,7 @@ activeAudio.addEventListener('pause', () => {
 });
 
 activeAudio.addEventListener('ended', () => {
+    setAudioLoadingState(false);
     syncActiveSongUI();
 });
 
@@ -778,6 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebar?.setAttribute('aria-hidden', 'true');
         sidebar?.setAttribute('inert', '');
     };
+    window.closeSidebar = closeSidebar;
 
     // Automatically hide mobile sidebar immediately if viewport transitions/resizes to desktop width
     const desktopBreakpointQuery = window.matchMedia('(min-width: 1024px)');
@@ -1084,6 +1143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Playlist creation trigger
         if (target.closest('.sidebar-add-playlist-btn, #libraryAddBtn, #createPlaylistBtn, [data-action="add-playlist"]')) {
             e.preventDefault();
+            closeSidebar();
             openCreatePlaylistModal();
             return;
         }
@@ -1223,14 +1283,11 @@ window.toggleDownloadSong = toggleDownloadSong;
                 try {
                     // If the song has ended, reset to the beginning before replaying (Important for Repeat)
                     if (activeAudio.ended) activeAudio.currentTime = 0;
-                    if (btn) btn.classList.add('btn-loading');
-                    document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.add('btn-loading'));
+                    setAudioLoadingState(true);
                     await activeAudio.play();
                 } catch (e) {
                     console.error("Resume error:", e);
-                } finally {
-                    if (btn) btn.classList.remove('btn-loading');
-                    document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
+                    setAudioLoadingState(false);
                 }
             }
             return;
@@ -1400,8 +1457,7 @@ window.toggleDownloadSong = toggleDownloadSong;
         document.querySelectorAll('.mobile-mini-progress-bar').forEach(thumb => thumb.style.width = '0%');
 
         currentPlayingBtn = btn;
-        if (btn) btn.classList.add('btn-loading');
-        document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.add('btn-loading'));
+        setAudioLoadingState(true);
 
         activeAudio.onerror = null;
         activeAudio.onended = null;
@@ -1453,6 +1509,7 @@ window.toggleDownloadSong = toggleDownloadSong;
 
             activeAudio.onerror = (e) => {
                 console.error("Audio playback error:", e);
+                setAudioLoadingState(false);
                 resetBtnUI(btn);
                 currentPlayingBtn = null;
             };
@@ -1462,15 +1519,11 @@ window.toggleDownloadSong = toggleDownloadSong;
             renderUpNextQueue('upNextList');
             updateMyActivity(title);
 
-            if (btn) btn.classList.remove('btn-loading');
-            document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
-
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error("Playback error:", error);
             showToast(error.message || "Failed to load song.");
-            if (btn) btn.classList.remove('btn-loading');
-            document.querySelectorAll('.play-pause-btn').forEach(b => b.classList.remove('btn-loading'));
+            setAudioLoadingState(false);
             currentPlayingBtn = null;
         }
 
@@ -2784,6 +2837,7 @@ window.toggleDownloadSong = toggleDownloadSong;
     };
 
 // [NEW] Expose necessary functions to the global scope for modules
+window.isCurrentUserPro = () => Boolean(currentUserIsPro);
 window.spotiwind = {
     mobile: {
         fetchWithContinuousRetry,
@@ -2792,7 +2846,8 @@ window.spotiwind = {
         loadPageContent,
         initializeSkeletons,
         syncActiveSongUI,
-        getCurrentSongData: () => currentSongData
+        getCurrentSongData: () => currentSongData,
+        isCurrentUserPro: () => Boolean(currentUserIsPro)
     }
 };
 
@@ -2815,9 +2870,16 @@ window.spotiwind = {
     const togglePlayHandler = async () => {
         if (activeAudio.src && activeAudio.src !== "") {
             try {
-                if (activeAudio.paused) await activeAudio.play();
-                else activeAudio.pause();
-            } catch (err) { console.error("Toggle Play error:", err); }
+                if (activeAudio.paused) {
+                    setAudioLoadingState(true);
+                    await activeAudio.play();
+                } else {
+                    activeAudio.pause();
+                }
+            } catch (err) {
+                console.error("Toggle Play error:", err);
+                setAudioLoadingState(false);
+            }
         } else if (currentPlaylist.length > 0) {
             triggerSongByIndex(0);
         }
@@ -3062,10 +3124,4 @@ window.spotiwind = {
                 updateAppUrl('/', 'Spotiwind - Feel The Music, Ride The Wind', { route: 'home' }, false);
             }
         }
-
-        // Initialize Modular Modal and Sheet Listeners
-        initCreatePlaylistModal();
-        initAvatarPreviewModal();
-        initQueueModal();
-        initSongOptionsSheet();
 });

@@ -7,6 +7,7 @@ import { clearRecentlyPlayed } from '../../services/recentlyPlayedService.js';
 import { defaultAvatar, getHighResAvatarUrl, formatRupiah } from '../../utils/formatters.js';
 import { showToast } from '../../utils/domUtils.js';
 import { openAvatarPreviewModal, closeAvatarPreviewModal, initAvatarPreviewModal } from '../../components/modals/avatarPreviewModal.js';
+import { openProSubscriptionModal, closeProSubscriptionModal } from '../../components/modals/proSubscriptionModal.js';
 
 let unsubscribeAccountAuth = null;
 let unsubscribePlaylists = null;
@@ -277,67 +278,29 @@ const setupBottomSheetDrag = (modalEl, onCloseCallback) => {
     };
 };
 
-const openSubscriptionModal = () => {
-    const modal = document.getElementById('proSubscriptionModal');
-    if (!modal) return;
-
-    previousActiveElement = document.activeElement;
-
-    const sheet = modal.querySelector('.pro-modal-sheet');
-    if (sheet) {
-        sheet.classList.remove('is-fullscreen');
-        sheet.style.transform = '';
-        sheet.style.height = '';
-        sheet.style.maxHeight = '';
-    }
-
-    document.body.classList.add('pro-modal-open');
-    modal.classList.remove('hidden');
-    modal.removeAttribute('inert');
-    void modal.offsetWidth;
-    modal.classList.add('is-active');
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+const openSubscriptionModal = (options = {}) => {
+    openProSubscriptionModal({
+        ...options,
+        onSubscribed: (detail) => {
+            if (currentProfileData) {
+                currentProfileData.isPremium = true;
+            }
+            updateProBannerUI(true);
+            const badge = document.getElementById('accountProBadge');
+            const avatarWrapper = document.querySelector('.account-avatar-wrapper');
+            const profileHeader = document.querySelector('.account-profile-header');
+            badge?.classList.remove('hidden');
+            avatarWrapper?.classList.add('is-pro');
+            profileHeader?.classList.add('is-pro');
+            if (typeof options.onSubscribed === 'function') {
+                options.onSubscribed(detail);
+            }
+        }
+    });
 };
 
 const closeSubscriptionModal = () => {
-    const modal = document.getElementById('proSubscriptionModal');
-    if (!modal || modal.classList.contains('hidden')) return;
-
-    // 1. Lepaskan fokus dari elemen tombol dalam modal sebelum mengatur aria-hidden
-    if (modal.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
-        document.activeElement.blur();
-    }
-
-    // 2. Kembalikan fokus ke elemen pemicu jika valid
-    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        try {
-            previousActiveElement.focus();
-        } catch {
-            // Ignored
-        }
-    }
-    previousActiveElement = null;
-
-    const sheet = modal.querySelector('.pro-modal-sheet');
-    if (sheet) {
-        sheet.classList.remove('is-fullscreen');
-        sheet.style.transform = '';
-        sheet.style.height = '';
-        sheet.style.maxHeight = '';
-    }
-
-    document.body.classList.remove('pro-modal-open');
-    modal.classList.remove('is-active');
-    modal.setAttribute('aria-hidden', 'true');
-    modal.setAttribute('inert', '');
-    document.body.style.overflow = '';
-
-    setTimeout(() => {
-        if (!modal.classList.contains('is-active')) {
-            modal.classList.add('hidden');
-        }
-    }, 320);
+    closeProSubscriptionModal();
 };
 
 const openManageModal = () => {
@@ -632,19 +595,7 @@ const bindAccountInteractions = () => {
         managePlanBtn.addEventListener('click', managePlanBtnHandler);
     }
 
-    // Modal Close Buttons & Backdrops
-    const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
-    if (closeSubModalBtn) {
-        closeSubModalBtnHandler = () => closeSubscriptionModal();
-        closeSubModalBtn.addEventListener('click', closeSubModalBtnHandler);
-    }
-
-    const subBackdrop = document.querySelector('#proSubscriptionModal .pro-modal-backdrop');
-    if (subBackdrop) {
-        subModalBackdropHandler = () => closeSubscriptionModal();
-        subBackdrop.addEventListener('click', subModalBackdropHandler);
-    }
-
+    // Manage Active Plan Modal (For Active PRO Users)
     const closeManageModalBtn = document.getElementById('closeManageModalBtn');
     if (closeManageModalBtn) {
         closeManageModalBtnHandler = () => closeManageModal();
@@ -657,77 +608,9 @@ const bindAccountInteractions = () => {
         manageBackdrop.addEventListener('click', manageModalBackdropHandler);
     }
 
-    // Setup Drag / Swipe Gestures on Bottom Sheets
-    const subModal = document.getElementById('proSubscriptionModal');
-    if (subModal) {
-        cleanupSubSheetDrag = setupBottomSheetDrag(subModal, () => closeSubscriptionModal());
-    }
-
     const manageModal = document.getElementById('proManageModal');
     if (manageModal) {
         cleanupManageSheetDrag = setupBottomSheetDrag(manageModal, () => closeManageModal());
-    }
-
-    // Plan Selection Radio Cards
-    const planCards = document.querySelectorAll('.pro-plan-card');
-    planCardClickHandlers = [];
-    planCards.forEach((card) => {
-        const handler = () => {
-            if (isModalGestureActive) return;
-            planCards.forEach((c) => {
-                c.classList.remove('is-selected');
-                c.setAttribute('aria-checked', 'false');
-            });
-            card.classList.add('is-selected');
-            card.setAttribute('aria-checked', 'true');
-
-            selectedPlanData = {
-                id: card.dataset.planId || 'individual',
-                name: card.dataset.planName || 'Individual Monthly',
-                price: card.dataset.planPrice || 'Rp 29.000'
-            };
-        };
-        card.addEventListener('click', handler);
-        planCardClickHandlers.push({ el: card, fn: handler });
-    });
-
-    // Activate PRO Subscription (7-Day Trial)
-    const activateProTrialBtn = document.getElementById('activateProTrialBtn');
-    if (activateProTrialBtn) {
-        activateTrialBtnHandler = async () => {
-            const user = auth.currentUser;
-            if (!user) {
-                showToast('Silakan login terlebih dahulu');
-                return;
-            }
-
-            try {
-                activateProTrialBtn.disabled = true;
-                activateProTrialBtn.innerHTML = '<span>Mengaktifkan PRO...</span>';
-
-                await setUserPremiumStatus(user.uid, true, {
-                    planName: `Spotiwind PRO ${selectedPlanData.name}`,
-                    price: selectedPlanData.price,
-                    since: Date.now(),
-                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
-                });
-
-                closeSubscriptionModal();
-                showToast(`Selamat! Akun Anda kini aktif sebagai Spotiwind PRO 👑`);
-            } catch (err) {
-                console.error("Failed to activate PRO:", err);
-                showToast('Gagal mengaktifkan paket, coba lagi');
-            } finally {
-                activateProTrialBtn.disabled = false;
-                activateProTrialBtn.innerHTML = `
-                    <span>Mulai Uji Coba Gratis 7 Hari</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                `;
-            }
-        };
-        activateProTrialBtn.addEventListener('click', activateTrialBtnHandler);
     }
 
     // Cancel PRO Subscription
@@ -1116,6 +999,21 @@ export const initAccountPage = async () => {
     unsubscribeAccountAuth?.();
     unsubscribeAccountAuth = onAuthStateChanged(auth, updateAccountUserInfo);
     bindAccountInteractions();
+
+    try {
+        if (sessionStorage.getItem('open_pro_subscription') === 'true') {
+            sessionStorage.removeItem('open_pro_subscription');
+            setTimeout(() => {
+                if (currentProfileData?.isPremium === true) {
+                    openManageModal();
+                } else {
+                    openSubscriptionModal();
+                }
+            }, 300);
+        }
+    } catch {
+        // Ignored
+    }
 };
 
 export const cleanupAccountPage = () => {
@@ -1196,17 +1094,7 @@ export const cleanupAccountPage = () => {
         recentlyPlayedUpdateHandler = null;
     }
 
-    const closeSubModalBtn = document.getElementById('closeSubscriptionModalBtn');
-    if (closeSubModalBtn && closeSubModalBtnHandler) {
-        closeSubModalBtn.removeEventListener('click', closeSubModalBtnHandler);
-    }
-    closeSubModalBtnHandler = null;
-
-    const subBackdrop = document.querySelector('#proSubscriptionModal .pro-modal-backdrop');
-    if (subBackdrop && subModalBackdropHandler) {
-        subBackdrop.removeEventListener('click', subModalBackdropHandler);
-    }
-    subModalBackdropHandler = null;
+    closeProSubscriptionModal();
 
     const closeManageModalBtn = document.getElementById('closeManageModalBtn');
     if (closeManageModalBtn && closeManageModalBtnHandler) {
@@ -1220,25 +1108,10 @@ export const cleanupAccountPage = () => {
     }
     manageModalBackdropHandler = null;
 
-    if (cleanupSubSheetDrag) {
-        cleanupSubSheetDrag();
-        cleanupSubSheetDrag = null;
-    }
     if (cleanupManageSheetDrag) {
         cleanupManageSheetDrag();
         cleanupManageSheetDrag = null;
     }
-
-    planCardClickHandlers.forEach(({ el, fn }) => {
-        el.removeEventListener('click', fn);
-    });
-    planCardClickHandlers = [];
-
-    const activateProTrialBtn = document.getElementById('activateProTrialBtn');
-    if (activateProTrialBtn && activateTrialBtnHandler) {
-        activateProTrialBtn.removeEventListener('click', activateTrialBtnHandler);
-    }
-    activateTrialBtnHandler = null;
 
     const cancelSubscriptionBtn = document.getElementById('cancelSubscriptionBtn');
     if (cancelSubscriptionBtn && cancelSubBtnHandler) {

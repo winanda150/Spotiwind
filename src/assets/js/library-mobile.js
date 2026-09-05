@@ -6,11 +6,15 @@
 import { auth, db, onAuthStateChanged, collection, onSnapshot, query, orderBy } from './firebase-config.js';
 import { getFavoriteSongs } from '../../services/favoriteService.js';
 import { getUserPlaylists } from '../../services/libraryService.js';
+import { subscribeUserProfile, getProfileByUid } from '../../services/profileService.js';
+import { openProSubscriptionModal, closeProSubscriptionModal } from '../../components/modals/proSubscriptionModal.js';
 
 let activeLibraryTab = 'overview';
 const listeners = [];
 let likedSongsUnsubscribe = null;
 let playlistsUnsubscribe = null;
+let userProfileUnsubscribe = null;
+let isCurrentUserPro = false;
 let currentLikedSongs = [];
 let currentPlaylists = [];
 
@@ -217,6 +221,24 @@ function setupRealtimeOverviewData() {
         cleanupUserSubscriptions();
 
         if (user) {
+            if (typeof window.isCurrentUserPro === 'function') {
+                isCurrentUserPro = window.isCurrentUserPro();
+            }
+
+            // Real-time PRO subscription status
+            if (userProfileUnsubscribe) {
+                userProfileUnsubscribe();
+                userProfileUnsubscribe = null;
+            }
+            userProfileUnsubscribe = subscribeUserProfile(user.uid, (profile) => {
+                const wasPro = isCurrentUserPro;
+                isCurrentUserPro = profile?.isPremium === true;
+                updateLocalStats();
+                if (activeLibraryTab === 'download' || wasPro !== isCurrentUserPro) {
+                    renderDownloadsPanel(false);
+                }
+            });
+
             updateLocalStats();
             bindUserLikedSongs(user.uid);
             bindUserPlaylists(user.uid);
@@ -224,6 +246,11 @@ function setupRealtimeOverviewData() {
                 renderDownloadsPanel(false);
             }
         } else {
+            isCurrentUserPro = false;
+            if (userProfileUnsubscribe) {
+                userProfileUnsubscribe();
+                userProfileUnsubscribe = null;
+            }
             currentLikedSongs = [];
             currentPlaylists = [];
             setLikedSongsCount(0);
@@ -344,7 +371,8 @@ function bindUserPlaylists(uid) {
 function updateLocalStats() {
     // Downloads
     try {
-        if (!auth.currentUser) {
+        const isPro = isCurrentUserPro || (typeof window.isCurrentUserPro === 'function' && window.isCurrentUserPro());
+        if (!auth.currentUser || !isPro) {
             setDownloadsCount(0);
         } else {
             const savedDownloads = JSON.parse(localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]');
@@ -593,6 +621,26 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
         return;
     }
 
+    const isPro = isCurrentUserPro || (typeof window.isCurrentUserPro === 'function' && window.isCurrentUserPro());
+    if (!isPro) {
+        setDownloadsCount(0);
+        container.innerHTML = `
+            <div class="library-empty-state">
+                <div class="library-empty-icon is-pro" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                        <path d="M5 16h14a1 1 0 0 0 1-1L21 6l-4.5 4L12 3 7.5 10 3 6l1 9a1 1 0 0 0 1 1zm-1 2a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4z"/>
+                    </svg>
+                </div>
+                <h3 class="library-empty-title">Available with Spotiwind PRO</h3>
+                <p class="library-empty-desc">Subscribe to Spotiwind PRO to download tracks and listen offline anytime.</p>
+                <button id="libraryUpgradeProBtn" class="library-empty-btn library-pro-upgrade-btn" type="button" aria-label="Upgrade to PRO">
+                    <span>Upgrade to PRO</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+
     try {
         const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
         const downloads = JSON.parse(raw);
@@ -604,8 +652,8 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
                     <div class="library-empty-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </div>
-                    <h3 class="library-empty-title">No downloaded songs</h3>
-                    <p class="library-empty-desc">Download tracks to listen offline wherever you go.</p>
+                    <h3 class="library-empty-title">No downloaded songs yet</h3>
+                    <p class="library-empty-desc">Download tracks from the player or song options to listen offline anywhere.</p>
                 </div>
             `;
             return;
@@ -737,6 +785,19 @@ function setupSongActionListeners() {
             } else {
                 window.location.href = 'auth-mobile.html';
             }
+            return;
+        }
+
+        const upgradeProBtn = e.target.closest('#libraryUpgradeProBtn, .library-pro-upgrade-btn');
+        if (upgradeProBtn) {
+            e.preventDefault();
+            openProSubscriptionModal({
+                onSubscribed: () => {
+                    isCurrentUserPro = true;
+                    updateLocalStats();
+                    renderDownloadsPanel(false);
+                }
+            });
             return;
         }
 
@@ -1146,10 +1207,15 @@ function cleanupUserSubscriptions() {
         playlistsUnsubscribe();
         playlistsUnsubscribe = null;
     }
+    if (typeof userProfileUnsubscribe === 'function') {
+        userProfileUnsubscribe();
+        userProfileUnsubscribe = null;
+    }
 }
 
 export function cleanupLibraryPage() {
     closeDownloadOptions();
+    closeProSubscriptionModal();
     cleanupUserSubscriptions();
 
     if (cleanupDownloadOptionsDrag) {

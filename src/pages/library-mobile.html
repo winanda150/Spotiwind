@@ -232,4 +232,97 @@
             <button id="optCancelBtn" class="download-opt-cancel-btn" type="button">Batal</button>
         </div>
     </div>
+
+    <!-- Subscription Plans Modal (Upgrade to PRO) -->
+    <div id="proSubscriptionModal" class="pro-subscription-modal hidden" aria-hidden="true" inert>
+        <div class="pro-modal-backdrop"></div>
+        <div class="pro-modal-sheet" role="dialog" aria-labelledby="proModalTitle">
+            <div class="pro-modal-handle-bar" aria-hidden="true"></div>
+            
+            <header class="pro-modal-header">
+                <div class="pro-modal-crown" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M5 16h14a1 1 0 0 0 1-1L21 6l-4.5 4L12 3 7.5 10 3 6l1 9a1 1 0 0 0 1 1zm-1 2a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4z"/>
+                    </svg>
+                </div>
+                <h2 id="proModalTitle" class="pro-modal-title">Spotiwind PRO</h2>
+                <p class="pro-modal-subtitle">Nikmati pengalaman mendengarkan musik premium tanpa batas.</p>
+                <button id="closeSubscriptionModalBtn" class="pro-modal-close-btn" type="button" aria-label="Tutup">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </header>
+
+            <!-- Benefits List -->
+            <ul class="pro-benefits-list">
+                <li class="pro-benefit-item">
+                    <span class="pro-check-icon">✓</span>
+                    <span>Badge PRO & Avatar Ring gradasi eksklusif</span>
+                </li>
+                <li class="pro-benefit-item">
+                    <span class="pro-check-icon">✓</span>
+                    <span>Banner profil eksklusif (Exclusive Hero Banner)</span>
+                </li>
+                <li class="pro-benefit-item">
+                    <span class="pro-check-icon">✓</span>
+                    <span>Download offline & dengarkan kapan saja</span>
+                </li>
+            </ul>
+
+            <!-- Plans Cards -->
+            <div class="pro-plans-container" role="radiogroup" aria-label="Pilihan Paket Langganan">
+                <!-- Plan 1: Individual Monthly -->
+                <div class="pro-plan-card is-selected" role="radio" aria-checked="true" tabindex="0" data-plan-id="individual" data-plan-name="Individual Monthly" data-plan-price="Rp 29.000">
+                    <div class="pro-plan-badge">Populer</div>
+                    <div class="pro-plan-info">
+                        <h3 class="pro-plan-name">Individual</h3>
+                        <p class="pro-plan-desc">1 Akun • Bebas batal kapan saja</p>
+                    </div>
+                    <div class="pro-plan-pricing">
+                        <span class="pro-price">Rp 29.000</span>
+                        <span class="pro-period">/ bulan</span>
+                    </div>
+                </div>
+
+                <!-- Plan 2: Student -->
+                <div class="pro-plan-card" role="radio" aria-checked="false" tabindex="0" data-plan-id="student" data-plan-name="Student Plan" data-plan-price="Rp 15.000">
+                    <div class="pro-plan-badge badge-student">Pelajar</div>
+                    <div class="pro-plan-info">
+                        <h3 class="pro-plan-name">Student (Pelajar)</h3>
+                        <p class="pro-plan-desc">1 Akun • Untuk pelajar & mahasiswa</p>
+                    </div>
+                    <div class="pro-plan-pricing">
+                        <span class="pro-price">Rp 15.000</span>
+                        <span class="pro-period">/ bulan</span>
+                    </div>
+                </div>
+
+                <!-- Plan 3: Annual Best Value -->
+                <div class="pro-plan-card" role="radio" aria-checked="false" tabindex="0" data-plan-id="annual" data-plan-name="Annual Best Value" data-plan-price="Rp 249.000">
+                    <div class="pro-plan-badge badge-annual">Hemat 28%</div>
+                    <div class="pro-plan-info">
+                        <h3 class="pro-plan-name">Annual (1 Tahun)</h3>
+                        <p class="pro-plan-desc">1 Akun • Bayar 1x untuk 12 bulan</p>
+                    </div>
+                    <div class="pro-plan-pricing">
+                        <span class="pro-price">Rp 249.000</span>
+                        <span class="pro-period">/ tahun</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="pro-modal-footer">
+                <button id="activateProTrialBtn" class="pro-modal-subscribe-btn" type="button">
+                    <span>Mulai Uji Coba Gratis 7 Hari</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                <p class="pro-footer-note">Gratis 7 hari pertama, batalkan kapan saja sebelum masa trial berakhir.</p>
+            </div>
+        </div>
+    </div>
 </body>

@@ -7,6 +7,8 @@ import { createUserPlaylist } from '../../services/libraryService.js';
 import { showToast } from '../../utils/domUtils.js';
 
 let playlistModalTriggerEl = null;
+let isPlaylistModalInitialized = false;
+let isSubmittingPlaylist = false;
 
 export const openCreatePlaylistModal = (triggerElement = null) => {
     const user = auth.currentUser;
@@ -59,6 +61,12 @@ export const closeCreatePlaylistModal = () => {
 };
 
 export const initCreatePlaylistModal = () => {
+    window.openCreatePlaylistModal = openCreatePlaylistModal;
+    window.closeCreatePlaylistModal = closeCreatePlaylistModal;
+
+    if (isPlaylistModalInitialized) return;
+    isPlaylistModalInitialized = true;
+
     const modal = document.getElementById('createPlaylistModal');
     const form = document.getElementById('createPlaylistForm');
     const cancelBtn = modal?.querySelector('.playlist-btn-cancel');
@@ -81,6 +89,8 @@ export const initCreatePlaylistModal = () => {
 
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (isSubmittingPlaylist) return;
+
         const user = auth.currentUser;
         if (!user) {
             showToast("Please log in to create playlists.");
@@ -93,6 +103,7 @@ export const initCreatePlaylistModal = () => {
         const playlistName = input?.value?.trim();
         if (!playlistName) return;
 
+        isSubmittingPlaylist = true;
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span>Creating...</span>';
@@ -117,9 +128,8 @@ export const initCreatePlaylistModal = () => {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<span>Create Playlist</span>';
             }
+        } finally {
+            isSubmittingPlaylist = false;
         }
     });
-
-    window.openCreatePlaylistModal = openCreatePlaylistModal;
-    window.closeCreatePlaylistModal = closeCreatePlaylistModal;
 };

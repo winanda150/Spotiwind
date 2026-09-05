@@ -6,6 +6,7 @@ import { auth } from '../../assets/js/firebase-config.js';
 import { cacheSongAudio, removeSongAudioFromCache, downloadMp3ToDevice } from '../../services/offlineAudioService.js';
 import { getProfileByUid } from '../../services/profileService.js';
 import { showToast } from '../../utils/domUtils.js';
+import { openProSubscriptionModal } from '../modals/proSubscriptionModal.js';
 
 export const isSongDownloaded = (songId) => {
     if (!songId) return false;
@@ -67,8 +68,10 @@ export const toggleDownloadSong = async (song) => {
 
         if (!isPro) {
             showToast("Fitur Download Offline eksklusif untuk pelanggan Spotiwind PRO.");
-            if (typeof window.loadPageContent === 'function') {
-                window.loadPageContent('account-mobile.html');
+            if (typeof openProSubscriptionModal === 'function') {
+                openProSubscriptionModal();
+            } else if (typeof window.openProSubscriptionModal === 'function') {
+                window.openProSubscriptionModal();
             }
             return false;
         }

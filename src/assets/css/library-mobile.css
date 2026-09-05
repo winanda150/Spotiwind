@@ -170,7 +170,8 @@
     text-align: center;
     min-height: 124px;
     padding: 1.15rem 0.65rem;
-    border-radius: 10px; /* Border radius 10px */
+    border-radius: 10px;
+    /* Border radius 10px */
     border: 1px solid var(--glass-border);
     cursor: pointer;
     outline: none;
@@ -556,6 +557,29 @@
     box-shadow: 0 6px 18px rgba(185, 30, 201, 0.45);
 }
 
+/* =============================================
+   Library PRO Exclusive State (Simple & Minimal)
+   ============================================= */
+
+.library-empty-icon.is-pro {
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77 0%, #B91EC9 50%, #7D19F5 100%));
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 16px rgba(185, 30, 201, 0.45);
+    color: #ffffff;
+}
+
+.library-empty-icon.is-pro svg {
+    color: #ffffff;
+}
+
+.library-pro-upgrade-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77 0%, #B91EC9 50%, #7D19F5 100%));
+    box-shadow: 0 4px 16px rgba(241, 46, 119, 0.35);
+}
+
 /* Grids for Playlists, Albums, Artists */
 .library-playlists-grid,
 .library-albums-grid,
@@ -830,8 +854,15 @@
 }
 
 @keyframes fadeInStatus {
-    from { opacity: 0; transform: scale(0.92); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .spin-icon {
@@ -841,6 +872,367 @@
 }
 
 @keyframes spinAnimation {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Spotiwind PRO Subscription Modal
+   ========================================================================== */
+.pro-subscription-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.pro-subscription-modal.is-active {
+    visibility: visible;
+    opacity: 1;
+}
+
+.pro-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.pro-modal-sheet {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    max-height: 84vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.85rem 1.25rem 2rem 1.25rem;
+    background: linear-gradient(180deg, rgba(32, 16, 42, 0.96) 0%, rgba(16, 14, 26, 0.98) 100%);
+    border: 1px solid rgba(241, 46, 119, 0.28);
+    border-bottom: none;
+    border-radius: 1.75rem 1.75rem 0 0;
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.75);
+    box-sizing: border-box;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.25s ease, padding 0.3s ease;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    will-change: transform, height, max-height;
+}
+
+.pro-modal-sheet.is-dragging {
+    transition: none !important;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.pro-modal-sheet.is-fullscreen {
+    height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border-top: none;
+    padding-top: max(2.5rem, calc(env(safe-area-inset-top) + 2rem));
+    padding-bottom: max(2.5rem, calc(env(safe-area-inset-bottom) + 2rem));
+}
+
+.pro-subscription-modal.is-active .pro-modal-sheet:not(.is-dragging) {
+    transform: translateY(0);
+}
+
+.pro-modal-handle-bar {
+    position: relative;
+    width: 48px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+    margin: 0 auto 1.25rem auto;
+    cursor: grab;
+    touch-action: none;
+    transition: background 0.2s ease;
+}
+
+.pro-modal-handle-bar::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    bottom: -14px;
+    left: -28px;
+    right: -28px;
+}
+
+.pro-modal-handle-bar:hover,
+.pro-modal-handle-bar:active,
+.pro-modal-sheet.is-dragging .pro-modal-handle-bar {
+    background: rgba(255, 255, 255, 0.6);
+    cursor: grabbing;
+}
+
+.pro-modal-header {
+    position: relative;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    padding-top: 0.25rem;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.pro-modal-crown {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(185, 30, 201, 0.45);
+    margin-bottom: 0.65rem;
+    flex-shrink: 0;
+}
+
+.pro-modal-crown svg {
+    width: 25px;
+    height: 25px;
+    color: #ffffff;
+}
+
+.pro-modal-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.01em;
+}
+
+.pro-modal-subtitle {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+    max-width: 88%;
+}
+
+.pro-modal-close-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.pro-modal-close-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.pro-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.pro-modal-close-btn:active {
+    transform: scale(0.92);
+}
+
+/* Benefits List */
+.pro-benefits-list {
+    list-style: none;
+    margin: 0 0 1.25rem 0;
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pro-benefit-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.pro-check-icon {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F12E77, #B91EC9);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Plans Container */
+.pro-plans-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+}
+
+.pro-plan-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.05rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid rgba(255, 255, 255, 0.09);
+    border-radius: 1.1rem;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pro-plan-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(241, 46, 119, 0.4);
+}
+
+.pro-plan-card.is-selected {
+    background: linear-gradient(135deg, rgba(241, 46, 119, 0.12), rgba(185, 30, 201, 0.16));
+    border-color: #e879f9;
+    box-shadow: 0 0 20px rgba(185, 30, 201, 0.2);
+}
+
+.pro-plan-badge {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #F12E77, #B91EC9);
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.pro-plan-badge.badge-student {
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+}
+
+.pro-plan-badge.badge-annual {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.pro-plan-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.pro-plan-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+}
+
+.pro-plan-desc {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.pro-plan-pricing {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.pro-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.pro-period {
+    font-size: 0.68rem;
+    color: #94a3b8;
+}
+
+/* Footer & Buttons */
+.pro-modal-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.pro-modal-subscribe-btn {
+    width: 100%;
+    padding: 0.78rem 1.25rem;
+    border-radius: 999px;
+    background: var(--primary-gradient, linear-gradient(135deg, #F12E77, #B91EC9, #7D19F5));
+    border: none;
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(241, 46, 119, 0.45);
+    transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pro-modal-subscribe-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.5;
+}
+
+.pro-modal-subscribe-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+
+.pro-modal-subscribe-btn:active {
+    transform: scale(0.97);
+}
+
+.pro-footer-note {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin: 0;
+    text-align: center;
 }
