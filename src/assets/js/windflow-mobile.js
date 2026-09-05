@@ -254,7 +254,7 @@ const renderUpcomingQueueList = () => {
         <div class="stream-track-card" data-song-id="${track.id}" data-index="${idx}">
             <span class="stream-track-order">${String(idx + 1).padStart(2, '0')}</span>
             <div class="stream-track-art-wrap">
-                <img class="stream-track-art" src="${track.cover || '../../public/branding/Hero%20Section.webp'}" alt="${track.name}" width="44" height="44" loading="lazy">
+                <img class="stream-track-art" src="${track.cover || '../../public/images/Hero%20Section.webp'}" alt="${track.name}" width="44" height="44" loading="lazy">
             </div>
             <div class="stream-track-info">
                 <h4 class="stream-track-title">${track.name}</h4>

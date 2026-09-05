@@ -256,7 +256,7 @@ body.mix-detail-open .mobile-header {
     width: auto;
     background-image:
         linear-gradient(to bottom, rgba(24, 25, 36, 0.2) 0%, rgba(24, 25, 36, 0.45) 45%, rgba(24, 25, 36, 0.85) 80%, #181924 100%),
-        url('../../../public/branding/Banner%20Exclusive.webp');
+        url('../../../public/images/Banner%20Exclusive.webp');
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
@@ -957,7 +957,7 @@ body.mix-detail-open .mobile-header {
 
 /* Hero Card Styles for Mobile */
 .hero-card {
-    background: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('../../../public/branding/Hero%20Section.webp');
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4)), url('../../../public/images/Hero%20Section.webp');
     background-size: 100% 130%;
     background-position: center calc(50% + 10px);
     border: 1px solid var(--glass-border);

@@ -49,6 +49,8 @@ export const normalizePopularityAssetUrl = (url) => {
             url = url.split('/public/')[1];
         } else if (url.includes('/music/')) {
             url = 'music/' + url.split('/music/')[1];
+        } else if (url.includes('/images/')) {
+            url = 'images/' + url.split('/images/')[1];
         } else if (url.includes('/branding/')) {
             url = 'branding/' + url.split('/branding/')[1];
         } else if (url.includes('/Elemen/')) {

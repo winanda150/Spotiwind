@@ -44,6 +44,8 @@ export const getPublicAssetUrl = (relativePath) => {
             relativePath = 'music/' + relativePath.split('/Elemen/')[1];
         } else if (relativePath.includes('/music/')) {
             relativePath = 'music/' + relativePath.split('/music/')[1];
+        } else if (relativePath.includes('/images/')) {
+            relativePath = 'images/' + relativePath.split('/images/')[1];
         } else if (relativePath.includes('/branding/')) {
             relativePath = 'branding/' + relativePath.split('/branding/')[1];
         } else {

@@ -121,7 +121,7 @@ body.player-active .app-container {
         radial-gradient(circle at 50% 0%, rgba(185, 30, 201, 0.28) 0%, transparent 65%),
         radial-gradient(circle at 100% 50%, rgba(76, 110, 245, 0.2) 0%, transparent 55%),
         radial-gradient(circle at 0% 80%, rgba(31, 232, 196, 0.15) 0%, transparent 50%),
-        url('../../../public/branding/Hero%20Section.webp');
+        url('../../../public/images/Hero%20Section.webp');
     background-position: center top;
     background-size: cover;
     background-repeat: no-repeat;

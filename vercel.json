@@ -10,6 +10,10 @@
       "destination": "/public/branding/:path*"
     },
     {
+      "source": "/images/:path*",
+      "destination": "/public/images/:path*"
+    },
+    {
       "source": "/music/:path*",
       "destination": "/public/music/:path*"
     },

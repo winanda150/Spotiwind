@@ -42,6 +42,8 @@ export const normalizeArtistPhotoUrl = (url) => {
             url = url.split('/public/')[1];
         } else if (url.includes('/music/')) {
             url = 'music/' + url.split('/music/')[1];
+        } else if (url.includes('/images/')) {
+            url = 'images/' + url.split('/images/')[1];
         } else if (url.includes('/branding/')) {
             url = 'branding/' + url.split('/branding/')[1];
         } else if (url.includes('/Elemen/')) {
@@ -59,7 +61,13 @@ export const normalizeArtistPhotoUrl = (url) => {
         .replace(/^Elemen\/Logo\//, 'branding/')
         .replace(/^Logo\//, 'branding/')
         .replace(/^Elemen\//, 'music/')
-        .replace(/Gambar[12]\.webp/gi, 'Hero%20Section.webp')
+        .replace(/^branding\/Hero%20Section\.webp/g, 'images/Hero%20Section.webp')
+        .replace(/^branding\/Banner%20Exclusive\.webp/g, 'images/Banner%20Exclusive.webp')
+        .replace(/^branding\/Love%20Image\.png/g, 'images/Love%20Image.png')
+        .replace(/^Hero%20Section\.webp/g, 'images/Hero%20Section.webp')
+        .replace(/^Banner%20Exclusive\.webp/g, 'images/Banner%20Exclusive.webp')
+        .replace(/^Love%20Image\.png/g, 'images/Love%20Image.png')
+        .replace(/Gambar[12]\.webp/gi, 'images/Hero%20Section.webp')
         .replace(/^\/+/, '');
 
     return `../../public/${cleanPath}`;
@@ -255,6 +263,9 @@ export const syncArtistPathToFirestore = async (docId, rawData = {}, matchedLoca
                           rawPhoto.includes('Logo') ||
                           rawPhoto.includes('Gambar1') ||
                           rawPhoto.includes('Gambar2') ||
+                          rawPhoto.includes('branding/Hero') ||
+                          rawPhoto.includes('branding/Banner') ||
+                          rawPhoto.includes('branding/Love') ||
                           (targetPhoto && rawPhoto !== targetPhoto);
 
     const hasLegacyName = Boolean(matchedLocal && rawName && rawName !== targetName);

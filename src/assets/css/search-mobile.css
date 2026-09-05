@@ -696,7 +696,7 @@
 .search-results-dropdown .dropdown-item-user.is-pro-user {
     background-image: 
         linear-gradient(to right, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.7) 55%, rgba(15, 23, 42, 0.4) 100%),
-        url('../../../public/branding/Banner%20Exclusive.webp');
+        url('../../../public/images/Banner%20Exclusive.webp');
     background-size: cover;
     background-position: center center;
     background-repeat: no-repeat;
@@ -707,7 +707,7 @@
 .search-results-dropdown .dropdown-item-user.is-pro-user:hover {
     background-image: 
         linear-gradient(to right, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.6) 55%, rgba(15, 23, 42, 0.3) 100%),
-        url('../../../public/branding/Banner%20Exclusive.webp');
+        url('../../../public/images/Banner%20Exclusive.webp');
 }
 
 .search-results-dropdown .dropdown-item-user .dropdown-cover-wrapper {

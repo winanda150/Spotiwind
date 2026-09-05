@@ -54,7 +54,8 @@ const PRECACHE_ASSETS = [
     '/public/data/albums.json',
     '/public/branding/Spotiwind.webp',
     '/public/branding/Spotiwind.ico',
-    '/public/branding/Hero%20Section.webp',
+    '/public/images/Hero%20Section.webp',
+    '/public/images/Banner%20Exclusive.webp',
     '/public/branding/Spotiwind%20OG%20Image.jpg'
 ];
 

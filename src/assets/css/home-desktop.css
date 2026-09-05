@@ -447,7 +447,7 @@ body.player-active .right-sidebar {
 }
 
 .hero-card {
-    background: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('../../../public/branding/Hero%20Section.webp');
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.2)), url('../../../public/images/Hero%20Section.webp');
     background-size: 100% 130%;
     background-position: center calc(50% + 10px);
     background-repeat: no-repeat;
