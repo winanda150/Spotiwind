@@ -655,7 +655,25 @@ function renderPlaylistsPanel(playlists = [], isGuest = false) {
     const countEl = document.getElementById('playlistSubheaderCount');
     if (!container) return;
 
-    if (isGuest || !Array.isArray(playlists) || playlists.length === 0) {
+    if (isGuest || !auth.currentUser) {
+        if (countEl) countEl.textContent = '0 playlists';
+        container.className = `your-playlists-container ${playlistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+        container.innerHTML = `
+            <div class="your-playlists-empty-state">
+                <div class="your-playlists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <h3 class="your-playlists-empty-title">Create your custom playlists</h3>
+                <p class="your-playlists-empty-desc">Log in to create, organize, and view your custom playlists.</p>
+                <a href="auth-mobile.html" class="your-playlists-empty-btn">Log In / Sign Up</a>
+            </div>
+        `;
+        return;
+    }
+
+    if (!Array.isArray(playlists) || playlists.length === 0) {
         if (countEl) countEl.textContent = '0 playlists';
         container.className = `your-playlists-container ${playlistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
