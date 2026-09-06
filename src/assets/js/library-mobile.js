@@ -36,6 +36,11 @@ let artistFilterMode = 'all'; // 'all' | 'followed'
 let artistSortMode = 'recently-followed'; // 'recently-followed' | 'recently-added' | 'recently-played' | 'alphabetical'
 let artistViewMode = 'list'; // 'list' | 'grid'
 
+let trackSearchQuery = '';
+let trackFilterMode = 'all'; // 'all' | 'liked' | 'downloaded'
+let trackSortMode = 'recently-added'; // 'recently-added' | 'recently-played' | 'alphabetical'
+let trackViewMode = 'list'; // 'list' | 'grid'
+
 function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -110,6 +115,28 @@ export function switchToLibraryTab(tabKey, options = {}) {
 
 export async function initLibraryPage(initialTab = 'overview') {
     window.switchToLibraryTab = switchToLibraryTab;
+
+    // Reset all filter, search, and view states to page defaults upon initialization
+    playlistSearchQuery = '';
+    playlistFilterMode = 'all';
+    playlistSortMode = 'recently-added';
+    playlistViewMode = 'list';
+
+    albumSearchQuery = '';
+    albumFilterMode = 'all';
+    albumSortMode = 'recently-added';
+    albumViewMode = 'grid';
+
+    artistSearchQuery = '';
+    artistFilterMode = 'all';
+    artistSortMode = 'recently-followed';
+    artistViewMode = 'list';
+
+    trackSearchQuery = '';
+    trackFilterMode = 'all';
+    trackSortMode = 'recently-added';
+    trackViewMode = 'list';
+
     setupLibraryTabs(initialTab);
     setupOverviewCards();
     setupRealtimeOverviewData();
@@ -118,6 +145,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupPlaylistControls();
     setupAlbumControls();
     setupArtistControls();
+    setupTrackControls();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -476,6 +504,8 @@ function setLikedSongsCount(count) {
     if (el) el.textContent = formatCount(count, 'song', 'songs');
     const badge = document.getElementById('libraryTracksCount');
     if (badge) badge.textContent = formatCount(count, 'song', 'songs');
+    const subheaderCount = document.getElementById('trackSubheaderCount');
+    if (subheaderCount) subheaderCount.textContent = formatCount(count, 'song', 'songs');
 }
 
 function setDownloadsCount(count) {
@@ -1220,45 +1250,184 @@ async function renderArtistsPanel(isGuest = false) {
     }
 }
 
-// --- 5. TRACKS: Dedicated Liked Songs Panel Renderer ---
+// --- 5. TRACKS: Dedicated Tracks Tab Renderer (Playlist-style layout) ---
 function renderTracksPanel(songs = [], isGuest = false) {
     const container = document.getElementById('libraryTracksList');
-    const countBadge = document.getElementById('libraryTracksCount');
+    const countEl = document.getElementById('trackSubheaderCount');
     if (!container) return;
 
-    if (isGuest) {
-        if (countBadge) countBadge.textContent = '0 songs';
+    if (isGuest || !auth.currentUser) {
+        if (countEl) countEl.textContent = '0 songs';
+        container.className = `your-tracks-container ${trackViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
-            <div class="tracks-empty-state">
-                <div class="tracks-empty-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+            <div class="your-tracks-empty-state">
+                <div class="your-tracks-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
                 </div>
-                <h3 class="tracks-empty-title">Save your favorite tracks</h3>
-                <p class="tracks-empty-desc">Log in to like songs and access them on any device.</p>
-                <a href="auth-mobile.html" class="tracks-empty-btn">Log In / Sign Up</a>
+                <h3 class="your-tracks-empty-title">Save your favorite tracks</h3>
+                <p class="your-tracks-empty-desc">Log in to like songs, create a collection, and access them anywhere.</p>
+                <a href="auth-mobile.html" class="your-tracks-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
     }
 
-    if (!Array.isArray(songs) || songs.length === 0) {
-        if (countBadge) countBadge.textContent = '0 songs';
+    const likedSongs = Array.isArray(songs) ? songs : [];
+    let downloadedSongs = [];
+    try {
+        const rawDl = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
+        const dls = JSON.parse(rawDl);
+        if (Array.isArray(dls)) downloadedSongs = dls;
+    } catch {}
+
+    let allTracks = [...likedSongs];
+
+    // 1. Filter by category chip
+    let filtered = [...allTracks];
+    if (trackFilterMode === 'liked') {
+        filtered = filtered.filter(s => likedSongs.some(ls => String(ls.id || ls.songId) === String(s.id || s.songId)));
+    } else if (trackFilterMode === 'downloaded') {
+        filtered = filtered.filter(s => downloadedSongs.some(ds => String(ds.id || ds.songId) === String(s.id || s.songId)));
+    }
+
+    // 2. Filter by search input
+    if (trackSearchQuery) {
+        filtered = filtered.filter(s => 
+            (s.name || s.title || '').toLowerCase().includes(trackSearchQuery) ||
+            (s.artist || '').toLowerCase().includes(trackSearchQuery)
+        );
+    }
+
+    // 3. Sort tracks
+    if (trackSortMode === 'recently-played') {
+        filtered.sort((a, b) => (Number(b.lastPlayedAt) || 0) - (Number(a.lastPlayedAt) || 0));
+    } else if (trackSortMode === 'alphabetical') {
+        filtered.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+    } else {
+        filtered = sortSongsByNewest(filtered);
+    }
+
+    // Update count in subheader
+    if (countEl) {
+        countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'song' : 'songs'}`;
+    }
+
+    // Empty search / filter results or empty track list
+    if (filtered.length === 0) {
+        container.className = `your-tracks-container ${trackViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
-            <div class="tracks-empty-state">
-                <div class="tracks-empty-icon">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+            <div class="your-tracks-empty-state" style="padding: 2.5rem var(--mobile-horizontal-padding) 2rem;">
+                <div class="your-tracks-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                 </div>
-                <h3 class="tracks-empty-title">No liked songs yet</h3>
-                <p class="tracks-empty-desc">Tap the heart icon on any song you love to save it here.</p>
+                <h3 class="your-tracks-empty-title">No tracks found</h3>
+                <p class="your-tracks-empty-desc">${trackSearchQuery ? `No tracks matching "${escapeHTML(trackSearchQuery)}".` : 'No tracks in this category.'}</p>
             </div>
         `;
         return;
     }
 
-    if (countBadge) countBadge.textContent = `${songs.length} ${songs.length === 1 ? 'song' : 'songs'}`;
-    container.innerHTML = songs.map(song => createSongItemHTML(song, { context: 'tracks' })).join('');
-    if (typeof window.syncActiveSongUI === 'function') {
-        window.syncActiveSongUI();
+    // Ensure correct grid/list class
+    container.className = `your-tracks-container ${trackViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+    const defaultCover = '../../public/branding/Spotiwind.webp';
+
+    const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
+    const activeAudio = window.__activeAudio || document.querySelector('audio');
+
+    if (trackViewMode === 'grid') {
+        container.innerHTML = filtered.map(song => {
+            const songId = song.id || song.songId || '';
+            const name = song.name || song.title || 'Unknown Track';
+            const artist = song.artist || 'Unknown Artist';
+            const coverUrl = song.cover || song.coverUrl || song.image || defaultCover;
+            const audio = song.audio || song.audioUrl || song.songAudio || '';
+            const duration = Number(song.duration) || 0;
+
+            const isSame = currentSong && (String(currentSong.id) === String(songId));
+            const isActive = Boolean(isSame);
+            const isPaused = isActive && Boolean(activeAudio?.paused);
+
+            return `
+                <div class="your-track-grid-card ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}" data-song-duration="${duration}">
+                    <div class="your-track-grid-cover">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <div class="your-track-play-overlay">
+                            ${isActive && !isPaused ? `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                            ` : `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            `}
+                        </div>
+                    </div>
+                    <div class="your-track-grid-info">
+                        <div class="your-track-grid-text">
+                            <h3 class="your-track-grid-title">${escapeHTML(name)}</h3>
+                            <p class="your-track-grid-meta">${escapeHTML(artist)}</p>
+                        </div>
+                        <button class="your-track-grid-more-btn track-more-btn" type="button" data-song-id="${songId}" data-song-name="${escapeHTML(name)}" title="Track options" aria-label="Track options">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        container.innerHTML = filtered.map(song => {
+            const songId = song.id || song.songId || '';
+            const name = song.name || song.title || 'Unknown Track';
+            const artist = song.artist || 'Unknown Artist';
+            const coverUrl = song.cover || song.coverUrl || song.image || defaultCover;
+            const audio = song.audio || song.audioUrl || song.songAudio || '';
+
+            const isSame = currentSong && (String(currentSong.id) === String(songId));
+            const isActive = Boolean(isSame);
+            const isPaused = isActive && Boolean(activeAudio?.paused);
+            const isLiked = likedSongs.some(ls => String(ls.id || ls.songId) === String(songId));
+
+            return `
+                <div class="your-track-item ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}">
+                    <div class="your-track-cover">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" class="your-track-cover-img" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <div class="your-track-play-overlay">
+                            ${isActive && !isPaused ? `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                            ` : `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+                            `}
+                        </div>
+                    </div>
+                    <div class="your-track-info">
+                        <h3 class="your-track-title">${escapeHTML(name)}</h3>
+                        <p class="your-track-meta">${escapeHTML(artist)}</p>
+                    </div>
+                    <div class="your-track-actions">
+                        <button class="your-track-like-btn like-song-btn ${isLiked ? 'is-liked' : ''}" type="button" data-song-id="${songId}" title="Like song" aria-label="Like song">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                            </svg>
+                        </button>
+                        <button class="your-track-more-btn track-more-btn" type="button" data-song-id="${songId}" data-song-name="${escapeHTML(name)}" title="Track options" aria-label="Track options">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 }
 
@@ -1447,6 +1616,14 @@ function setupPlaylistControls() {
         renderPlaylistsPanel(currentPlaylists, !auth.currentUser);
     };
 
+    // Initial DOM sync with playlistViewMode
+    if (viewListBtn) viewListBtn.classList.toggle('is-active', playlistViewMode === 'list');
+    if (viewGridBtn) viewGridBtn.classList.toggle('is-active', playlistViewMode === 'grid');
+    if (playlistsGrid) {
+        playlistsGrid.classList.toggle('view-list', playlistViewMode === 'list');
+        playlistsGrid.classList.toggle('view-grid', playlistViewMode === 'grid');
+    }
+
     if (viewListBtn) {
         const handleListClick = () => setViewMode('list');
         viewListBtn.addEventListener('click', handleListClick);
@@ -1571,6 +1748,14 @@ function setupAlbumControls() {
         }
         renderAlbumsPanel(currentLikedSongs, !auth.currentUser);
     };
+
+    // Initial DOM sync with albumViewMode
+    if (viewListBtn) viewListBtn.classList.toggle('is-active', albumViewMode === 'list');
+    if (viewGridBtn) viewGridBtn.classList.toggle('is-active', albumViewMode === 'grid');
+    if (albumsGrid) {
+        albumsGrid.classList.toggle('view-list', albumViewMode === 'list');
+        albumsGrid.classList.toggle('view-grid', albumViewMode === 'grid');
+    }
 
     if (viewListBtn) {
         const handleListClick = () => setViewMode('list');
@@ -1710,6 +1895,147 @@ function setupArtistControls() {
         renderArtistsPanel(!auth.currentUser);
     };
 
+    // Initial DOM sync with artistViewMode
+    if (viewListBtn) viewListBtn.classList.toggle('is-active', artistViewMode === 'list');
+    if (viewGridBtn) viewGridBtn.classList.toggle('is-active', artistViewMode === 'grid');
+    if (artistsGrid) {
+        artistsGrid.classList.toggle('view-list', artistViewMode === 'list');
+        artistsGrid.classList.toggle('view-grid', artistViewMode === 'grid');
+    }
+
+    if (viewListBtn) {
+        const handleListClick = () => setViewMode('list');
+        viewListBtn.addEventListener('click', handleListClick);
+        listeners.push({ element: viewListBtn, type: 'click', handler: handleListClick });
+    }
+
+    if (viewGridBtn) {
+        const handleGridClick = () => setViewMode('grid');
+        viewGridBtn.addEventListener('click', handleGridClick);
+        listeners.push({ element: viewGridBtn, type: 'click', handler: handleGridClick });
+    }
+}
+
+function setupTrackControls() {
+    const searchInput = document.getElementById('trackSearchInput');
+    const searchClearBtn = document.getElementById('trackSearchClearBtn');
+    const filterChips = document.querySelectorAll('[data-track-filter]');
+    const sortDropdown = document.getElementById('trackSortDropdown');
+    const sortBtn = document.getElementById('trackSortBtn');
+    const sortMenu = document.getElementById('trackSortMenu');
+    const sortLabel = document.getElementById('trackSortLabel');
+    const sortItems = document.querySelectorAll('[data-track-sort-val]');
+    const viewListBtn = document.getElementById('trackViewListBtn');
+    const viewGridBtn = document.getElementById('trackViewGridBtn');
+    const tracksContainer = document.getElementById('libraryTracksList');
+
+    if (searchInput) {
+        const debouncedSearch = debounce(() => {
+            if (searchInput) {
+                trackSearchQuery = (searchInput.value || '').trim().toLowerCase();
+            }
+            renderTracksPanel(currentLikedSongs, !auth.currentUser);
+        }, 250);
+
+        const handleSearchInput = (e) => {
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            debouncedSearch();
+        };
+        searchInput.addEventListener('input', handleSearchInput);
+        listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });
+    }
+
+    if (searchClearBtn) {
+        const handleClearClick = () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            trackSearchQuery = '';
+            renderTracksPanel(currentLikedSongs, !auth.currentUser);
+        };
+        searchClearBtn.addEventListener('click', handleClearClick);
+        listeners.push({ element: searchClearBtn, type: 'click', handler: handleClearClick });
+    }
+
+    filterChips.forEach(chip => {
+        const handleChipClick = () => {
+            filterChips.forEach(c => c.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            trackFilterMode = chip.dataset.trackFilter || 'all';
+            renderTracksPanel(currentLikedSongs, !auth.currentUser);
+        };
+        chip.addEventListener('click', handleChipClick);
+        listeners.push({ element: chip, type: 'click', handler: handleChipClick });
+    });
+
+    if (sortBtn && sortMenu && sortDropdown) {
+        const toggleSortMenu = (e) => {
+            e.stopPropagation();
+            const isOpen = !sortMenu.classList.contains('hidden');
+            if (isOpen) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                sortMenu.classList.remove('hidden');
+                sortDropdown.classList.add('is-open');
+                sortBtn.setAttribute('aria-expanded', 'true');
+            }
+        };
+        sortBtn.addEventListener('click', toggleSortMenu);
+        listeners.push({ element: sortBtn, type: 'click', handler: toggleSortMenu });
+
+        sortItems.forEach(item => {
+            const handleSortItemClick = (e) => {
+                e.stopPropagation();
+                trackSortMode = item.dataset.trackSortVal || 'recently-added';
+                sortItems.forEach(it => it.classList.toggle('is-selected', it === item));
+                if (sortLabel) {
+                    sortLabel.textContent = item.querySelector('span')?.textContent || 'Recently added';
+                }
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+                renderTracksPanel(currentLikedSongs, !auth.currentUser);
+            };
+            item.addEventListener('click', handleSortItemClick);
+            listeners.push({ element: item, type: 'click', handler: handleSortItemClick });
+        });
+
+        const handleOutsideClick = (e) => {
+            if (!sortDropdown.contains(e.target)) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        listeners.push({ element: document, type: 'click', handler: handleOutsideClick });
+    }
+
+    const setViewMode = (mode) => {
+        trackViewMode = mode;
+        if (viewListBtn) viewListBtn.classList.toggle('is-active', mode === 'list');
+        if (viewGridBtn) viewGridBtn.classList.toggle('is-active', mode === 'grid');
+        if (tracksContainer) {
+            tracksContainer.classList.toggle('view-list', mode === 'list');
+            tracksContainer.classList.toggle('view-grid', mode === 'grid');
+        }
+        renderTracksPanel(currentLikedSongs, !auth.currentUser);
+    };
+
+    // Initial DOM sync with trackViewMode
+    if (viewListBtn) viewListBtn.classList.toggle('is-active', trackViewMode === 'list');
+    if (viewGridBtn) viewGridBtn.classList.toggle('is-active', trackViewMode === 'grid');
+    if (tracksContainer) {
+        tracksContainer.classList.toggle('view-list', trackViewMode === 'list');
+        tracksContainer.classList.toggle('view-grid', trackViewMode === 'grid');
+    }
+
     if (viewListBtn) {
         const handleListClick = () => setViewMode('list');
         viewListBtn.addEventListener('click', handleListClick);
@@ -1820,32 +2146,6 @@ function setupSongActionListeners() {
             }
             if (typeof window.openCreatePlaylistModal === 'function') {
                 window.openCreatePlaylistModal(createPlaylistBtn);
-            }
-            return;
-        }
-
-        // Play All Liked Songs in Tracks tab
-        const playAllBtn = e.target.closest('#tracksPlayAllBtn, .tracks-play-all-btn');
-        if (playAllBtn) {
-            e.preventDefault();
-            if (!currentLikedSongs || currentLikedSongs.length === 0) {
-                if (typeof window.showToast === 'function') {
-                    window.showToast("Belum ada lagu yang disukai untuk diputar.");
-                }
-                return;
-            }
-            const firstSong = currentLikedSongs[0];
-            if (typeof window.playPreview === 'function') {
-                window.playPreview(
-                    null,
-                    firstSong.audio || firstSong.audioUrl || firstSong.songAudio,
-                    firstSong.name || firstSong.title,
-                    firstSong.artist,
-                    firstSong.cover || firstSong.coverUrl || firstSong.image,
-                    firstSong.id,
-                    Number(firstSong.duration) || 0,
-                    'library'
-                );
             }
             return;
         }
@@ -1977,10 +2277,10 @@ function setupSongActionListeners() {
             return;
         }
 
-        const likeBtn = e.target.closest('.like-song-btn, .track-like-btn, .overview-song-like-btn');
+        const likeBtn = e.target.closest('.like-song-btn, .track-like-btn, .overview-song-like-btn, .your-track-like-btn');
         if (likeBtn) {
             e.stopPropagation();
-            const songItem = likeBtn.closest('.library-song-item, .track-item, .overview-song-item');
+            const songItem = likeBtn.closest('.library-song-item, .track-item, .overview-song-item, .your-track-item, .your-track-grid-card');
             if (!songItem) return;
 
             const songId = songItem.dataset.songId;
@@ -2022,10 +2322,10 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songMoreBtn = e.target.closest('.library-song-more-btn, .track-more-btn, .overview-song-more-btn');
+        const songMoreBtn = e.target.closest('.library-song-more-btn, .track-more-btn, .overview-song-more-btn, .your-track-more-btn, .your-track-grid-more-btn');
         if (songMoreBtn) {
             e.stopPropagation();
-            const songItem = songMoreBtn.closest('.library-song-item, .track-item, .overview-song-item');
+            const songItem = songMoreBtn.closest('.library-song-item, .track-item, .overview-song-item, .your-track-item, .your-track-grid-card');
             if (songItem) {
                 const song = {
                     id: songItem.dataset.songId,
@@ -2040,8 +2340,8 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songItem = e.target.closest('.library-song-item, .track-item, .download-item, .overview-song-item');
-        if (songItem && songItem.dataset.songAudio) {
+        const songItem = e.target.closest('.library-song-item, .track-item, .download-item, .overview-song-item, .your-track-item, .your-track-grid-card');
+        if (songItem && songItem.dataset.songAudio && !e.target.closest('.like-song-btn, .your-track-like-btn, .library-song-more-btn, .track-more-btn, .your-track-more-btn, .your-track-grid-more-btn, .download-options-btn')) {
             const { songId, songAudio, songName, songArtist, songCover, songDuration } = songItem.dataset;
             const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
             const isSameActiveSong = currentSong && (typeof window.areSameSongs === 'function'
@@ -2442,6 +2742,27 @@ export function cleanupLibraryPage() {
     closeDownloadOptions();
     closeProSubscriptionModal();
     cleanupUserSubscriptions();
+
+    // Reset view modes and search states on leaving the page
+    playlistSearchQuery = '';
+    playlistFilterMode = 'all';
+    playlistSortMode = 'recently-added';
+    playlistViewMode = 'list';
+
+    albumSearchQuery = '';
+    albumFilterMode = 'all';
+    albumSortMode = 'recently-added';
+    albumViewMode = 'grid';
+
+    artistSearchQuery = '';
+    artistFilterMode = 'all';
+    artistSortMode = 'recently-followed';
+    artistViewMode = 'list';
+
+    trackSearchQuery = '';
+    trackFilterMode = 'all';
+    trackSortMode = 'recently-added';
+    trackViewMode = 'list';
 
     if (cleanupDownloadOptionsDrag) {
         cleanupDownloadOptionsDrag();

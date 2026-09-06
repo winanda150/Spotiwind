@@ -446,19 +446,107 @@
                 </div>
             </section>
 
-            <!-- 5. Tracks (Liked Songs) Panel -->
+            <!-- 5. Tracks Panel -->
             <section class="library-panel tracks-tab-panel" id="tracksPanel" data-library-panel="tracks">
                 <div class="tracks-header">
-                    <div class="tracks-header-left">
-                        <h2 class="tracks-title">Liked Songs</h2>
-                        <span class="tracks-count-badge" id="libraryTracksCount">0 songs</span>
-                    </div>
-                    <button class="tracks-play-all-btn" id="tracksPlayAllBtn" type="button" aria-label="Play all liked songs" title="Play all">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                        <span>Play All</span>
-                    </button>
+                    <h2 class="tracks-title">Tracks</h2>
                 </div>
-                <div class="tracks-list-container" id="libraryTracksList"></div>
+
+                <!-- Track Search Box -->
+                <div class="tracks-search-container">
+                    <div class="tracks-search-box">
+                        <svg class="tracks-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="search" id="trackSearchInput" class="tracks-search-input" placeholder="Search your tracks..." autocomplete="off" aria-label="Search tracks">
+                        <button type="button" id="trackSearchClearBtn" class="tracks-search-clear hidden" aria-label="Clear search">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Track Controls Bar (Filter Chips + Sort & View Controls) -->
+                <div class="tracks-controls-bar">
+                    <div class="tracks-filter-chips" role="tablist" aria-label="Filter tracks">
+                        <button type="button" class="tracks-filter-chip is-active" data-track-filter="all">All</button>
+                        <button type="button" class="tracks-filter-chip" data-track-filter="liked">Liked</button>
+                        <button type="button" class="tracks-filter-chip" data-track-filter="downloaded">Downloaded</button>
+                    </div>
+
+                    <div class="tracks-actions-right">
+                        <!-- Sort Dropdown -->
+                        <div class="tracks-sort-dropdown" id="trackSortDropdown">
+                            <button type="button" class="tracks-sort-trigger" id="trackSortBtn" aria-haspopup="true" aria-expanded="false" title="Sort tracks">
+                                <span class="tracks-sort-prefix">Sort:</span>
+                                <span class="tracks-sort-current" id="trackSortLabel">Recently added</span>
+                                <svg class="tracks-sort-arrow" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                            <div class="tracks-sort-menu hidden" id="trackSortMenu" role="menu">
+                                <button type="button" class="tracks-sort-item is-selected" data-track-sort-val="recently-added" role="menuitem">
+                                    <span>Recently added</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="tracks-sort-item" data-track-sort-val="recently-played" role="menuitem">
+                                    <span>Recently played</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="tracks-sort-item" data-track-sort-val="alphabetical" role="menuitem">
+                                    <span>Alphabetical</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle: List & Grid (SVG Icons) -->
+                        <div class="tracks-view-toggle" role="group" aria-label="Track view mode">
+                            <button type="button" class="tracks-view-btn is-active" id="trackViewListBtn" data-track-view-mode="list" aria-label="List view" title="List view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button type="button" class="tracks-view-btn" id="trackViewGridBtn" data-track-view-mode="grid" aria-label="Grid view" title="Grid view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Track Subheader (Title on left, Count on right) -->
+                <div class="tracks-sub-header">
+                    <span class="tracks-sub-title">Your tracks</span>
+                    <span class="tracks-sub-count" id="trackSubheaderCount">0 songs</span>
+                </div>
+
+                <div class="your-tracks-container view-list" id="libraryTracksList">
+                    <div class="your-tracks-empty-state">
+                        <div class="your-tracks-empty-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                        </div>
+                        <h3 class="your-tracks-empty-title">Save your favorite tracks</h3>
+                        <p class="your-tracks-empty-desc">Log in to like songs, create a collection, and access them anywhere.</p>
+                        <a href="auth-mobile.html" class="your-tracks-empty-btn">Log In / Sign Up</a>
+                    </div>
+                </div>
             </section>
 
             <!-- 6. Download Panel -->
