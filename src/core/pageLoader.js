@@ -223,10 +223,10 @@ export const loadSubpage = async (page, options = {}, context = null) => {
             targetRoute = initialTab === 'register' ? '/register' : '/login';
             targetTitle = initialTab === 'register' ? 'Register | Spotiwind' : 'Login | Spotiwind';
         } else if (page.includes('artist-mobile.html')) {
-            const artist = activeContext.artistData;
+            const artist = options?.artist || options?.state?.artist || options?.artistData || activeContext.artistData || window.__pendingArtistData;
             const artistUniqueId = artist ? getArtistUniqueId(artist) : '';
-            targetRoute = artistUniqueId ? `/artist/${artistUniqueId}` : '/artist';
-            targetTitle = artist?.name ? `${artist.name} | Spotiwind` : 'Artist | Spotiwind';
+            targetRoute = targetRoute || (artistUniqueId ? `/artist/${artistUniqueId}` : '/artist');
+            targetTitle = targetTitle || (artist?.name ? `${artist.name} | Spotiwind` : 'Artist | Spotiwind');
         }
     }
 
@@ -398,8 +398,10 @@ export const loadSubpage = async (page, options = {}, context = null) => {
             } else if (page.includes('artist-mobile.html')) {
                 const artistModule = await import('../assets/js/artist-mobile.js');
                 activePageCleanup = artistModule.cleanupArtistPage;
-                if (typeof artistModule.initArtistPage === 'function' && activeContext.artistData) {
-                    artistModule.initArtistPage(activeContext.artistData, previousPageUrl);
+                const artistData = options?.artist || options?.state?.artist || options?.artistData || activeContext.artistData || window.__pendingArtistData;
+                window.__pendingArtistData = null;
+                if (typeof artistModule.initArtistPage === 'function' && artistData) {
+                    artistModule.initArtistPage(artistData, previousPageUrl);
                 }
             } else if (page.includes('notifications-mobile.html')) {
                 const notificationsModule = await import('../assets/js/notifications-mobile.js');

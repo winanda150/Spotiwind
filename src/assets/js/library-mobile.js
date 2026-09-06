@@ -10,6 +10,7 @@ import { subscribeUserProfile, getProfileByUid } from '../../services/profileSer
 import { openProSubscriptionModal, closeProSubscriptionModal } from '../../components/modals/proSubscriptionModal.js';
 import { isSongDownloaded, toggleDownloadSong } from '../../components/sheets/songOptionsSheet.js';
 import { debounce } from '../../utils/formatters.js';
+import { getPublicAssetUrl } from '../../services/catalogService.js';
 
 let activeLibraryTab = 'overview';
 const listeners = [];
@@ -19,6 +20,7 @@ let userProfileUnsubscribe = null;
 let isCurrentUserPro = false;
 let currentLikedSongs = [];
 let currentPlaylists = [];
+let currentFollowedArtists = [];
 let playlistSearchQuery = '';
 let playlistFilterMode = 'all'; // 'all' | 'create' | 'collab'
 let playlistSortMode = 'recently-added'; // 'recently-added' | 'recently-played'
@@ -28,6 +30,11 @@ let albumSearchQuery = '';
 let albumFilterMode = 'all';
 let albumSortMode = 'recently-added'; // 'recently-added' | 'alphabetical' | 'artist'
 let albumViewMode = 'grid'; // 'grid' | 'list'
+
+let artistSearchQuery = '';
+let artistFilterMode = 'all'; // 'all' | 'followed'
+let artistSortMode = 'recently-followed'; // 'recently-followed' | 'recently-added' | 'recently-played' | 'alphabetical'
+let artistViewMode = 'list'; // 'list' | 'grid'
 
 function escapeHTML(str) {
     if (!str) return '';
@@ -110,6 +117,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupDownloadOptionsModal();
     setupPlaylistControls();
     setupAlbumControls();
+    setupArtistControls();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -992,25 +1000,62 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
     }
 }
 
-// --- 4. ARTISTS: Dedicated Artists Tab Renderer ---
+// --- 4. ARTISTS: Dedicated Artists Tab Renderer (Playlist-style layout) ---
+let catalogArtistsCache = null;
+
+async function getCatalogArtists() {
+    if (catalogArtistsCache && catalogArtistsCache.length > 0) {
+        return catalogArtistsCache;
+    }
+    if (typeof window.spotiwind?.mobile?.getArtists === 'function') {
+        const list = window.spotiwind.mobile.getArtists();
+        if (Array.isArray(list) && list.length > 0) {
+            catalogArtistsCache = list.map(a => ({
+                id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '-'),
+                name: a.name,
+                photo: getPublicAssetUrl(a.photo)
+            }));
+            return catalogArtistsCache;
+        }
+    }
+    try {
+        const url = getPublicAssetUrl('data/artists.json');
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.artists || []);
+            catalogArtistsCache = list.map(a => ({
+                id: a.id || (a.name || '').toLowerCase().replace(/\s+/g, '-'),
+                name: a.name,
+                photo: getPublicAssetUrl(a.photo)
+            }));
+            return catalogArtistsCache;
+        }
+    } catch (e) {
+        console.warn("Could not load catalog artists:", e);
+    }
+    return [];
+}
+
 async function renderArtistsPanel(isGuest = false) {
     const container = document.getElementById('libraryArtistsList');
-    const badgeEl = document.getElementById('libraryArtistsCount');
+    const countEl = document.getElementById('artistSubheaderCount');
     if (!container) return;
 
     if (isGuest || !auth.currentUser) {
-        if (badgeEl) badgeEl.textContent = '0 artists';
+        if (countEl) countEl.textContent = '0 artists';
+        container.className = `your-artists-container ${artistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
-            <div class="artists-empty-state">
-                <div class="artists-empty-icon" aria-hidden="true">
+            <div class="your-artists-empty-state">
+                <div class="your-artists-empty-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="8" r="5"></circle>
                         <path d="M20 21a8 8 0 0 0-16 0"></path>
                     </svg>
                 </div>
-                <h3 class="artists-empty-title">Follow your favorite artists</h3>
-                <p class="artists-empty-desc">Log in to follow artists and view them in your library.</p>
-                <a href="auth-mobile.html" class="artists-empty-btn">Log In / Sign Up</a>
+                <h3 class="your-artists-empty-title">Follow your favorite artists</h3>
+                <p class="your-artists-empty-desc">Log in to follow artists, explore their discography, and see updates here.</p>
+                <a href="auth-mobile.html" class="your-artists-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -1019,21 +1064,39 @@ async function renderArtistsPanel(isGuest = false) {
     const uid = auth.currentUser.uid;
     const artistMap = new Map();
 
-    // 1. Fetch from Firestore users/{uid}/following
+    // 0. Load catalog artists for smart matching & official metadata
+    const catalogArtists = await getCatalogArtists();
+    const catalogMap = new Map();
+    catalogArtists.forEach(a => {
+        if (a.id) catalogMap.set(String(a.id).toLowerCase().trim(), a);
+        if (a.name) catalogMap.set(String(a.name).toLowerCase().trim(), a);
+    });
+
+    // 1. Fetch followed artists from Firestore users/{uid}/following
     try {
         const followingRef = collection(db, "users", uid, "following");
         const snap = await getDocs(followingRef);
         snap.docs.forEach(docSnap => {
-            const data = docSnap.data();
+            const data = docSnap.data() || {};
             if (data.type === 'artist' || !data.type) {
                 const name = data.displayName || data.name || docSnap.id;
-                const photo = data.photoURL || data.photo || data.image || '';
-                const key = name.trim().toLowerCase();
+                const cleanKey = name.trim().toLowerCase();
+                const catArtist = catalogMap.get(cleanKey) || catalogMap.get(String(data.artistId || docSnap.id).toLowerCase());
+                let photo = data.photoURL || data.photo || data.image || '';
+                if (!photo && catArtist?.photo) {
+                    photo = catArtist.photo;
+                }
+                const resolvedName = catArtist?.name || name;
+                const key = resolvedName.trim().toLowerCase();
+                const followedAt = data.followedAt?.toMillis ? data.followedAt.toMillis() : (data.followedAt || data.createdAt || 0);
                 artistMap.set(key, {
-                    id: data.artistId || docSnap.id,
-                    name: name,
+                    id: catArtist?.id || data.artistId || docSnap.id,
+                    name: resolvedName,
                     photo: photo,
-                    isFollowed: true
+                    isFollowed: true,
+                    followedAt: Number(followedAt) || Date.now(),
+                    addedAt: Number(followedAt) || Date.now(),
+                    lastPlayedAt: Number(data.lastPlayedAt) || 0
                 });
             }
         });
@@ -1041,54 +1104,121 @@ async function renderArtistsPanel(isGuest = false) {
         console.warn("Could not fetch followed artists:", err);
     }
 
-    // 2. Also extract artists from currentLikedSongs as suggestions
-    if (artistMap.size === 0 && Array.isArray(currentLikedSongs)) {
+    // 2. Sync play/add timestamps from currentLikedSongs for followed artists
+    if (Array.isArray(currentLikedSongs)) {
         currentLikedSongs.forEach(song => {
-            const artistName = song.artist || song.artistName;
-            if (!artistName || artistName === 'Unknown Artist') return;
-            const key = artistName.trim().toLowerCase();
-            if (!artistMap.has(key)) {
-                artistMap.set(key, {
-                    id: song.artistId || key,
-                    name: artistName,
-                    photo: song.artistPhoto || song.cover || '',
-                    isFollowed: false
-                });
+            const rawArtist = song.artist || song.artistName || '';
+            if (!rawArtist || rawArtist === 'Unknown Artist') return;
+
+            const songAddedAt = Number(song.addedAt || song.createdAt || 0);
+            const songPlayedAt = Number(song.lastPlayedAt || 0);
+            const songArtistId = String(song.artistId || '').toLowerCase().trim();
+
+            const matchedByArtistId = songArtistId ? catalogMap.get(songArtistId) : null;
+            const key = matchedByArtistId ? (matchedByArtistId.name || matchedByArtistId.id).trim().toLowerCase() : rawArtist.trim().toLowerCase();
+
+            if (artistMap.has(key)) {
+                const existing = artistMap.get(key);
+                if (songAddedAt > existing.addedAt) existing.addedAt = songAddedAt;
+                if (songPlayedAt > existing.lastPlayedAt) existing.lastPlayedAt = songPlayedAt;
             }
         });
     }
 
-    const artists = Array.from(artistMap.values());
-    if (badgeEl) badgeEl.textContent = `${artists.length} ${artists.length === 1 ? 'artist' : 'artists'}`;
+    let artists = Array.from(artistMap.values());
+    currentFollowedArtists = artists;
 
-    if (artists.length === 0) {
+    // 1. Filter by category
+    let filtered = [...artists];
+    if (artistFilterMode === 'followed') {
+        filtered = filtered.filter(a => a.isFollowed);
+    }
+
+    // 2. Filter by search input
+    if (artistSearchQuery) {
+        filtered = filtered.filter(a => (a.name || '').toLowerCase().includes(artistSearchQuery));
+    }
+
+    // 3. Sort artists (4 options with recently-followed as default)
+    if (artistSortMode === 'recently-followed') {
+        filtered.sort((a, b) => {
+            if (a.isFollowed && !b.isFollowed) return -1;
+            if (!a.isFollowed && b.isFollowed) return 1;
+            return (b.followedAt || 0) - (a.followedAt || 0);
+        });
+    } else if (artistSortMode === 'recently-added') {
+        filtered.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    } else if (artistSortMode === 'recently-played') {
+        filtered.sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
+    } else if (artistSortMode === 'alphabetical') {
+        filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }
+
+    // Update count in subheader
+    if (countEl) {
+        countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'artist' : 'artists'}`;
+    }
+
+    // Empty search / filter results or empty artist list
+    if (filtered.length === 0) {
+        container.className = `your-artists-container ${artistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
         container.innerHTML = `
-            <div class="artists-empty-state">
-                <div class="artists-empty-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="8" r="5"></circle>
-                        <path d="M20 21a8 8 0 0 0-16 0"></path>
+            <div class="your-artists-empty-state" style="padding: 2.5rem var(--mobile-horizontal-padding) 2rem;">
+                <div class="your-artists-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                 </div>
-                <h3 class="artists-empty-title">No artists followed yet</h3>
-                <p class="artists-empty-desc">Follow artists you love to stay up-to-date with their latest music.</p>
+                <h3 class="your-artists-empty-title">No artists found</h3>
+                <p class="your-artists-empty-desc">${artistSearchQuery ? `No artists matching "${escapeHTML(artistSearchQuery)}".` : 'No followed artists found.'}</p>
             </div>
         `;
         return;
     }
 
+    // Ensure correct grid/list class
+    container.className = `your-artists-container ${artistViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
     const defaultAvatar = '../../public/branding/Spotiwind.webp';
-    container.innerHTML = artists.map(artist => `
-        <div class="artist-card" data-artist-id="${escapeHTML(artist.id)}" data-artist-name="${escapeHTML(artist.name)}" data-artist-photo="${escapeHTML(artist.photo || defaultAvatar)}">
-            <div class="artist-avatar-wrapper">
-                <img src="${artist.photo || defaultAvatar}" alt="${escapeHTML(artist.name)}" class="artist-avatar-img" loading="lazy" onerror="this.src='${defaultAvatar}'">
+
+    if (artistViewMode === 'grid') {
+        container.innerHTML = filtered.map(a => `
+            <div class="your-artist-grid-card" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" data-artist-photo="${escapeHTML(a.photo || defaultAvatar)}">
+                <div class="your-artist-grid-avatar">
+                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" loading="lazy" onerror="this.src='${defaultAvatar}'">
+                </div>
+                <div class="your-artist-grid-info">
+                    <h3 class="your-artist-grid-name">${escapeHTML(a.name)}</h3>
+                    <p class="your-artist-grid-meta">Following</p>
+                </div>
             </div>
-            <div class="artist-info">
-                <h3 class="artist-name">${escapeHTML(artist.name)}</h3>
-                <span class="artist-role">Artist</span>
+        `).join('');
+    } else {
+        container.innerHTML = filtered.map(a => `
+            <div class="your-artist-item" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" data-artist-photo="${escapeHTML(a.photo || defaultAvatar)}">
+                <div class="your-artist-avatar-wrapper">
+                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" class="your-artist-avatar-img" loading="lazy" onerror="this.src='${defaultAvatar}'">
+                    <span class="your-artist-badge" title="Followed">✓</span>
+                </div>
+                <div class="your-artist-info">
+                    <h3 class="your-artist-name">${escapeHTML(a.name)}</h3>
+                    <p class="your-artist-meta">
+                        <span class="your-artist-role-tag">Artist</span>
+                        <span>• Following</span>
+                    </p>
+                </div>
+                <div class="your-artist-actions">
+                    <button class="your-artist-more-btn artist-more-btn" type="button" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" title="Artist options" aria-label="Artist options">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <circle cx="12" cy="5" r="1.75"></circle>
+                            <circle cx="12" cy="12" r="1.75"></circle>
+                            <circle cx="12" cy="19" r="1.75"></circle>
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
+    }
 }
 
 // --- 5. TRACKS: Dedicated Liked Songs Panel Renderer ---
@@ -1456,6 +1586,144 @@ function setupAlbumControls() {
     }
 }
 
+function setupArtistControls() {
+    const searchInput = document.getElementById('artistSearchInput');
+    const searchClearBtn = document.getElementById('artistSearchClearBtn');
+    const filterChips = document.querySelectorAll('[data-artist-filter]');
+    const sortDropdown = document.getElementById('artistSortDropdown');
+    const sortBtn = document.getElementById('artistSortBtn');
+    const sortMenu = document.getElementById('artistSortMenu');
+    const sortLabel = document.getElementById('artistSortLabel');
+    const sortItems = document.querySelectorAll('[data-artist-sort-val]');
+    const viewListBtn = document.getElementById('artistViewListBtn');
+    const viewGridBtn = document.getElementById('artistViewGridBtn');
+    const artistsGrid = document.getElementById('libraryArtistsList');
+    const exploreBtn = document.getElementById('exploreArtistsBtn');
+
+    if (exploreBtn) {
+        const handleExploreClick = () => {
+            if (typeof window.loadPageContent === 'function') {
+                window.loadPageContent('search-mobile.html', { pushState: true, route: '/search' });
+            } else if (typeof window.showToast === 'function') {
+                window.showToast("Membuka pencarian artis...");
+            }
+        };
+        exploreBtn.addEventListener('click', handleExploreClick);
+        listeners.push({ element: exploreBtn, type: 'click', handler: handleExploreClick });
+    }
+
+    if (searchInput) {
+        const debouncedSearch = debounce(() => {
+            if (searchInput) {
+                artistSearchQuery = (searchInput.value || '').trim().toLowerCase();
+            }
+            renderArtistsPanel(!auth.currentUser);
+        }, 250);
+
+        const handleSearchInput = (e) => {
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            debouncedSearch();
+        };
+        searchInput.addEventListener('input', handleSearchInput);
+        listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });
+    }
+
+    if (searchClearBtn) {
+        const handleClearClick = () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            artistSearchQuery = '';
+            renderArtistsPanel(!auth.currentUser);
+        };
+        searchClearBtn.addEventListener('click', handleClearClick);
+        listeners.push({ element: searchClearBtn, type: 'click', handler: handleClearClick });
+    }
+
+    filterChips.forEach(chip => {
+        const handleChipClick = () => {
+            filterChips.forEach(c => c.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            artistFilterMode = chip.dataset.artistFilter || 'all';
+            renderArtistsPanel(!auth.currentUser);
+        };
+        chip.addEventListener('click', handleChipClick);
+        listeners.push({ element: chip, type: 'click', handler: handleChipClick });
+    });
+
+    if (sortBtn && sortMenu && sortDropdown) {
+        const toggleSortMenu = (e) => {
+            e.stopPropagation();
+            const isOpen = !sortMenu.classList.contains('hidden');
+            if (isOpen) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                sortMenu.classList.remove('hidden');
+                sortDropdown.classList.add('is-open');
+                sortBtn.setAttribute('aria-expanded', 'true');
+            }
+        };
+        sortBtn.addEventListener('click', toggleSortMenu);
+        listeners.push({ element: sortBtn, type: 'click', handler: toggleSortMenu });
+
+        sortItems.forEach(item => {
+            const handleSortItemClick = (e) => {
+                e.stopPropagation();
+                artistSortMode = item.dataset.artistSortVal || 'recently-followed';
+                sortItems.forEach(it => it.classList.toggle('is-selected', it === item));
+                if (sortLabel) {
+                    sortLabel.textContent = item.querySelector('span')?.textContent || 'Recently followed';
+                }
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+                renderArtistsPanel(!auth.currentUser);
+            };
+            item.addEventListener('click', handleSortItemClick);
+            listeners.push({ element: item, type: 'click', handler: handleSortItemClick });
+        });
+
+        const handleOutsideClick = (e) => {
+            if (!sortDropdown.contains(e.target)) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        listeners.push({ element: document, type: 'click', handler: handleOutsideClick });
+    }
+
+    const setViewMode = (mode) => {
+        artistViewMode = mode;
+        if (viewListBtn) viewListBtn.classList.toggle('is-active', mode === 'list');
+        if (viewGridBtn) viewGridBtn.classList.toggle('is-active', mode === 'grid');
+        if (artistsGrid) {
+            artistsGrid.classList.toggle('view-list', mode === 'list');
+            artistsGrid.classList.toggle('view-grid', mode === 'grid');
+        }
+        renderArtistsPanel(!auth.currentUser);
+    };
+
+    if (viewListBtn) {
+        const handleListClick = () => setViewMode('list');
+        viewListBtn.addEventListener('click', handleListClick);
+        listeners.push({ element: viewListBtn, type: 'click', handler: handleListClick });
+    }
+
+    if (viewGridBtn) {
+        const handleGridClick = () => setViewMode('grid');
+        viewGridBtn.addEventListener('click', handleGridClick);
+        listeners.push({ element: viewGridBtn, type: 'click', handler: handleGridClick });
+    }
+}
+
 function renderLikedSongsOverview(songs = [], isGuest = false) {
     const container = document.getElementById('overviewLikedList');
     if (!container) return;
@@ -1583,23 +1851,6 @@ function setupSongActionListeners() {
             return;
         }
 
-        // Artist card click -> navigate to artist profile page
-        const artistCard = e.target.closest('.artist-card');
-        if (artistCard) {
-            const artistName = artistCard.dataset.artistName;
-            const artistId = artistCard.dataset.artistId;
-            const artistPhoto = artistCard.dataset.artistPhoto;
-            const artist = { id: artistId, name: artistName, photo: artistPhoto, image: artistPhoto };
-            if (typeof window.loadPageContent === 'function') {
-                window.loadPageContent('artist-mobile.html', {
-                    pushState: true,
-                    route: `/artist/${encodeURIComponent(artistId || artistName)}`,
-                    title: `${artistName} | Spotiwind`,
-                    state: { route: 'artist', artist }
-                });
-            }
-            return;
-        }
 
         // Album card click -> preview first song or show info
         const albumCard = e.target.closest('.album-card');
@@ -1667,6 +1918,44 @@ function setupSongActionListeners() {
                 window.playPreview(null, firstAudio, albumName, albumArtist, cover, null, 0, 'library');
             } else if (typeof window.showToast === 'function') {
                 window.showToast(`Membuka album: ${albumName}`);
+            }
+            return;
+        }
+
+        // Artist options more button
+        const artistMoreBtn = e.target.closest('.artist-more-btn, .your-artist-more-btn');
+        if (artistMoreBtn) {
+            e.stopPropagation();
+            const artistName = artistMoreBtn.dataset.artistName || 'Artist';
+            if (typeof window.showToast === 'function') {
+                window.showToast(`Options for ${artistName}`);
+            }
+            return;
+        }
+
+        // Artist item click (List view or Grid card) -> navigate to artist profile page
+        const artistItem = e.target.closest('.your-artist-item, .your-artist-grid-card');
+        if (artistItem && !e.target.closest('.artist-more-btn, .your-artist-more-btn')) {
+            const artistName = artistItem.dataset.artistName;
+            const artistId = artistItem.dataset.artistId;
+            const artistPhoto = artistItem.dataset.artistPhoto;
+            const artist = { id: artistId, name: artistName, photo: artistPhoto, image: artistPhoto };
+            if (typeof window.navigateToArtistPage === 'function') {
+                window.navigateToArtistPage(artist, true);
+            } else if (typeof window.spotiwind?.mobile?.navigateToArtistPage === 'function') {
+                window.spotiwind.mobile.navigateToArtistPage(artist, true);
+            } else if (typeof window.loadPageContent === 'function') {
+                window.__pendingArtistData = artist;
+                const cleanSlug = (artistId || artistName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                window.loadPageContent('artist-mobile.html', {
+                    pushState: true,
+                    route: `/artist/${cleanSlug}`,
+                    title: `${artistName} | Spotiwind`,
+                    state: { route: 'artist', artist },
+                    artist: artist
+                });
+            } else if (typeof window.showToast === 'function') {
+                window.showToast(`Membuka profil: ${artistName}`);
             }
             return;
         }

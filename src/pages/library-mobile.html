@@ -337,12 +337,113 @@
             <!-- 4. Artists Panel -->
             <section class="library-panel artists-tab-panel" id="artistsPanel" data-library-panel="artists">
                 <div class="artists-header">
-                    <div class="artists-header-left">
-                        <h2 class="artists-title">Artists</h2>
-                        <span class="artists-count-badge" id="libraryArtistsCount">0 artists</span>
+                    <h2 class="artists-title">Artists</h2>
+                    <button class="artists-create-btn" id="exploreArtistsBtn" type="button" aria-label="Explore artists">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="5"></circle>
+                            <path d="M20 21a8 8 0 0 0-16 0"></path>
+                        </svg>
+                        <span>Find Artists</span>
+                    </button>
+                </div>
+
+                <!-- Artist Search Box -->
+                <div class="artists-search-container">
+                    <div class="artists-search-box">
+                        <svg class="artists-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="search" id="artistSearchInput" class="artists-search-input" placeholder="Search your artists..." autocomplete="off" aria-label="Search artists">
+                        <button type="button" id="artistSearchClearBtn" class="artists-search-clear hidden" aria-label="Clear search">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <div class="artists-grid-container" id="libraryArtistsList"></div>
+
+                <!-- Artist Controls Bar (Filter Chips + Sort & View Controls) -->
+                <div class="artists-controls-bar">
+                    <div class="artists-filter-chips" role="tablist" aria-label="Filter artists">
+                        <button type="button" class="artists-filter-chip is-active" data-artist-filter="all">All</button>
+                        <button type="button" class="artists-filter-chip" data-artist-filter="followed">Followed</button>
+                    </div>
+
+                    <div class="artists-actions-right">
+                        <!-- Sort Dropdown -->
+                        <div class="artists-sort-dropdown" id="artistSortDropdown">
+                            <button type="button" class="artists-sort-trigger" id="artistSortBtn" aria-haspopup="true" aria-expanded="false" title="Sort artists">
+                                <span class="artists-sort-prefix">Sort:</span>
+                                <span class="artists-sort-current" id="artistSortLabel">Recently followed</span>
+                                <svg class="artists-sort-arrow" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                            <div class="artists-sort-menu hidden" id="artistSortMenu" role="menu">
+                                <button type="button" class="artists-sort-item is-selected" data-artist-sort-val="recently-followed" role="menuitem">
+                                    <span>Recently followed</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="artists-sort-item" data-artist-sort-val="recently-added" role="menuitem">
+                                    <span>Recently added</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="artists-sort-item" data-artist-sort-val="recently-played" role="menuitem">
+                                    <span>Recently played</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="artists-sort-item" data-artist-sort-val="alphabetical" role="menuitem">
+                                    <span>Alphabetical</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle: List & Grid (SVG Icons) -->
+                        <div class="artists-view-toggle" role="group" aria-label="Artist view mode">
+                            <button type="button" class="artists-view-btn is-active" id="artistViewListBtn" data-artist-view-mode="list" aria-label="List view" title="List view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button type="button" class="artists-view-btn" id="artistViewGridBtn" data-artist-view-mode="grid" aria-label="Grid view" title="Grid view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Artists Subheader (Title on left, Count on right) -->
+                <div class="artists-sub-header">
+                    <span class="artists-sub-title">Your artists</span>
+                    <span class="artists-sub-count" id="artistSubheaderCount">0 artists</span>
+                </div>
+
+                <div class="your-artists-container view-list" id="libraryArtistsList">
+                    <div class="your-artists-empty-state">
+                        <div class="your-artists-empty-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="8" r="5"></circle>
+                                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                            </svg>
+                        </div>
+                        <h3 class="your-artists-empty-title">Follow your favorite artists</h3>
+                        <p class="your-artists-empty-desc">Log in to follow artists, explore their discography, and see updates here.</p>
+                        <a href="auth-mobile.html" class="your-artists-empty-btn">Log In / Sign Up</a>
+                    </div>
+                </div>
             </section>
 
             <!-- 5. Tracks (Liked Songs) Panel -->

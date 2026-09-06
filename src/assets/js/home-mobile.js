@@ -2659,6 +2659,7 @@ window.toggleDownloadSong = toggleDownloadSong;
         if (!artist) return;
         saveCurrentHomeScroll();
         artistDataForPageLoad = artist;
+        window.__pendingArtistData = artist;
 
         const artistUniqueId = getArtistUniqueId(artist);
         const cleanPath = `/artist/${artistUniqueId}`;
@@ -2669,10 +2670,12 @@ window.toggleDownloadSong = toggleDownloadSong;
                 pushState: shouldPushState,
                 route: cleanPath,
                 title: title,
-                state: { route: 'artist', artist }
+                state: { route: 'artist', artist },
+                artist: artist
             });
         }
     };
+    window.navigateToArtistPage = navigateToArtistPage;
 
     /**
      * [NEW] Loads the notification page content dynamically.
@@ -3142,6 +3145,7 @@ window.spotiwind = {
             getArtists: () => indonesianArtistsPlaylist,
             getSongs: () => indonesianSongsPlaylist,
             loadPageContent: (page, opts) => window.loadPageContent && window.loadPageContent(page, opts),
+            navigateToArtistPage: (artist, shouldPushState = true) => navigateToArtistPage(artist, shouldPushState),
             initializeSkeletons: () => {
                 if (typeof showSkeletonLoader === 'function') showSkeletonLoader('#artistSongsGrid', 'artist-song-list', 6);
             }
