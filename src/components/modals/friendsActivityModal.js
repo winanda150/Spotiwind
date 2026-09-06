@@ -41,7 +41,7 @@ export const renderMoreToModal = () => {
 
     const html = nextBatch.map(friend => `
         <div class="friend-item" style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05)">
-            <img src="${friend.avatar || 'https://i.pravatar.cc/150'}" class="friend-avatar" alt="${friend.name}">
+            <img src="${friend.avatar || 'https://i.pravatar.cc/150'}" class="friend-avatar" width="40" height="40" alt="${friend.name}">
             <div class="friend-info">
                 <div class="friend-header">
                     <span class="friend-name">${friend.name}</span>

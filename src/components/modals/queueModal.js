@@ -68,7 +68,7 @@ export const renderUpNextQueue = (containerId = 'upNextList', customState = null
         <div class="up-next-item ${isActive ? 'active' : ''}" 
             style="animation-delay: ${idx * 0.05}s; view-transition-name: up-next-item-${song.id};" 
             onclick="window.playPreview(null, '${song.audio}', '${safeTitle}', '${safeArtist}', '${song.cover}', '${song.id}', ${song.duration || 0}, '${context || ''}', null, '${activeMixId || ''}')">
-            <img src="${song.cover}" class="up-next-cover" alt="${song.name || song.title}">
+            <img src="${song.cover}" class="up-next-cover" width="44" height="44" alt="${song.name || song.title}">
             <div class="up-next-info">
                 <div class="up-next-name">${song.name || song.title}</div>
                 <div class="up-next-artist">${song.artist}</div>

@@ -552,20 +552,132 @@
             <!-- 6. Download Panel -->
             <section class="library-panel downloads-tab-panel" id="downloadsPanel" data-library-panel="download">
                 <div class="downloads-header">
-                    <div class="downloads-header-left">
-                        <h2 class="downloads-title">Downloads</h2>
-                        <span class="downloads-count-badge" id="libraryDownloadsBadge">0 songs</span>
+                    <h2 class="downloads-title">Downloads</h2>
+                </div>
+
+                <!-- Offline Storage Box (Above search box) -->
+                <div class="downloads-storage-card" id="downloadsStorageCard">
+                    <div class="downloads-storage-top">
+                        <div class="downloads-storage-info-left">
+                            <div class="downloads-storage-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </div>
+                            <div class="downloads-storage-texts">
+                                <h3 class="downloads-storage-title">Offline storage</h3>
+                                <p class="downloads-storage-limit">Up to 10 GB storage available</p>
+                            </div>
+                        </div>
+                        <span class="downloads-storage-badge" id="downloadsStorageBadge">0 MB / 10 GB</span>
                     </div>
-                    <div class="downloads-storage-indicator" id="downloadsStorageInfo">
-                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        <span>Offline Ready</span>
+                    <div class="downloads-storage-progress-track">
+                        <div class="downloads-storage-progress-fill" id="downloadsStorageProgressFill" style="width: 0%;"></div>
                     </div>
                 </div>
-                <div class="downloads-list-container" id="libraryDownloadsList"></div>
+
+                <!-- Download Search Box -->
+                <div class="downloads-search-container">
+                    <div class="downloads-search-box">
+                        <svg class="downloads-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="search" id="downloadSearchInput" class="downloads-search-input" placeholder="Search your downloads..." autocomplete="off" aria-label="Search downloads">
+                        <button type="button" id="downloadSearchClearBtn" class="downloads-search-clear hidden" aria-label="Clear search">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Download Controls Bar (Filter Chips + Sort & View Controls) -->
+                <div class="downloads-controls-bar">
+                    <div class="downloads-filter-chips" role="tablist" aria-label="Filter downloads">
+                        <button type="button" class="downloads-filter-chip is-active" data-download-filter="all">All</button>
+                        <button type="button" class="downloads-filter-chip" data-download-filter="tracks">Tracks</button>
+                        <button type="button" class="downloads-filter-chip" data-download-filter="albums">Albums</button>
+                        <button type="button" class="downloads-filter-chip" data-download-filter="playlist">Playlist</button>
+                    </div>
+
+                    <div class="downloads-actions-right">
+                        <!-- Sort Dropdown -->
+                        <div class="downloads-sort-dropdown" id="downloadSortDropdown">
+                            <button type="button" class="downloads-sort-trigger" id="downloadSortBtn" aria-haspopup="true" aria-expanded="false" title="Sort downloads">
+                                <span class="downloads-sort-prefix">Sort:</span>
+                                <span class="downloads-sort-current" id="downloadSortLabel">Recently downloaded</span>
+                                <svg class="downloads-sort-arrow" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                            <div class="downloads-sort-menu hidden" id="downloadSortMenu" role="menu">
+                                <button type="button" class="downloads-sort-item is-selected" data-download-sort-val="recently-downloaded" role="menuitem">
+                                    <span>Recently downloaded</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="downloads-sort-item" data-download-sort-val="recently-played" role="menuitem">
+                                    <span>Recently played</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="downloads-sort-item" data-download-sort-val="alphabetical" role="menuitem">
+                                    <span>Alphabetical</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button type="button" class="downloads-sort-item" data-download-sort-val="size" role="menuitem">
+                                    <span>Size</span>
+                                    <svg class="check-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- View Toggle: List & Grid (SVG Icons) -->
+                        <div class="downloads-view-toggle" role="group" aria-label="Downloads view mode">
+                            <button type="button" class="downloads-view-btn is-active" id="downloadViewListBtn" data-view-mode="list" aria-label="List view" title="List view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button type="button" class="downloads-view-btn" id="downloadViewGridBtn" data-view-mode="grid" aria-label="Grid view" title="Grid view">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Subheader (Title on left, Count on right) -->
+                <div class="downloads-sub-header">
+                    <span class="downloads-sub-title">Your downloads</span>
+                    <span class="downloads-sub-count" id="downloadSubheaderCount">0 songs</span>
+                </div>
+
+                <div class="your-downloads-container view-list" id="libraryDownloadsList">
+                    <div class="your-downloads-empty-state">
+                        <div class="your-downloads-empty-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                        </div>
+                        <h3 class="your-downloads-empty-title">Download music for offline listening</h3>
+                        <p class="your-downloads-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
+                        <a href="auth-mobile.html" class="your-downloads-empty-btn">Log In / Sign Up</a>
+                    </div>
+                </div>
             </section>
         </div>
     </main>

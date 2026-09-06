@@ -825,7 +825,7 @@ const renderAccountRecentlyPlayed = () => {
             return `
                 <div class="song-card ${isActive ? 'is-active-song' : ''} ${isPaused ? 'is-paused' : ''}" data-id="${song.id}" data-audio="${audio}">
                     <div class="song-cover">
-                        <img src="${cover}" alt="${safeName}" width="148" height="111" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">
+                        <img src="${cover}" alt="${safeName}" width="148" height="111" class="account-recent-song-img" style="width:100%; height:100%; object-fit:cover; aspect-ratio:4/3;" loading="lazy">
                         <button class="play-overlay" aria-label="Play ${safeName}" 
                             data-audio="${audio}" data-name="${safeName}" data-artist="${safeArtist}" 
                             data-cover="${cover}" data-duration="${duration}" data-context="account-recent">

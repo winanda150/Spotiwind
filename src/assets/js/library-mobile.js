@@ -41,6 +41,11 @@ let trackFilterMode = 'all'; // 'all' | 'liked' | 'downloaded'
 let trackSortMode = 'recently-added'; // 'recently-added' | 'recently-played' | 'alphabetical'
 let trackViewMode = 'list'; // 'list' | 'grid'
 
+let downloadSearchQuery = '';
+let downloadFilterMode = 'all'; // 'all' | 'tracks' | 'albums' | 'playlist'
+let downloadSortMode = 'recently-downloaded'; // 'recently-downloaded' | 'recently-played' | 'alphabetical' | 'size'
+let downloadViewMode = 'list'; // 'list' | 'grid'
+
 function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -137,6 +142,11 @@ export async function initLibraryPage(initialTab = 'overview') {
     trackSortMode = 'recently-added';
     trackViewMode = 'list';
 
+    downloadSearchQuery = '';
+    downloadFilterMode = 'all';
+    downloadSortMode = 'recently-added';
+    downloadViewMode = 'list';
+
     setupLibraryTabs(initialTab);
     setupOverviewCards();
     setupRealtimeOverviewData();
@@ -146,6 +156,7 @@ export async function initLibraryPage(initialTab = 'overview') {
     setupAlbumControls();
     setupArtistControls();
     setupTrackControls();
+    setupDownloadControls();
 
     // Listen for custom downloads-updated event
     const handleDownloadsUpdated = () => {
@@ -156,6 +167,14 @@ export async function initLibraryPage(initialTab = 'overview') {
     };
     window.addEventListener('downloads-updated', handleDownloadsUpdated);
     listeners.push({ element: window, type: 'downloads-updated', handler: handleDownloadsUpdated });
+
+    const handleStorageChange = (e) => {
+        if (!e.key || e.key === 'downloaded_songs' || e.key === 'spotiwind_downloads') {
+            handleDownloadsUpdated();
+        }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    listeners.push({ element: window, type: 'storage', handler: handleStorageChange });
 
     // Listen for real-time download-progress event
     const handleDownloadProgress = (e) => {
@@ -513,6 +532,22 @@ function setDownloadsCount(count) {
     if (el) el.textContent = formatCount(count, 'song', 'songs');
     const badge = document.getElementById('libraryDownloadsBadge');
     if (badge) badge.textContent = formatCount(count, 'song', 'songs');
+    const subheaderCount = document.getElementById('downloadSubheaderCount');
+    if (subheaderCount) {
+        let unitSingle = 'song';
+        let unitPlural = 'songs';
+        if (downloadFilterMode === 'tracks') {
+            unitSingle = 'track';
+            unitPlural = 'tracks';
+        } else if (downloadFilterMode === 'albums') {
+            unitSingle = 'album';
+            unitPlural = 'albums';
+        } else if (downloadFilterMode === 'playlist' || downloadFilterMode === 'playlists') {
+            unitSingle = 'playlist';
+            unitPlural = 'playlists';
+        }
+        subheaderCount.textContent = formatCount(count, unitSingle, unitPlural);
+    }
 }
 
 function setRecentCount(count) {
@@ -981,7 +1016,7 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
         container.innerHTML = albums.map(album => `
             <div class="your-album-grid-card album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
                 <div class="your-album-grid-cover">
-                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-grid-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
+                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-grid-cover-img" width="160" height="160" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
                     <div class="your-album-grid-play-overlay">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -1007,7 +1042,7 @@ function renderAlbumsPanel(songs = [], isGuest = false) {
         container.innerHTML = albums.map(album => `
             <div class="your-album-item album-card" data-album-name="${escapeHTML(album.name)}" data-album-artist="${escapeHTML(album.artist)}" data-first-audio="${album.tracks[0]?.audio || ''}">
                 <div class="your-album-cover">
-                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-cover-img" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
+                    <img src="${album.cover}" alt="${escapeHTML(album.name)}" class="your-album-cover-img" width="48" height="48" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300&auto=format&fit=crop&q=80'">
                     <div class="your-album-play-overlay">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     </div>
@@ -1215,7 +1250,7 @@ async function renderArtistsPanel(isGuest = false) {
         container.innerHTML = filtered.map(a => `
             <div class="your-artist-grid-card" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" data-artist-photo="${escapeHTML(a.photo || defaultAvatar)}">
                 <div class="your-artist-grid-avatar">
-                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" loading="lazy" onerror="this.src='${defaultAvatar}'">
+                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" width="160" height="160" loading="lazy" onerror="this.src='${defaultAvatar}'">
                 </div>
                 <div class="your-artist-grid-info">
                     <h3 class="your-artist-grid-name">${escapeHTML(a.name)}</h3>
@@ -1227,7 +1262,7 @@ async function renderArtistsPanel(isGuest = false) {
         container.innerHTML = filtered.map(a => `
             <div class="your-artist-item" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" data-artist-photo="${escapeHTML(a.photo || defaultAvatar)}">
                 <div class="your-artist-avatar-wrapper">
-                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" class="your-artist-avatar-img" loading="lazy" onerror="this.src='${defaultAvatar}'">
+                    <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" class="your-artist-avatar-img" width="48" height="48" loading="lazy" onerror="this.src='${defaultAvatar}'">
                 </div>
                 <div class="your-artist-info">
                     <h3 class="your-artist-name">${escapeHTML(a.name)}</h3>
@@ -1357,7 +1392,7 @@ function renderTracksPanel(songs = [], isGuest = false) {
             return `
                 <div class="your-track-grid-card ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}" data-song-duration="${duration}">
                     <div class="your-track-grid-cover">
-                        <img src="${coverUrl}" alt="${escapeHTML(name)}" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" width="160" height="160" loading="lazy" onerror="this.src='${defaultCover}'">
                         <div class="your-track-play-overlay">
                             ${isActive && !isPaused ? `
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
@@ -1398,7 +1433,7 @@ function renderTracksPanel(songs = [], isGuest = false) {
             return `
                 <div class="your-track-item ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}">
                     <div class="your-track-cover">
-                        <img src="${coverUrl}" alt="${escapeHTML(name)}" class="your-track-cover-img" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" class="your-track-cover-img" width="46" height="46" loading="lazy" onerror="this.src='${defaultCover}'">
                         <div class="your-track-play-overlay">
                             ${isActive && !isPaused ? `
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
@@ -1435,19 +1470,67 @@ function renderTracksPanel(songs = [], isGuest = false) {
 function renderDownloadsPanel(isGuest = !auth.currentUser) {
     const container = document.getElementById('libraryDownloadsList');
     const badgeEl = document.getElementById('libraryDownloadsBadge');
+    const subheaderCountEl = document.getElementById('downloadSubheaderCount');
+    const storageBadgeEl = document.getElementById('downloadsStorageBadge');
+    const storageFillEl = document.getElementById('downloadsStorageProgressFill');
     if (!container) return;
 
+    let downloads = [];
+    try {
+        const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
+        downloads = JSON.parse(raw);
+        if (!Array.isArray(downloads)) downloads = [];
+    } catch {
+        downloads = [];
+    }
+
+    let unitSingle = 'song';
+    let unitPlural = 'songs';
+    if (downloadFilterMode === 'tracks') {
+        unitSingle = 'track';
+        unitPlural = 'tracks';
+    } else if (downloadFilterMode === 'albums') {
+        unitSingle = 'album';
+        unitPlural = 'albums';
+    } else if (downloadFilterMode === 'playlist' || downloadFilterMode === 'playlists') {
+        unitSingle = 'playlist';
+        unitPlural = 'playlists';
+    }
+
+    // 1. Calculate Offline Storage data (Total MB / 10 GB limit)
+    const totalMB = downloads.reduce((acc, s) => acc + (s.size ? s.size / (1024 * 1024) : 4.5), 0);
+    const storageLimitMB = 10 * 1024; // 10 GB = 10240 MB
+    const storagePercent = Math.min(100, Math.max(0, (totalMB / storageLimitMB) * 100));
+
+    if (storageBadgeEl) {
+        if (totalMB >= 1024) {
+            storageBadgeEl.textContent = `${(totalMB / 1024).toFixed(2)} GB / 10 GB`;
+        } else {
+            storageBadgeEl.textContent = `${totalMB.toFixed(1)} MB / 10 GB`;
+        }
+    }
+    if (storageFillEl) {
+        storageFillEl.style.width = `${storagePercent}%`;
+    }
+
+    // 2. Handle Guest state
     if (isGuest) {
         setDownloadsCount(0);
         if (badgeEl) badgeEl.textContent = '0 songs';
+        if (subheaderCountEl) subheaderCountEl.textContent = `0 ${unitPlural}`;
+        container.className = 'your-downloads-container view-list';
         container.innerHTML = `
-            <div class="downloads-empty-state">
-                <div class="downloads-empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <div class="your-downloads-empty-state">
+                <div class="your-downloads-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
                 </div>
-                <h3 class="downloads-empty-title">Download music for offline listening</h3>
-                <p class="downloads-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
-                <a href="auth-mobile.html" class="downloads-empty-btn">Log In / Sign Up</a>
+                <h3 class="your-downloads-empty-title">Download music for offline listening</h3>
+                <p class="your-downloads-empty-desc">Log in to download your favorite songs and enjoy offline playback anywhere.</p>
+                <a href="auth-mobile.html" class="your-downloads-empty-btn">Log In / Sign Up</a>
             </div>
         `;
         return;
@@ -1457,16 +1540,18 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
     if (!isPro) {
         setDownloadsCount(0);
         if (badgeEl) badgeEl.textContent = '0 songs';
+        if (subheaderCountEl) subheaderCountEl.textContent = `0 ${unitPlural}`;
+        container.className = 'your-downloads-container view-list';
         container.innerHTML = `
-            <div class="downloads-empty-state downloads-pro-state">
-                <div class="downloads-empty-icon is-pro" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+            <div class="your-downloads-empty-state">
+                <div class="your-downloads-empty-icon is-pro" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <path d="M5 16h14a1 1 0 0 0 1-1L21 6l-4.5 4L12 3 7.5 10 3 6l1 9a1 1 0 0 0 1 1zm-1 2a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4z"/>
                     </svg>
                 </div>
-                <h3 class="downloads-empty-title">Available with Spotiwind PRO</h3>
-                <p class="downloads-empty-desc">Subscribe to Spotiwind PRO to download tracks and listen offline anytime.</p>
-                <button id="libraryUpgradeProBtn" class="downloads-empty-btn downloads-pro-upgrade-btn" type="button" aria-label="Upgrade to PRO">
+                <h3 class="your-downloads-empty-title">Available with Spotiwind PRO</h3>
+                <p class="your-downloads-empty-desc">Subscribe to Spotiwind PRO to download tracks and listen offline anytime.</p>
+                <button id="libraryUpgradeProBtn" class="your-downloads-empty-btn your-downloads-pro-upgrade-btn" type="button" aria-label="Upgrade to PRO">
                     <span>Upgrade to PRO</span>
                 </button>
             </div>
@@ -1474,33 +1559,195 @@ function renderDownloadsPanel(isGuest = !auth.currentUser) {
         return;
     }
 
-    try {
-        const raw = localStorage.getItem('downloaded_songs') || localStorage.getItem('spotiwind_downloads') || '[]';
-        const downloads = JSON.parse(raw);
+    setDownloadsCount(downloads.length);
+    if (badgeEl) badgeEl.textContent = `${downloads.length} ${downloads.length === 1 ? 'song' : 'songs'}`;
 
-        if (!Array.isArray(downloads) || downloads.length === 0) {
-            setDownloadsCount(0);
-            if (badgeEl) badgeEl.textContent = '0 songs';
-            container.innerHTML = `
-                <div class="downloads-empty-state">
-                    <div class="downloads-empty-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+    if (downloads.length === 0) {
+        if (subheaderCountEl) subheaderCountEl.textContent = `0 ${unitPlural}`;
+        container.className = 'your-downloads-container view-list';
+        container.innerHTML = `
+            <div class="your-downloads-empty-state">
+                <div class="your-downloads-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </div>
+                <h3 class="your-downloads-empty-title">No downloaded songs yet</h3>
+                <p class="your-downloads-empty-desc">Download tracks from the player or track options to listen offline anywhere.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 3. Filter & Sort
+    let filtered = [...downloads];
+
+    if (downloadSearchQuery) {
+        const q = downloadSearchQuery.toLowerCase();
+        filtered = filtered.filter(song => {
+            const name = (song.name || song.title || '').toLowerCase();
+            const artist = (song.artist || '').toLowerCase();
+            return name.includes(q) || artist.includes(q);
+        });
+    }
+
+    if (downloadFilterMode === 'tracks') {
+        filtered = filtered.filter(s => (s.type === 'track' || (!s.playlistId && !s.albumId && !s.albumName && !s.playlistName) || Boolean(s.audio || s.audioUrl || s.songAudio)));
+    } else if (downloadFilterMode === 'albums') {
+        filtered = filtered.filter(s => Boolean(s.album || s.albumId || s.albumName || s.type === 'album'));
+    } else if (downloadFilterMode === 'playlist' || downloadFilterMode === 'playlists') {
+        filtered = filtered.filter(s => Boolean(s.playlist || s.playlistId || s.playlistName || s.type === 'playlist'));
+    }
+
+    if (downloadSortMode === 'recently-downloaded' || downloadSortMode === 'recently-added') {
+        filtered.reverse();
+    } else if (downloadSortMode === 'recently-played') {
+        let recentList = [];
+        try {
+            const rawRecent = localStorage.getItem('recently_played_songs') || localStorage.getItem('recentlyPlayed') || '[]';
+            recentList = JSON.parse(rawRecent);
+            if (!Array.isArray(recentList)) recentList = [];
+        } catch {
+            recentList = [];
+        }
+        const recentIds = recentList.map(r => String(r.id || r.songId || ''));
+
+        filtered.sort((a, b) => {
+            const idA = String(a.id || a.songId || '');
+            const idB = String(b.id || b.songId || '');
+            const idxA = recentIds.indexOf(idA);
+            const idxB = recentIds.indexOf(idB);
+
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return 0;
+        });
+    } else if (downloadSortMode === 'alphabetical') {
+        filtered.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+    } else if (downloadSortMode === 'size') {
+        filtered.sort((a, b) => {
+            const sizeA = Number(a.size) || (Number(a.duration) ? a.duration * 40000 : 4.5 * 1024 * 1024);
+            const sizeB = Number(b.size) || (Number(b.duration) ? b.duration * 40000 : 4.5 * 1024 * 1024);
+            return sizeB - sizeA;
+        });
+    }
+
+    if (subheaderCountEl) {
+        subheaderCountEl.textContent = formatCount(filtered.length, unitSingle, unitPlural);
+    }
+
+    if (filtered.length === 0) {
+        container.className = 'your-downloads-container view-list';
+        container.innerHTML = `
+            <div class="your-downloads-empty-state">
+                <div class="your-downloads-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </div>
+                <h3 class="your-downloads-empty-title">No downloads found</h3>
+                <p class="your-downloads-empty-desc">${downloadSearchQuery ? `No downloads matching "${escapeHTML(downloadSearchQuery)}".` : 'No downloads in this filter.'}</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 4. Render Grid or List
+    container.className = `your-downloads-container ${downloadViewMode === 'grid' ? 'view-grid' : 'view-list'}`;
+    const defaultCover = '../../public/branding/Spotiwind.webp';
+    const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
+    const activeAudio = window.__activeAudio || document.querySelector('audio');
+
+    if (downloadViewMode === 'grid') {
+        container.innerHTML = filtered.map(song => {
+            const songId = song.id || song.songId || '';
+            const name = song.name || song.title || 'Unknown Track';
+            const artist = song.artist || 'Unknown Artist';
+            const coverUrl = song.cover || song.coverUrl || song.image || defaultCover;
+            const audio = song.audio || song.audioUrl || song.songAudio || '';
+            const duration = Number(song.duration) || 0;
+
+            const isSame = currentSong && (String(currentSong.id) === String(songId));
+            const isActive = Boolean(isSame);
+            const isPaused = isActive && Boolean(activeAudio?.paused);
+
+            return `
+                <div class="your-download-grid-card ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}" data-song-duration="${duration}">
+                    <div class="your-download-grid-cover">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" width="160" height="160" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <div class="your-download-play-overlay">
+                            ${isActive && !isPaused ? `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                            ` : `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            `}
+                        </div>
                     </div>
-                    <h3 class="downloads-empty-title">No downloaded songs yet</h3>
-                    <p class="downloads-empty-desc">Download tracks from the player or song options to listen offline anywhere.</p>
+                    <div class="your-download-grid-info">
+                        <div class="your-download-grid-text">
+                            <h3 class="your-download-grid-title">${escapeHTML(name)}</h3>
+                            <p class="your-download-grid-meta">${escapeHTML(artist)}</p>
+                        </div>
+                        <button class="your-download-grid-more-btn download-more-btn" type="button" data-song-id="${songId}" data-song-name="${escapeHTML(name)}" title="Download options" aria-label="Download options">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `;
-            return;
-        }
+        }).join('');
+    } else {
+        container.innerHTML = filtered.map(song => {
+            const songId = song.id || song.songId || '';
+            const name = song.name || song.title || 'Unknown Track';
+            const artist = song.artist || 'Unknown Artist';
+            const coverUrl = song.cover || song.coverUrl || song.image || defaultCover;
+            const audio = song.audio || song.audioUrl || song.songAudio || '';
+            const duration = Number(song.duration) || 0;
 
-        setDownloadsCount(downloads.length);
-        if (badgeEl) badgeEl.textContent = `${downloads.length} ${downloads.length === 1 ? 'song' : 'songs'}`;
-        container.innerHTML = downloads.map(song => createSongItemHTML(song, { isDownloadView: true, context: 'download' })).join('');
-        if (typeof window.syncActiveSongUI === 'function') {
-            window.syncActiveSongUI();
-        }
-    } catch {
-        container.innerHTML = `<p style="text-align:center; color: var(--text-muted); padding: 1rem;">Unable to load downloads.</p>`;
+            const isSame = currentSong && (String(currentSong.id) === String(songId));
+            const isActive = Boolean(isSame);
+            const isPaused = isActive && Boolean(activeAudio?.paused);
+
+            return `
+                <div class="your-download-item ${isActive ? 'is-active-song' : ''}" data-song-id="${songId}" data-song-audio="${audio}" data-song-name="${escapeHTML(name)}" data-song-artist="${escapeHTML(artist)}" data-song-cover="${escapeHTML(coverUrl)}" data-song-duration="${duration}">
+                    <div class="your-download-cover">
+                        <img src="${coverUrl}" alt="${escapeHTML(name)}" class="your-download-cover-img" width="48" height="48" loading="lazy" onerror="this.src='${defaultCover}'">
+                        <div class="your-download-play-overlay">
+                            ${isActive && !isPaused ? `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                            ` : `
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+                            `}
+                        </div>
+                    </div>
+                    <div class="your-download-info">
+                        <h3 class="your-download-title">${escapeHTML(name)}</h3>
+                        <p class="your-download-meta">${escapeHTML(artist)}</p>
+                    </div>
+                    <div class="your-download-actions">
+                        <button class="your-download-more-btn download-more-btn" type="button" data-song-id="${songId}" data-song-name="${escapeHTML(name)}" title="Download options" aria-label="Download options">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <circle cx="12" cy="5" r="1.75"></circle>
+                                <circle cx="12" cy="12" r="1.75"></circle>
+                                <circle cx="12" cy="19" r="1.75"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    if (typeof window.syncActiveSongUI === 'function') {
+        window.syncActiveSongUI();
     }
 }
 
@@ -2049,6 +2296,139 @@ function setupTrackControls() {
     }
 }
 
+function setupDownloadControls() {
+    const searchInput = document.getElementById('downloadSearchInput');
+    const searchClearBtn = document.getElementById('downloadSearchClearBtn');
+    const filterChips = document.querySelectorAll('[data-download-filter]');
+    const sortDropdown = document.getElementById('downloadSortDropdown');
+    const sortBtn = document.getElementById('downloadSortBtn');
+    const sortMenu = document.getElementById('downloadSortMenu');
+    const sortLabel = document.getElementById('downloadSortLabel');
+    const sortItems = document.querySelectorAll('[data-download-sort-val]');
+    const viewListBtn = document.getElementById('downloadViewListBtn');
+    const viewGridBtn = document.getElementById('downloadViewGridBtn');
+    const downloadsContainer = document.getElementById('libraryDownloadsList');
+
+    if (searchInput) {
+        const debouncedSearch = debounce(() => {
+            if (searchInput) {
+                downloadSearchQuery = (searchInput.value || '').trim().toLowerCase();
+            }
+            renderDownloadsPanel(!auth.currentUser);
+        }, 250);
+
+        const handleSearchInput = (e) => {
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('hidden', !e.target.value);
+            }
+            debouncedSearch();
+        };
+        searchInput.addEventListener('input', handleSearchInput);
+        listeners.push({ element: searchInput, type: 'input', handler: handleSearchInput });
+    }
+
+    if (searchClearBtn) {
+        const handleClearClick = () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            downloadSearchQuery = '';
+            renderDownloadsPanel(!auth.currentUser);
+        };
+        searchClearBtn.addEventListener('click', handleClearClick);
+        listeners.push({ element: searchClearBtn, type: 'click', handler: handleClearClick });
+    }
+
+    filterChips.forEach(chip => {
+        const handleChipClick = () => {
+            filterChips.forEach(c => c.classList.remove('is-active'));
+            chip.classList.add('is-active');
+            downloadFilterMode = chip.dataset.downloadFilter || 'all';
+            renderDownloadsPanel(!auth.currentUser);
+        };
+        chip.addEventListener('click', handleChipClick);
+        listeners.push({ element: chip, type: 'click', handler: handleChipClick });
+    });
+
+    if (sortBtn && sortMenu && sortDropdown) {
+        const toggleSortMenu = (e) => {
+            e.stopPropagation();
+            const isOpen = !sortMenu.classList.contains('hidden');
+            if (isOpen) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                sortMenu.classList.remove('hidden');
+                sortDropdown.classList.add('is-open');
+                sortBtn.setAttribute('aria-expanded', 'true');
+            }
+        };
+        sortBtn.addEventListener('click', toggleSortMenu);
+        listeners.push({ element: sortBtn, type: 'click', handler: toggleSortMenu });
+
+        sortItems.forEach(item => {
+            const handleSortItemClick = (e) => {
+                e.stopPropagation();
+                downloadSortMode = item.dataset.downloadSortVal || 'recently-downloaded';
+                sortItems.forEach(it => it.classList.toggle('is-selected', it === item));
+                if (sortLabel) {
+                    sortLabel.textContent = item.querySelector('span')?.textContent || 'Recently downloaded';
+                }
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+                renderDownloadsPanel(!auth.currentUser);
+            };
+            item.addEventListener('click', handleSortItemClick);
+            listeners.push({ element: item, type: 'click', handler: handleSortItemClick });
+        });
+
+        const handleOutsideClick = (e) => {
+            if (!sortDropdown.contains(e.target)) {
+                sortMenu.classList.add('hidden');
+                sortDropdown.classList.remove('is-open');
+                sortBtn.setAttribute('aria-expanded', 'false');
+            }
+        };
+        document.addEventListener('click', handleOutsideClick);
+        listeners.push({ element: document, type: 'click', handler: handleOutsideClick });
+    }
+
+    const setViewMode = (mode) => {
+        downloadViewMode = mode;
+        if (viewListBtn) viewListBtn.classList.toggle('is-active', mode === 'list');
+        if (viewGridBtn) viewGridBtn.classList.toggle('is-active', mode === 'grid');
+        if (downloadsContainer) {
+            downloadsContainer.classList.toggle('view-list', mode === 'list');
+            downloadsContainer.classList.toggle('view-grid', mode === 'grid');
+        }
+        renderDownloadsPanel(!auth.currentUser);
+    };
+
+    // Initial DOM sync with downloadViewMode
+    if (viewListBtn) viewListBtn.classList.toggle('is-active', downloadViewMode === 'list');
+    if (viewGridBtn) viewGridBtn.classList.toggle('is-active', downloadViewMode === 'grid');
+    if (downloadsContainer) {
+        downloadsContainer.classList.toggle('view-list', downloadViewMode === 'list');
+        downloadsContainer.classList.toggle('view-grid', downloadViewMode === 'grid');
+    }
+
+    if (viewListBtn) {
+        const handleListClick = () => setViewMode('list');
+        viewListBtn.addEventListener('click', handleListClick);
+        listeners.push({ element: viewListBtn, type: 'click', handler: handleListClick });
+    }
+
+    if (viewGridBtn) {
+        const handleGridClick = () => setViewMode('grid');
+        viewGridBtn.addEventListener('click', handleGridClick);
+        listeners.push({ element: viewGridBtn, type: 'click', handler: handleGridClick });
+    }
+}
+
 function renderLikedSongsOverview(songs = [], isGuest = false) {
     const container = document.getElementById('overviewLikedList');
     if (!container) return;
@@ -2322,10 +2702,10 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songMoreBtn = e.target.closest('.library-song-more-btn, .track-more-btn, .overview-song-more-btn, .your-track-more-btn, .your-track-grid-more-btn');
+        const songMoreBtn = e.target.closest('.library-song-more-btn, .track-more-btn, .overview-song-more-btn, .your-track-more-btn, .your-track-grid-more-btn, .download-more-btn, .your-download-more-btn, .your-download-grid-more-btn');
         if (songMoreBtn) {
             e.stopPropagation();
-            const songItem = songMoreBtn.closest('.library-song-item, .track-item, .overview-song-item, .your-track-item, .your-track-grid-card');
+            const songItem = songMoreBtn.closest('.library-song-item, .track-item, .overview-song-item, .your-track-item, .your-track-grid-card, .your-download-item, .your-download-grid-card, .download-item');
             if (songItem) {
                 const song = {
                     id: songItem.dataset.songId,
@@ -2340,8 +2720,8 @@ function setupSongActionListeners() {
             return;
         }
 
-        const songItem = e.target.closest('.library-song-item, .track-item, .download-item, .overview-song-item, .your-track-item, .your-track-grid-card');
-        if (songItem && songItem.dataset.songAudio && !e.target.closest('.like-song-btn, .your-track-like-btn, .library-song-more-btn, .track-more-btn, .your-track-more-btn, .your-track-grid-more-btn, .download-options-btn')) {
+        const songItem = e.target.closest('.library-song-item, .track-item, .download-item, .overview-song-item, .your-track-item, .your-track-grid-card, .your-download-item, .your-download-grid-card');
+        if (songItem && songItem.dataset.songAudio && !e.target.closest('.like-song-btn, .your-track-like-btn, .library-song-more-btn, .track-more-btn, .your-track-more-btn, .your-track-grid-more-btn, .download-options-btn, .download-more-btn, .your-download-more-btn, .your-download-grid-more-btn')) {
             const { songId, songAudio, songName, songArtist, songCover, songDuration } = songItem.dataset;
             const currentSong = window.spotiwind?.mobile?.getCurrentSongData?.() || window.__currentSongData || (typeof window.getCurrentSongData === 'function' ? window.getCurrentSongData() : null);
             const isSameActiveSong = currentSong && (typeof window.areSameSongs === 'function'

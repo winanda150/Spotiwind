@@ -76,13 +76,23 @@ export const toggleDownloadSong = async (song) => {
             return false;
         }
 
+        const durationSec = Number(song.duration) || 0;
+        const estimatedBytes = durationSec > 0 ? Math.round(durationSec * (128 * 1024 / 8)) : 4.5 * 1024 * 1024;
+
         const newDownloadItem = {
+            ...song,
             id: String(song.id),
             name: song.name || song.title || 'Unknown Track',
             artist: song.artist || 'Unknown Artist',
-            cover: song.cover || '',
-            audio: song.audio || '',
-            duration: song.duration || 0,
+            cover: song.cover || song.coverUrl || song.image || '',
+            audio: song.audio || song.audioUrl || song.songAudio || '',
+            duration: durationSec,
+            album: song.album || song.album_name || song.albumTitle || song.albumName || '',
+            albumId: song.albumId || '',
+            playlist: song.playlist || song.playlistName || '',
+            playlistId: song.playlistId || '',
+            type: song.type || 'track',
+            size: Number(song.size) || estimatedBytes,
             downloadStatus: 'downloading',
             downloadProgress: 10,
             isCachedOffline: false,

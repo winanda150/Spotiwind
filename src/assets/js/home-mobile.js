@@ -265,14 +265,14 @@ const syncActiveSongUI = () => {
         el.classList.remove('is-active-song', 'is-paused');
     });
 
-    document.querySelectorAll('.play-overlay, .play-pause-btn, .library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon').forEach(el => {
+    document.querySelectorAll('.play-overlay, .play-pause-btn, .library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon, .your-track-play-overlay, .your-download-play-overlay').forEach(el => {
         if (!isAudioBuffering) {
             el.classList.remove('btn-loading');
         }
         if (el.classList.contains('play-overlay')) el.innerHTML = PLAY_ICON;
     });
 
-    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon').forEach(el => {
+    document.querySelectorAll('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .mix-track-play-icon, .recent-track-play-icon, .your-track-play-overlay, .your-download-play-overlay').forEach(el => {
         el.innerHTML = PLAY_ICON;
     });
 
@@ -311,11 +311,11 @@ const syncActiveSongUI = () => {
             } else {
                 el.classList.remove('is-paused');
             }
-            const overlay = el.querySelector('.play-overlay');
+            const overlay = el.querySelector('.play-overlay, .your-track-play-overlay, .your-download-play-overlay');
             if (overlay) {
                 overlay.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
             }
-            const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .recent-track-play-icon');
+            const playIcon = el.querySelector('.library-song-play-icon, .popular-search-play-icon, .artist-song-play-icon, .recent-track-play-icon, .your-track-play-overlay, .your-download-play-overlay');
             if (playIcon) {
                 playIcon.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
             }
