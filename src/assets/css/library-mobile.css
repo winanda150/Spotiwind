@@ -2443,19 +2443,6 @@
     display: block;
 }
 
-.your-artist-badge {
-    position: absolute;
-    bottom: -1px;
-    right: -1px;
-    background: var(--accent-color, #B91EC9);
-    color: #ffffff;
-    font-size: 0.55rem;
-    font-weight: 700;
-    padding: 0.08rem 0.3rem;
-    border-radius: 999px;
-    border: 1.5px solid #0f172a;
-}
-
 .your-artist-info {
     flex: 1;
     min-width: 0;

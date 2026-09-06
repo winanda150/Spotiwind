@@ -1198,7 +1198,6 @@ async function renderArtistsPanel(isGuest = false) {
             <div class="your-artist-item" data-artist-id="${escapeHTML(a.id)}" data-artist-name="${escapeHTML(a.name)}" data-artist-photo="${escapeHTML(a.photo || defaultAvatar)}">
                 <div class="your-artist-avatar-wrapper">
                     <img src="${a.photo || defaultAvatar}" alt="${escapeHTML(a.name)}" class="your-artist-avatar-img" loading="lazy" onerror="this.src='${defaultAvatar}'">
-                    <span class="your-artist-badge" title="Followed">✓</span>
                 </div>
                 <div class="your-artist-info">
                     <h3 class="your-artist-name">${escapeHTML(a.name)}</h3>
